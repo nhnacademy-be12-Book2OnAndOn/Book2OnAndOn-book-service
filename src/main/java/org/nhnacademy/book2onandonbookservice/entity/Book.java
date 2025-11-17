@@ -92,18 +92,47 @@ public class Book {
     private BookStatus status;
 
     /*연관 관계 설정*/
-    // 도서 이미지
+    // 도서 이미지 매핑
     @Setter
     @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private java.util.List<BookImage> images = new ArrayList<>();
 
-    // 도서 카테고리
+    // 도서 카테고리 매핑
     @Setter
     @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookCategory> bookCategories = new ArrayList<>();
 
+    // 태그 매핑
+    @Setter
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<BookTag> bookTags = new ArrayList<>();
+
+    // 작가 매핑
+    @Setter
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<BookAuthor> bookAuthors = new ArrayList<>();
+
+    // 출판사 매핑
+    @Setter
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<BookPublisher> bookPublishers = new ArrayList<>();
+
+    // 리뷰
+    @Setter
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Review> reviews = new ArrayList<>();
+
+    // 좋아요
+    @Setter
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<BookLike> likes = new ArrayList<>();
     @Setter
     @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

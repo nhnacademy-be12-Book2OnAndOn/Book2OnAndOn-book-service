@@ -1,14 +1,15 @@
 package org.nhnacademy.book2onandonbookservice.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,27 +17,25 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "Book-Author")
-@Getter
+@Table(name = "Publisher")
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
 @Builder
-public class BookAuthor {
-    // 도서-작가 아이디
+public class Publisher {
+    // 출판사 아이디
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "book_author_id")
+    @Column(name = "publisher_id")
     private Long id;
 
-    // 작가 아이디
+    // 출판사 이름
     @Setter
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id", nullable = false)
-    private Author author;
+    @Column(name = "publisher_name", length = 50, nullable = false)
+    private String publisherName;
 
-    // 도서 아이디
     @Setter
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_id", nullable = false)
-    private Book book;
+    @OneToMany(mappedBy = "publisher", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<BookPublisher> bookPublishers = new ArrayList<>();
 }
