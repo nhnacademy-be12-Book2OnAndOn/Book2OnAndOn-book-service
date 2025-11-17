@@ -103,4 +103,11 @@ public class Book {
     @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookCategory> bookCategories = new ArrayList<>();
+
+    @Setter
+    @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<BookTranslator> bookTranslators = new ArrayList<>();
+
+
 }
