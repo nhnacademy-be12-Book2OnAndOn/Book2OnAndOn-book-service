@@ -9,34 +9,28 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
-@Table(name = "BookImage")
+@Table(name = "BookTag")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class BookImage {
-    // 도서 이미지 아이디
+public class BookTag {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "book_image_path")
+    @Column(name = "book_tag_id")
     private Long id;
 
-    // 도서 이미지 경로
-    @Setter
-    @Column(name = "book_image_path", length = 100, nullable = false)
-    @Size(min = 1, max = 100)
-    private String imagePath;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tag_id", nullable = false)
+    private Tag tag;
 
-    // 도서 아이디
-    @Setter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;

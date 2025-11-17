@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -32,6 +33,7 @@ public class Translator {
     // 작가 이름
     @Setter
     @Column(name = "translator_name", length = 50, nullable = false)
+    @Size(min = 1, max = 50)
     private String authorName;
 
     @OneToMany(mappedBy = "Translator", cascade = CascadeType.ALL, orphanRemoval = true)

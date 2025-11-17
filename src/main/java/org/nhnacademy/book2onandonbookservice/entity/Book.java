@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -36,6 +37,7 @@ public class Book {
     // 도서 제목
     @Setter
     @Column(name = "book_title", length = 100, nullable = false)
+    @Size(min = 1, max = 100)
     private String title;
 
     // 목차
@@ -63,6 +65,7 @@ public class Book {
     // ISBN -> ISBN_no가 null 이면 ISBNThirteen_no는 null이어선 안됨.
     @Setter
     @Column(name = "ISBN", length = 20, nullable = false)
+    @Size(min = 1, max = 20)
     private String isbn;
 
     // 출판 일시
@@ -73,6 +76,7 @@ public class Book {
     // 책 재고 상태
     @Setter
     @Column(name = "stock_status", length = 50)
+    @Size(min = 1, max = 50)
     private String stockStatus;
 
     // 판매가
@@ -89,6 +93,7 @@ public class Book {
     @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "book_status", length = 30, nullable = false)
+    @Size(min = 1, max = 30)
     private BookStatus status;
 
     /*연관 관계 설정*/
@@ -133,6 +138,8 @@ public class Book {
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookLike> likes = new ArrayList<>();
+
+    //번역가
     @Setter
     @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

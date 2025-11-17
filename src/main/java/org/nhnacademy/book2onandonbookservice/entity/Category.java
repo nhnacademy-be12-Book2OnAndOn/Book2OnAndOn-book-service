@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -34,6 +35,7 @@ public class Category {
     // 카테고리 명
     @Setter
     @Column(name = "category_name", length = 20, nullable = false)
+    @Size(min = 1, max = 20)
     private String categoryName;
 
     // 상위 카테고리 아이디
