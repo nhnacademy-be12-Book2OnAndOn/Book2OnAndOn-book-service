@@ -16,27 +16,24 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "Book-Author")
+@Table(name = "BookPublisher")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BookAuthor {
-    // 도서-작가 아이디
+public class BookPublisher {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "book_author_id")
+    @Column(name = "book_publisher_id")
     private Long id;
 
-    // 작가 아이디
-    @Setter
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id", nullable = false)
-    private Author author;
-
-    // 도서 아이디
     @Setter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
+
+    @Setter
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "publisher_id", nullable = false)
+    private Publisher publisher;
 }

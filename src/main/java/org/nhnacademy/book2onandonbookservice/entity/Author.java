@@ -33,7 +33,8 @@ public class Author {
     @Setter
     @Column(name = "author_name", length = 50, nullable = false)
     private String authorName;
-
+    
+    @Setter
     @OneToMany(mappedBy = "Author", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookAuthor> bookAuthors = new ArrayList<>();

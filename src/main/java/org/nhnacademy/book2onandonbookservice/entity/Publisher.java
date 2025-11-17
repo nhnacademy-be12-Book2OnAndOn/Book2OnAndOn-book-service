@@ -9,10 +9,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "Publisher")
@@ -21,14 +23,18 @@ import lombok.NoArgsConstructor;
 @Getter
 @Builder
 public class Publisher {
+    // 출판사 아이디
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "publisher_id")
     private Long id;
 
+    // 출판사 이름
+    @Setter
     @Column(name = "publisher_name", length = 50, nullable = false)
-    private String name;
+    private String publisherName;
 
+    @Setter
     @OneToMany(mappedBy = "publisher", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookPublisher> bookPublishers = new ArrayList<>();
