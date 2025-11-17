@@ -5,9 +5,14 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.DataParserDto;
+import org.nhnacademy.book2onandonbookservice.entity.Author;
+import org.nhnacademy.book2onandonbookservice.entity.Book;
+import org.nhnacademy.book2onandonbookservice.entity.BookAuthor;
 import org.nhnacademy.book2onandonbookservice.exception.DataParserException;
 import org.nhnacademy.book2onandonbookservice.parser.DataParser;
 import org.nhnacademy.book2onandonbookservice.parser.DataParserResolver;
+import org.nhnacademy.book2onandonbookservice.repository.BookTranslatorRepository;
+import org.nhnacademy.book2onandonbookservice.repository.TranslatorRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
@@ -77,7 +82,7 @@ public class DataInitializer implements ApplicationRunner {
                 });
 
         Book book = Book.builder()
-                .bookIsbn(dto.getIsbn())
+                .isbn(dto.getIsbn())
                 .publisher(publisher)
                 .bookTitle(dto.getTitle())
                 .bookDescription(dto.getDescription())
