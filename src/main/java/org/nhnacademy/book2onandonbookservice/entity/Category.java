@@ -42,7 +42,7 @@ public class Category {
     @Setter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
-    private Category parentId;
+    private Category parent;
 
     // 상위-하위 카테고리 설정
     @Setter

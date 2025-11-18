@@ -9,7 +9,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,13 +25,12 @@ public class BookImage {
     // 도서 이미지 아이디
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "book_image_path")
+    @Column(name = "book_image_id")
     private Long id;
 
     // 도서 이미지 경로
     @Setter
-    @Column(name = "book_image_path", length = 100, nullable = false)
-    @Size(min = 1, max = 100)
+    @Column(name = "book_image_path", columnDefinition = "TEXT", nullable = false)
     private String imagePath;
 
     // 도서 아이디

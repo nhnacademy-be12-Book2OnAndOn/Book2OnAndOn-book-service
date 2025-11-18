@@ -36,26 +36,26 @@ public class Book {
 
     // 도서 제목
     @Setter
-    @Column(name = "book_title", length = 100, nullable = false)
-    @Size(min = 1, max = 100)
+    @Column(name = "book_title", nullable = false)
+    @Size(min = 1, max = 255)
     private String title;
 
     // 목차
     @Setter
     @Lob // 해당 필드가 매우 큰 객체임을 명시하는 어노테이션
-    @Column(name = "book_chapter")
+    @Column(name = "book_chapter", columnDefinition = "LONGTEXT")
     private String chapter;
 
     // 책 설명
     @Setter
     @Lob
-    @Column(name = "book_description")
+    @Column(name = "book_description", columnDefinition = "LONGTEXT")
     private String description;
 
     // 정가
     @Setter
     @Column(name = "price_standard", nullable = false)
-    private Integer priceStandard;
+    private Long priceStandard;
 
     // 포장 여부 ->  해당 책이 포장이 가능한지, 아닌지
     @Setter
@@ -82,7 +82,7 @@ public class Book {
     // 판매가
     @Setter
     @Column(name = "price_sales")
-    private Integer priceSales;
+    private Long priceSales;
 
     // 책 재고량
     @Setter
@@ -93,19 +93,18 @@ public class Book {
     @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "book_status", length = 30, nullable = false)
-    @Size(min = 1, max = 30)
     private BookStatus status;
 
     /*연관 관계 설정*/
     // 도서 이미지 매핑
     @Setter
-    @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private java.util.List<BookImage> images = new ArrayList<>();
 
     // 도서 카테고리 매핑
     @Setter
-    @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookCategory> bookCategories = new ArrayList<>();
 
@@ -141,7 +140,7 @@ public class Book {
 
     //번역가
     @Setter
-    @OneToMany(mappedBy = "Book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookTranslator> bookTranslators = new ArrayList<>();
 

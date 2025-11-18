@@ -34,9 +34,9 @@ public class Translator {
     @Setter
     @Column(name = "translator_name", length = 50, nullable = false)
     @Size(min = 1, max = 50)
-    private String authorName;
+    private String translatorName;
 
-    @OneToMany(mappedBy = "Translator", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "translator", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookTranslator> bookTranslators = new ArrayList<>();
 
