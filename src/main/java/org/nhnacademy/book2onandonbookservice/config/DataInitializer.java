@@ -7,14 +7,18 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.nhnacademy.book2onandonbookservice.client.GoogleBooksApiClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.DataParserDto;
+import org.nhnacademy.book2onandonbookservice.dto.api.GoogleBooksApiResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Author;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookAuthor;
+import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.nhnacademy.book2onandonbookservice.entity.BookTranslator;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
 import org.nhnacademy.book2onandonbookservice.entity.Translator;
 import org.nhnacademy.book2onandonbookservice.exception.DataParserException;
@@ -22,6 +26,7 @@ import org.nhnacademy.book2onandonbookservice.parser.DataParser;
 import org.nhnacademy.book2onandonbookservice.parser.DataParserResolver;
 import org.nhnacademy.book2onandonbookservice.repository.AuthorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
+import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TranslatorRepository;
 import org.springframework.boot.ApplicationArguments;
@@ -44,9 +49,13 @@ public class DataInitializer implements ApplicationRunner {
     private final AuthorRepository authorRepository;
     private final TranslatorRepository translatorRepository;
 
+    private final CategoryRepository categoryRepository;
+
     private final Map<String, Publisher> publisherCache = new HashMap<>();
-    private final Map<String, Author> AuthorCache = new HashMap<>();
-    private final Map<String, Translator> TranslatorCache = new HashMap<>();
+    private final Map<String, Author> authorCache = new HashMap<>();
+    private final Map<String, Translator> translatorCache = new HashMap<>();
+    private final Map<String, Category> categoryCache = new HashMap<>();
+    private final GoogleBooksApiClient googleBooksApiClient;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -99,6 +108,8 @@ public class DataInitializer implements ApplicationRunner {
             return;
         }
 
+        GoogleBooksApiResponse.VolumeInfo apiData = googleBooksApiClient.searchByIsbn(dto.getIsbn());
+
         Publisher publisher = getOrCreatePublisher(dto.getPublisherName());
 
         List<Author> authors = dto.getAuthors().stream()
@@ -109,10 +120,16 @@ public class DataInitializer implements ApplicationRunner {
                 .map(this::getOrCreateTranslator)
                 .collect(Collectors.toList());
 
+        String description =
+                (apiData != null && apiData.getDescription() != null) ? apiData.getDescription() : dto.getDescription();
+
+        String chapter = (apiData != null && apiData.getInfoLink() != null) ? apiData.getInfoLink() : null;
+
         Book book = Book.builder()
                 .isbn(dto.getIsbn())
                 .title(dto.getTitle())
-                .description(dto.getDescription())
+                .description(description)
+                .chapter(chapter)
                 .publishDate(dto.getPublishedAt())
                 .priceStandard((int) dto.getListPrice())
                 .priceSales((int) dto.getSalePrice())
@@ -147,18 +164,62 @@ public class DataInitializer implements ApplicationRunner {
             );
         }
 
-        if (dto.getImageUrl() != null) {
-            book.getImages().add(
-                    BookImage.builder()
+        if (apiData != null && apiData.getImageLinks() != null && apiData.getImageLinks().getThumbnail() != null) {
+            String imageUrl = apiData.getImageLinks().getThumbnail().replace("http://", "https://");
+            if (imageUrl.length() <= 100) {
+                book.getImages().add(
+                        BookImage.builder()
+                                .book(book)
+                                .imagePath(imageUrl)
+                                .build()
+                );
+            } else {
+                log.warn("이미지 URL 길이가 100자를 초과합니다. (ISBN: {})", dto.getIsbn());
+            }
+        }
+
+        if (apiData != null && apiData.getCategories() != null && !apiData.getCategories().isEmpty()) {
+            String categoryString = apiData.getCategories().get(0);
+
+            Category deepestCategory = getOrCreateCategoriesFromString(categoryString);
+            book.getBookCategories().add(
+                    BookCategory.builder()
                             .book(book)
-                            .imagePath(dto.getImageUrl())
+                            .category(deepestCategory)
                             .build()
             );
+
         }
 
         bookRepository.save(book);
     }
 
+    private Category getOrCreateCategoriesFromString(String categoryString) {
+        String[] categoryName = categoryString.split("\\s*/\\s*");
+        Category parent = null;
+        for (String name : categoryName) {
+            if (name.length() > 20) {
+                name = name.substring(0, 20);
+            }
+            parent = getOrCreateCategory(name, parent);
+        }
+        return parent; //마지막 카테고리 반환
+    }
+
+    private Category getOrCreateCategory(String name, Category parent) {
+        String cacheKey = (parent == null ? "null" : parent.getId()) + "_" + name;
+
+        return categoryCache.computeIfAbsent(cacheKey, k ->
+                categoryRepository.findByCategoryNameAndParent(name, parent)
+                        .orElseGet(() -> {
+                            Category newCategory = Category.builder()
+                                    .categoryName(name)
+                                    .parent(parent)
+                                    .build();
+                            return categoryRepository.save(newCategory);
+                        })
+        );
+    }
 
     private Publisher getOrCreatePublisher(String name) {
         return publisherCache.computeIfAbsent(name, n -> publisherRepository.findByPublisherName(n)
@@ -166,12 +227,12 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private Translator getOrCreateTranslator(String name) {
-        return TranslatorCache.computeIfAbsent(name, n -> translatorRepository.findByTranslatorName(n)
+        return translatorCache.computeIfAbsent(name, n -> translatorRepository.findByTranslatorName(n)
                 .orElseGet(() -> translatorRepository.save(Translator.builder().translatorName(n).build())));
     }
 
     private Author getOrCreateAuthor(String name) {
-        return AuthorCache.computeIfAbsent(name, n -> authorRepository.findByAuthorName(n)
+        return authorCache.computeIfAbsent(name, n -> authorRepository.findByAuthorName(n)
                 .orElseGet(() -> authorRepository.save(Author.builder().authorName(n).build())));
     }
 }
