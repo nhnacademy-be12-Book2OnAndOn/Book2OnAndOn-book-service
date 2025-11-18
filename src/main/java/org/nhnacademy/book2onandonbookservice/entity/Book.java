@@ -36,8 +36,8 @@ public class Book {
 
     // 도서 제목
     @Setter
-    @Column(name = "book_title", length = 100, nullable = false)
-    @Size(min = 1, max = 100)
+    @Column(name = "book_title", nullable = false)
+    @Size(min = 1, max = 255)
     private String title;
 
     // 목차
@@ -55,7 +55,7 @@ public class Book {
     // 정가
     @Setter
     @Column(name = "price_standard", nullable = false)
-    private Integer priceStandard;
+    private Long priceStandard;
 
     // 포장 여부 ->  해당 책이 포장이 가능한지, 아닌지
     @Setter
@@ -82,7 +82,7 @@ public class Book {
     // 판매가
     @Setter
     @Column(name = "price_sales")
-    private Integer priceSales;
+    private Long priceSales;
 
     // 책 재고량
     @Setter

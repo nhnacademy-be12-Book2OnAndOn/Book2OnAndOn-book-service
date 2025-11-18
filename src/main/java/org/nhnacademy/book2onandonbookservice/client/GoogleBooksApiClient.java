@@ -3,9 +3,9 @@ package org.nhnacademy.book2onandonbookservice.client;
 
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.GoogleBooksApiResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -18,7 +18,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class GoogleBooksApiClient {
     private final RestTemplate restTemplate;
 
-    @Value("${google.api.key}")
+    @Value("${google.api-key}")
     private String apikey;
 
     private static final String API_URL = "https://www.googleapis.com/books/v1/volumes";

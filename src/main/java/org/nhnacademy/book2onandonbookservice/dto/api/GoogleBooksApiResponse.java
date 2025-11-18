@@ -37,4 +37,5 @@ public class GoogleBooksApiResponse {
         private String smallThumbnail;
         private String thumbnail; //사용할 이미지 URL
     }
+
 }
