@@ -22,12 +22,13 @@ public class BookCsvParser implements DataParser {
     private static final String ISBN_13 = "ISBN_THIRTEEN_NO";
     private static final String ISBN_10 = "ISBN_NO";
     private static final String TITLE = "TITLE_NM";
-    private static final String AUTHOR = "AUTHOR_NM";
+    private static final String AUTHOR = "AUTHR_NM";
     private static final String SEQ_NO = "SEQ_NO";
     private static final String PUBLISHER = "PUBLISHER_NM";
     private static final String PRICE = "PRC_VALUE";
     private static final String PUBLISHED_AT = "TWO_PBLICTE_DE";
     private static final String DESCRIPTION = "BOOK_INTRCN_CN";
+    private static final String IMAGE_URL = "IMAGE_URL_L";
 
     @Override
     public String getFileType() {
@@ -53,6 +54,7 @@ public class BookCsvParser implements DataParser {
                 lineNum++;
                 try {
                     DataParserDto dto = createDtoFromValues(values, headerMap);
+                    validateDto(dto, values, headerMap);
                     dtoList.add(dto);
                 } catch (DataParserException e) {
                     log.warn("라인 {} 스킵: 데이터 유효성 검사 실패. (이유: {})", lineNum, e.getMessage());
@@ -82,6 +84,11 @@ public class BookCsvParser implements DataParser {
         String priceStr = getValue(values, headers.getOrDefault(PRICE, -1));
         String publishedStr = getValue(values, headers.getOrDefault(PUBLISHED_AT, -1));
         String description = getValue(values, headers.getOrDefault(DESCRIPTION, -1));
+        String imageUrl = getValue(values, headers.getOrDefault(IMAGE_URL, -1));
+
+        //        if (dto.getPublishedAt() == null) {
+//            throw new DataParserException("필수 값 'TWO_PBLICTE_DE'가 비어있거나 형식이 잘못되었습니다. (원본 값: " + publishedStr + ")");
+//        }
 
         return new DataParserDto(
                 seqNo,
@@ -91,8 +98,55 @@ public class BookCsvParser implements DataParser {
                 publisherName,
                 priceStr,
                 publishedStr,
-                description
+                description,
+                imageUrl
         );
+    }
+
+    private void validateDto(DataParserDto dto, String[] values, Map<String, Integer> headers) {
+        if (dto.getIsbn().length() > 20) {
+            throw new DataParserException("ISBN길이가 20자를 초과합니다. (값: " + dto.getIsbn() + ")");
+        }
+        if (dto.getTitle().length() > 100) {
+            throw new DataParserException("TITLE_NM 길이가 100자를 초과합니다. (값: " + dto.getTitle() + ")");
+        }
+        if (dto.getPublishedAt() == null) {
+            String rawDate = getValue(values, headers.getOrDefault(PUBLISHED_AT, -1));
+            throw new DataParserException("필 수 값 'TWO_PBLICTE_DE' 가 비어있거나 형식이 잘못됐습니다. (원본값 : " + rawDate + ")");
+        }
+        if (dto.getListPrice() <= 0) {
+            String rawPrice = getValue(values, headers.getOrDefault(PRICE, -1));
+            throw new DataParserException("필수 값 'PRC_VALUE'가 0이하이거나 형식이 잘못되었습니다. (원본값 : " + rawPrice + ")");
+        }
+
+        if (dto.getPublisherName() == null || dto.getPublisherName().isEmpty()) {
+            throw new DataParserException("필수 값 'PUBLISHER_NM'이 비어있습니다.");
+        }
+
+        if (dto.getPublisherName().length() > 50) {
+            throw new DataParserException("PUBLISHER_NM 길이가 50자를 초과합니다. (값: " + dto.getPublisherName() + ")");
+        }
+
+        if (dto.getAuthors() == null || dto.getAuthors().isEmpty()) {
+            throw new DataParserException("필수 값 'AUTHR_NM (지은이)가 비어있습니다.");
+        }
+        for (String authorName : dto.getAuthors()) {
+            if (authorName.length() > 50) {
+                throw new DataParserException("AUTHR_NM (지은이) 이름이 50자를 초과합니다. (값: " + authorName + ")");
+            }
+        }
+
+        if (dto.getTranslators() != null) {
+            for (String translatorName : dto.getTranslators()) {
+                if (translatorName.length() > 50) {
+                    throw new DataParserException("AUTHR_NM (옮긴이) 이름이 50자를 초과합니다.(값: " + translatorName + ")");
+                }
+            }
+        }
+
+        if (dto.getImageUrl() != null && dto.getImageUrl().length() > 100) {
+            throw new DataParserException(IMAGE_URL + " 길이가 100자를 초과합니다. (값: " + dto.getImageUrl() + ")");
+        }
     }
 
     private String getValue(String[] values, int index) {
@@ -131,21 +185,17 @@ public class BookCsvParser implements DataParser {
     private void validateRequiredHeaders(Map<String, Integer> headerMap) {
 
         String[] criticalHeader = {
-                ISBN_13, ISBN_10, TITLE, AUTHOR, PUBLISHER, PRICE
+                TITLE, AUTHOR, PUBLISHER, PRICE, PUBLISHED_AT
         };
 
-        String[] optionalHeader = {
-                SEQ_NO, PUBLISHED_AT, DESCRIPTION
-        };
+        if (!headerMap.containsKey(ISBN_13) && !headerMap.containsKey(ISBN_10)) {
+
+            throw new DataParserException("CSV 파일 헤더에 필수 컬럼이 없습니다: " + ISBN_13 + "또는 " + ISBN_10);
+        }
 
         for (String header : criticalHeader) {
             if (!headerMap.containsKey(header)) {
-                throw new DataParserException("CSV 파일 헤더에 필수 컬럼이 없습니다: " + header);
-            }
-        }
-        for (String header : optionalHeader) {
-            if (!headerMap.containsKey(header)) {
-                log.warn("CSV 헤더에 선택적인 컬럼이 없습니다. (null로 처리됨): {}", header);
+                throw new DataParserException("CSV파일 헤더에 필수 컬럼이 없습니다: " + header);
             }
         }
     }

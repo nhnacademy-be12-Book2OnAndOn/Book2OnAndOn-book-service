@@ -26,7 +26,7 @@ public class BookImage {
     // 도서 이미지 아이디
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "book_image_path")
+    @Column(name = "book_image_id")
     private Long id;
 
     // 도서 이미지 경로

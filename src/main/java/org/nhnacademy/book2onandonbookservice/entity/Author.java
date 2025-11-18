@@ -37,7 +37,7 @@ public class Author {
     private String authorName;
 
     @Setter
-    @OneToMany(mappedBy = "Author", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookAuthor> bookAuthors = new ArrayList<>();
 
