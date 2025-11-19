@@ -29,7 +29,7 @@ public class BookCsvParser implements DataParser {
     private static final String PRICE = "PRC_VALUE";
     private static final String PUBLISHED_AT = "TWO_PBLICTE_DE";
     private static final String DESCRIPTION = "BOOK_INTRCN_CN";
-    private static final String IMAGE_URL = "IMAGE_URL_L";
+    private static final String IMAGE_URL = "IMAGE_URL";
 
     @Override
     public String getFileType() {

@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
+import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
@@ -164,30 +165,32 @@ public class DataInitializer implements ApplicationRunner {
 
         List<BookContributor> allContributors = new ArrayList<>();
         List<BookPublisher> allPublishers = new ArrayList<>();
+        List<BookImage> allImages = new ArrayList<>();
 
         for (Book originalBook : books) {
             Long bookId = isbnIdMap.get(originalBook.getIsbn());
+            Book proxyBook = Book.builder().id(bookId).build();
             if (bookId == null) {
                 continue;
             }
 
-            // BookContributor 처리
             for (BookContributor bc : originalBook.getBookContributors()) {
-                // 굳이 Book 객체 전체를 set 할 필요 없이, JDBC용이라 ID만 있으면 되지만
-                // Entity 구조상 객체가 필요하므로 "껍데기 Book 객체"를 만들어 할당
-                Book proxyBook = Book.builder().id(bookId).build();
                 bc.setBook(proxyBook);
                 allContributors.add(bc);
             }
 
             // BookPublisher 처리
             for (BookPublisher bp : originalBook.getBookPublishers()) {
-                Book proxyBook = Book.builder().id(bookId).build();
                 bp.setBook(proxyBook);
                 allPublishers.add(bp);
             }
-        }
 
+            for (BookImage bi : originalBook.getImages()) {
+                bi.setBook(proxyBook);
+                allImages.add(bi);
+            }
+        }
+        batchInsertRepository.saveBookImages(allImages);
         batchInsertRepository.saveBookRelations(allContributors, allPublishers);
     }
 
@@ -235,6 +238,13 @@ public class DataInitializer implements ApplicationRunner {
         String rawAuthorStr = safeGet(row, h, "AUTHR_NM");
         if (StringUtils.hasText(rawAuthorStr)) {
             parseAndAddContributors(book, rawAuthorStr);
+        }
+        String imageUrl = safeGet(row, h, "IMAGE_URL");
+        if (StringUtils.hasText(imageUrl)) {
+            book.getImages().add(BookImage.builder()
+                    .book(book)
+                    .imagePath(imageUrl)
+                    .build());
         }
 
         return book;

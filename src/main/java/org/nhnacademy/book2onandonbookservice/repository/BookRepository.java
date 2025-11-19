@@ -10,7 +10,12 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     boolean existsByIsbn(String isbn);
 
-    @Query("SELECT b FROM Book b WHERE b.bookCategories IS EMPTY OR b.description IS NULL OR b.description = ''")
+
+    @Query("SELECT b FROM Book b " +
+            "LEFT JOIN FETCH b.bookCategories bc " +
+            "WHERE b.priceStandard = 0 " +
+            "OR b.description IS NULL OR b.description = '' " +
+            "OR bc.id IS NULL")
     List<Book> findBooksNeedingEnrichment(Pageable pageable);
 
 

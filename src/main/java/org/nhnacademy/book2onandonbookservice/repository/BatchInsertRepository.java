@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
+import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -49,6 +50,28 @@ public class BatchInsertRepository {
             @Override
             public int getBatchSize() {
                 return books.size();
+            }
+        });
+    }
+
+    @Transactional
+    public void saveBookImages(List<BookImage> images) {
+        if (images.isEmpty()) {
+            return;
+        }
+
+        String sql = "INSERT INTO book_image (book_id, book_image_path) VALUES (?,?)";
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                BookImage image = images.get(i);
+                ps.setLong(1, image.getBook().getId());
+                ps.setString(2, image.getImagePath());
+            }
+
+            @Override
+            public int getBatchSize() {
+                return images.size();
             }
         });
     }
