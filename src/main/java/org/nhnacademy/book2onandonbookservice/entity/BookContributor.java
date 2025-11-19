@@ -17,33 +17,38 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "BookAuthor",
+@Table(name = "BookContributor",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_book_author",
-                        columnNames = {"book_id", "author_id"}
+                        name = "uk_book_contributor",
+                        columnNames = {"book_id", "contributor_id"}
                 )
         })
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BookAuthor {
-    // 도서-작가 아이디
+public class BookContributor {
+    // 도서-기여자 아이디
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "book_author_id")
+    @Column(name = "book_contributor_id")
     private Long id;
 
-    // 작가 아이디
+    // 기여자 아이디
     @Setter
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id", nullable = false)
-    private Author author;
+    @JoinColumn(name = "contributor_id", nullable = false)
+    private Contributor contributor;
 
     // 도서 아이디
     @Setter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
+
+    // 역할
+    @Setter
+    @Column(name = "role_type", length = 20, nullable = false)
+    private String roleType;
 }
