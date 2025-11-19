@@ -137,12 +137,5 @@ public class Book {
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookLike> likes = new ArrayList<>();
-
-    //번역가
-    @Setter
-    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<BookTranslator> bookTranslators = new ArrayList<>();
-
-
+    
 }

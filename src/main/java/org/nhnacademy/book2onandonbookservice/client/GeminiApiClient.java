@@ -20,15 +20,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 public class GeminiApiClient {
 
+    private static final String MODEL_NAME = "gemini-2.0-flash-lite";
     private final RestTemplate restTemplate;
-
     @Value("${gemini.api.base-url}")
     private String baseUrl;
-
     @Value("${gemini.api-key}")
     private String apikey;
-
-    private static final String MODEL_NAME = "gemini-2.5-flash";
 
     public String generateContent(String prompt) {
         if (prompt == null || prompt.isBlank()) {
