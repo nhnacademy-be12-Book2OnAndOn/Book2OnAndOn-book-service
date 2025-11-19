@@ -31,10 +31,8 @@ import org.nhnacademy.book2onandonbookservice.entity.BookAuthor;
 import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
-import org.nhnacademy.book2onandonbookservice.entity.BookTranslator;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
-import org.nhnacademy.book2onandonbookservice.entity.Translator;
 import org.nhnacademy.book2onandonbookservice.exception.DataParserException;
 import org.nhnacademy.book2onandonbookservice.parser.DataParser;
 import org.nhnacademy.book2onandonbookservice.parser.DataParserResolver;
@@ -42,7 +40,6 @@ import org.nhnacademy.book2onandonbookservice.repository.AuthorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
-import org.nhnacademy.book2onandonbookservice.repository.TranslatorRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
@@ -55,30 +52,20 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DataInitializer implements ApplicationRunner {
 
+    private static final DateTimeFormatter ALADIN_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private final DataParserResolver parserResolver;
     private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-
     private final BookRepository bookRepository;
     private final PublisherRepository publisherRepository;
     private final AuthorRepository authorRepository;
-    private final TranslatorRepository translatorRepository;
-
     private final CategoryRepository categoryRepository;
-
     private final Map<String, Publisher> publisherCache = new HashMap<>();
     private final Map<String, Author> authorCache = new HashMap<>();
-    private final Map<String, Translator> translatorCache = new HashMap<>();
     private final Map<String, Category> categoryCache = new HashMap<>();
-
-
     private final GoogleBooksApiClient googleBooksApiClient;
     private final AladinApiClient aladinApiClient;
     private final GeminiApiClient geminiApiClient;
-
     private final ObjectMapper objectMapper;
-
-
-    private static final DateTimeFormatter ALADIN_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -296,11 +283,6 @@ public class DataInitializer implements ApplicationRunner {
                 .orElseGet(() -> publisherRepository.save(Publisher.builder().publisherName(n).build())));
     }
 
-    private Translator getOrCreateTranslator(String name) {
-        return translatorCache.computeIfAbsent(name, n -> translatorRepository.findByTranslatorName(n)
-                .orElseGet(() -> translatorRepository.save(Translator.builder().translatorName(n).build())));
-    }
-
     private Author getOrCreateAuthor(String name) {
         return authorCache.computeIfAbsent(name, n -> authorRepository.findByAuthorName(n)
                 .orElseGet(() -> authorRepository.save(Author.builder().authorName(n).build())));
@@ -395,12 +377,6 @@ public class DataInitializer implements ApplicationRunner {
                 .map(this::getOrCreateAuthor)
                 .collect(Collectors.toList());
 
-        //번역가
-        List<Translator> translators = finalTranslators.stream()
-                .map(name -> truncate(name, 50))
-                .filter(name -> name != null)
-                .map(this::getOrCreateTranslator)
-                .collect(Collectors.toList());
         //book 생성
         Book book = Book.builder()
                 .isbn(truncate(dto.getIsbn(), 20))
@@ -429,15 +405,6 @@ public class DataInitializer implements ApplicationRunner {
                     BookAuthor.builder()
                             .book(book)
                             .author(author)
-                            .build()
-            );
-        }
-
-        for (Translator translator : translators) {
-            book.getBookTranslators().add(
-                    BookTranslator.builder()
-                            .book(book)
-                            .translator(translator)
                             .build()
             );
         }
