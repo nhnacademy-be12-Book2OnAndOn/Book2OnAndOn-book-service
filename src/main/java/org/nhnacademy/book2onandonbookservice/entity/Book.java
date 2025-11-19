@@ -59,8 +59,8 @@ public class Book {
 
     // 포장 여부 ->  해당 책이 포장이 가능한지, 아닌지
     @Setter
-    @Column(name = "is_packed", nullable = false)
-    private Boolean packed;
+    @Column(name = "is_wrapped", nullable = false)
+    private Boolean isWrapped;
 
     // ISBN -> ISBN_no가 null 이면 ISBNThirteen_no는 null이어선 안됨.
     @Setter
@@ -118,7 +118,7 @@ public class Book {
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookAuthor> bookAuthors = new ArrayList<>();
+    private List<BookContributor> bookContributors = new ArrayList<>();
 
     // 출판사 매핑
     @Setter
@@ -137,5 +137,5 @@ public class Book {
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BookLike> likes = new ArrayList<>();
-    
+
 }
