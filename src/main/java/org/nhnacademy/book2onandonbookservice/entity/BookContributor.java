@@ -21,7 +21,7 @@ import lombok.Setter;
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_book_contributor",
-                        columnNames = {"book_id", "contributor_id"}
+                        columnNames = {"book_id", "contributor_id", "role_type"}
                 )
         })
 @Getter
@@ -35,6 +35,11 @@ public class BookContributor {
     @Column(name = "book_contributor_id")
     private Long id;
 
+    // 역할
+    @Setter
+    @Column(name = "role_type", length = 50, nullable = false)
+    private String roleType;
+
     // 기여자 아이디
     @Setter
     @ManyToOne(fetch = FetchType.LAZY)
@@ -47,8 +52,5 @@ public class BookContributor {
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
-    // 역할
-    @Setter
-    @Column(name = "role_type", length = 20, nullable = false)
-    private String roleType;
+
 }

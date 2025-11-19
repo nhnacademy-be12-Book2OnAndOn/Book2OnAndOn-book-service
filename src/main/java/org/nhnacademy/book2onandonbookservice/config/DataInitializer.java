@@ -1,44 +1,32 @@
 package org.nhnacademy.book2onandonbookservice.config;
 
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
+import com.opencsv.CSVReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.time.DateUtils;
-import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
-import org.nhnacademy.book2onandonbookservice.client.GeminiApiClient;
-import org.nhnacademy.book2onandonbookservice.client.GoogleBooksApiClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
-import org.nhnacademy.book2onandonbookservice.dto.DataParserDto;
-import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
-import org.nhnacademy.book2onandonbookservice.dto.api.GeminiBookInfo;
-import org.nhnacademy.book2onandonbookservice.dto.api.GoogleBooksApiResponse;
-import org.nhnacademy.book2onandonbookservice.entity.Author;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookAuthor;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
+import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
-import org.nhnacademy.book2onandonbookservice.entity.Category;
+import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
-import org.nhnacademy.book2onandonbookservice.exception.DataParserException;
-import org.nhnacademy.book2onandonbookservice.parser.DataParser;
-import org.nhnacademy.book2onandonbookservice.parser.DataParserResolver;
-import org.nhnacademy.book2onandonbookservice.repository.AuthorRepository;
+import org.nhnacademy.book2onandonbookservice.repository.BatchInsertRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
-import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
+import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -46,408 +34,377 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements ApplicationRunner {
 
-    private static final DateTimeFormatter ALADIN_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private final DataParserResolver parserResolver;
-    private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
     private final BookRepository bookRepository;
     private final PublisherRepository publisherRepository;
-    private final AuthorRepository authorRepository;
-    private final CategoryRepository categoryRepository;
-    private final Map<String, Publisher> publisherCache = new HashMap<>();
-    private final Map<String, Author> authorCache = new HashMap<>();
-    private final Map<String, Category> categoryCache = new HashMap<>();
-    private final GoogleBooksApiClient googleBooksApiClient;
-    private final AladinApiClient aladinApiClient;
-    private final GeminiApiClient geminiApiClient;
-    private final ObjectMapper objectMapper;
+    private final ContributorRepository contributorRepository;
+    private final BatchInsertRepository batchInsertRepository;
+    private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+
+    private final Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
+    private final Map<String, Contributor> contributorCache = new ConcurrentHashMap<>();
+
+    private static final Pattern SPLIT_PATTERN = Pattern.compile("[,;/&|]");
+
+    // 이름 (비탐욕)
+    // 구분: 괄호() 또는 띄어쓰기 후 역할명
+    // 예: "홍길동(지은이)", "홍길동 지음", "홍길동 편", "홍길동 그림"
+    private static final Pattern ROLE_PATTERN = Pattern.compile(
+            "^(.*?)(?:\\s*\\((.*?)\\)|\\s+(지음|옮김|그림|글|엮음|편|저|공저|감수|사진|기획))\\s*$");
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        int limit = 500;
-        int currentCount = 0;
         if (bookRepository.count() > 0) {
-            log.info("데이터가 이미 초기화되어 있으므로, CSV 파일 로딩을 건너뜁니다.");
+            log.info("데이터가 이미 존재합니다. 초기화를 건너뜁니다.");
             return;
         }
 
-        log.info("데이터 초기화 시작");
+        log.info("대용량 CSV 데이터 초기화 시작");
+        long startTime = System.currentTimeMillis();
 
-        Resource[] resources = resolver.getResources("classpath:/data/*.*");
+        // 캐시 : 이미 DB에 있는 출판사/작가를 메모리에 올림 (중복 Insert 방지 및 속도 향상)
+        preloadCaches();
 
+        Resource[] resources = resolver.getResources("classpath:/data/*.csv");
         if (resources.length == 0) {
-            log.warn("classpath:/data 폴더에서 파일을 찾을 수 없습니다.");
+            log.warn("classpath:/data 경로에 CSV 파일이 없습니다.");
             return;
         }
 
         for (Resource resource : resources) {
-            String filename = resource.getFilename();
-            if (filename == null) {
+            processCsvFile(resource);
+        }
+
+        long endTime = System.currentTimeMillis();
+        log.info("전체 초기화 완료! 소요 시간: {}초", (endTime - startTime) / 1000);
+    }
+
+    private void preloadCaches() {
+        log.info("캐시 워밍업 중 (기존 데이터 로드)...");
+        publisherRepository.findAll().forEach(p -> publisherCache.put(p.getPublisherName(), p));
+        contributorRepository.findAll().forEach(c -> contributorCache.put(c.getContributorName(), c));
+        log.info("캐시 로드 완료 (Publisher: {}, Contributor: {})", publisherCache.size(), contributorCache.size());
+    }
+
+    @Transactional
+    public void processCsvFile(Resource resource) {
+        try (CSVReader csvReader = new CSVReader(
+                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+            log.info("파일 읽기 시작: {}", resource.getFilename());
+
+            //readAll()로 한 번에 메모리에 로드 (I/O 최소화)
+            List<String[]> allRows = csvReader.readAll();
+            if (allRows.isEmpty()) {
+                return;
+            }
+
+            String[] headers = allRows.get(0);
+            Map<String, Integer> headerMap = createHeaderMap(headers);
+
+            List<String[]> dataRows = allRows.subList(1, allRows.size());
+            log.info("총 {}건의 데이터 처리를 시작합니다.", dataRows.size());
+
+            // 배치 처리를 위한 리스트 (1000건씩 묶어서 저장)
+            List<Book> bookBatch = new ArrayList<>(1000);
+
+            for (int i = 0; i < dataRows.size(); i++) {
+                String[] row = dataRows.get(i);
+
+                try {
+                    // DTO 변환 없이 바로 Entity 생성
+                    Book book = convertToBook(row, headerMap);
+                    if (book != null) {
+                        bookBatch.add(book);
+                    }
+                } catch (Exception e) {
+                    // 개별 라인 에러는 전체 중단을 막기 위해 로그만 찍고 넘어감
+                    log.debug("라인 {} 파싱 스킵: {}", i, e.getMessage());
+                }
+
+                // 1000개가 모이면 DB로
+                if (bookBatch.size() >= 1000) {
+                    saveBatch(bookBatch);
+                    bookBatch.clear();
+                    if (i % 10000 == 0) {
+                        log.info("{} 건 처리 완료...", i);
+                    }
+                }
+            }
+
+            // 남은 데이터 처리
+            if (!bookBatch.isEmpty()) {
+                saveBatch(bookBatch);
+            }
+
+        } catch (Exception e) {
+            log.error("파일 처리 중 치명적 오류 발생: {}", resource.getFilename(), e);
+        }
+    }
+
+    private void saveBatch(List<Book> books) {
+        if (books.isEmpty()) {
+            return;
+        }
+
+        batchInsertRepository.saveAllBooks(books);
+
+        List<String> isbns = books.stream().map(Book::getIsbn).collect(Collectors.toList());
+        List<BookRepository.BookIdAndIsbn> savedIds = bookRepository.findByIsbnIn(isbns);
+
+        Map<String, Long> isbnIdMap = savedIds.stream()
+                .collect(Collectors.toMap(BookRepository.BookIdAndIsbn::getIsbn, BookRepository.BookIdAndIsbn::getId,
+                        (b1, b2) -> b1));
+
+        List<BookContributor> allContributors = new ArrayList<>();
+        List<BookPublisher> allPublishers = new ArrayList<>();
+        List<BookImage> allImages = new ArrayList<>();
+
+        for (Book originalBook : books) {
+            Long bookId = isbnIdMap.get(originalBook.getIsbn());
+            Book proxyBook = Book.builder().id(bookId).build();
+            if (bookId == null) {
                 continue;
             }
 
-            try {
-                log.info("파일 처리 중: {}", filename);
-                DataParser parser = parserResolver.getDataParser(filename);
-                List<DataParserDto> dtoList = (List<DataParserDto>) parser.parsing(resource.getFile());
+            for (BookContributor bc : originalBook.getBookContributors()) {
+                bc.setBook(proxyBook);
+                allContributors.add(bc);
+            }
 
-                int processedCount = 0;
+            // BookPublisher 처리
+            for (BookPublisher bp : originalBook.getBookPublishers()) {
+                bp.setBook(proxyBook);
+                allPublishers.add(bp);
+            }
 
-                for (DataParserDto dto : dtoList) {
-                    if (currentCount >= limit) {
-                        break;//한줄 씩읽으면서 책 한개에 대해 데이터 처리
-                    }
-                    processSingleBook(dto);
-                    processedCount++;
-                    currentCount++;
-
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
-
-                log.info("총 {}개의 레코드를 처리했습니다", processedCount);
-            } catch (DataParserException | IOException | ClassCastException e) {
-                log.error("파일 처리 실패: {}, (원인: {})", filename, e.getMessage(), e.getCause());
+            for (BookImage bi : originalBook.getImages()) {
+                bi.setBook(proxyBook);
+                allImages.add(bi);
             }
         }
-
-        log.info("데이터 초기화 완료");
+        batchInsertRepository.saveBookImages(allImages);
+        batchInsertRepository.saveBookRelations(allContributors, allPublishers);
     }
 
-    /**
-     * csv 한줄 씩 읽으면서 1개의 책 처리
-     *
-     * @param dto
-     */
-    @Transactional
-    public void processSingleBook(DataParserDto dto) {
-        if (bookRepository.existsByIsbn(dto.getIsbn())) {
-            log.warn("이미 존재하는 ISBN입니다. (ISBN: {}), 저장 건너뜀", dto.getIsbn());
-            return;
-        }
+    private Book convertToBook(String[] row, Map<String, Integer> h) {
+        // 안전하게 필수값 가져오기
+        String isbn = safeGet(row, h, "ISBN_THIRTEEN_NO", "ISBN_NO");
+        String title = safeGet(row, h, "TITLE_NM");
 
-        GoogleBooksApiResponse.VolumeInfo googleData = googleBooksApiClient.searchByIsbn(dto.getIsbn());
-        AladinApiResponse.Item aladinData = aladinApiClient.searchByIsbn(dto.getIsbn());
-
-        //책 설명
-        String finalDescription =
-                (googleData != null && googleData.getDescription() != null) ? googleData.getDescription()
-                        : (aladinData != null && aladinData.getDescription() != null) ? aladinData.getDescription()
-                                : dto.getDescription();
-
-        //목차
-        String finalChapter =
-                (googleData != null && googleData.getInfoLink() != null) ? googleData.getInfoLink()
-                        : null; //google 밖에 없음
-
-        //정가
-        Long finalPrice = dto.getListPrice();
-        if (finalPrice <= 0 && aladinData != null && aladinData.getPriceStandard() > 0) {
-            finalPrice = aladinData.getPriceStandard();
-        }
-
-        //할인가
-        Long finalSalePrice = dto.getSalePrice();
-        if (finalSalePrice <= 0 && aladinData != null && aladinData.getPriceSales() > 0) {
-            finalSalePrice = aladinData.getPriceSales();
-        }
-
-        // 만약 할인가가 정가보다 높다면 정가로 맞춤
-        if (finalSalePrice > finalPrice) {
-            finalSalePrice = finalPrice;
-        }
-
-        //출판일
-        LocalDate finalPublishDate = dto.getPublishedAt();
-        if (finalPublishDate == null && aladinData != null && aladinData.getPubDate() != null) {
-            finalPublishDate = parseAladinDate(aladinData.getPubDate());
-        }
-
-        //출판사
-        String finalPublisherName = dto.getPublisherName();
-        if (isNullOrEmpty(finalPublisherName) && aladinData != null && !isNullOrEmpty(aladinData.getPublisher())) {
-            finalPublisherName = aladinData.getPublisher();
-        }
-
-        //(저자/역자)
-        List<String> finalAuthors = dto.getAuthors();
-        List<String> finalTranslators = dto.getTranslators();
-
-        if ((finalAuthors.isEmpty() && finalTranslators.isEmpty()) && aladinData != null && !isNullOrEmpty(
-                aladinData.getAuthor())) {
-            Map<String, List<String>> parsedAuthors = parseAladinAuthors(aladinData.getAuthor());
-            finalAuthors = parsedAuthors.getOrDefault("authors", Collections.emptyList());
-            finalTranslators = parsedAuthors.getOrDefault("translators", Collections.emptyList());
-        }
-
-        boolean isMissingData = isNullOrEmpty(finalPublisherName) || finalPublishDate == null || finalPrice <= 0
-                || finalAuthors.isEmpty();
-        if (isMissingData) {
-            GeminiBookInfo geminiBookInfo = fillMissingDataWithGemini(dto.getIsbn(), dto.getTitle());
-            if (geminiBookInfo != null) {
-                if (isNullOrEmpty(finalPublisherName)) {
-                    finalPublisherName = geminiBookInfo.getPublisher();
-                }
-                if (finalPublishDate == null) {
-                    finalPublishDate = parseGenericDate(geminiBookInfo.getPublishDate());
-                }
-                if (finalPrice <= 0 && geminiBookInfo.getPriceStandard() != null) {
-                    finalPrice = geminiBookInfo.getPriceStandard();
-                }
-                if (finalSalePrice <= 0) {
-                    finalSalePrice = finalPrice;
-                }
-
-                if (finalAuthors.isEmpty() && !isNullOrEmpty(geminiBookInfo.getAuthor())) {
-                    Map<String, List<String>> parsed = parseAladinAuthors(geminiBookInfo.getAuthor());
-                    finalAuthors = parsed.getOrDefault("authors", Collections.emptyList());
-                }
-            }
-        }
-        //카테고리
-        String categoryString =
-                (googleData != null && googleData.getCategories() != null && !googleData.getCategories().isEmpty())
-                        ? googleData.getCategories().get(0)
-                        : (aladinData != null && !isNullOrEmpty(aladinData.getCategoryName()))
-                                ? aladinData.getCategoryName().replace(">", " / ")
-                                : null;
-        //이미지
-        String imageUrl =
-                (googleData != null && googleData.getImageLinks() != null
-                        && googleData.getImageLinks().getThumbnail() != null)
-                        ? googleData.getImageLinks().getThumbnail().replace("http://", "https://")
-                        : (aladinData != null && !isNullOrEmpty(aladinData.getCover()))
-                                ? aladinData.getCover().replace("http://", "https://") : dto.getImageUrl();
-
-        //유효성 검증
-        if (isNullOrEmpty(finalPublisherName)) {
-            log.warn("ISBN: {}: 최종 출판사 정보가 없어 스킵힙니다.", dto.getIsbn());
-            return;
-        }
-        if (finalAuthors == null || finalAuthors.isEmpty()) {
-            log.warn("ISBN: {} : 최종 저자 정보가 없어 스킵합니다. ", dto.getIsbn());
-            return;
-        }
-        if (finalPublishDate == null) {
-            log.warn("ISBN: {} : 최종 출판일 정보가 없어 스킵합니다.", dto.getIsbn());
-            return;
-        }
-        if (finalPrice <= 0) {
-            log.warn("ISBN: {} : 최종 가격 정보가 0 이하라 스킵합니다.", dto.getIsbn());
-        }
-
-        saveBookEntity(dto, finalPublisherName, finalPublishDate, finalPrice, finalSalePrice, finalAuthors,
-                finalTranslators, finalDescription, finalChapter,
-                imageUrl, categoryString);
-    }
-
-    //카테고리 부모
-    private Category getOrCreateCategoriesFromString(String categoryString) {
-        String[] categoryName = categoryString.split("\\s*/\\s*");
-        Category parent = null;
-        for (String name : categoryName) {
-            if (name.length() > 20) {
-                name = name.substring(0, 20);
-            }
-            parent = getOrCreateCategory(name, parent);
-        }
-        return parent; //마지막 카테고리 반환
-    }
-
-    //카테고리 자식
-    private Category getOrCreateCategory(String name, Category parent) {
-        String cacheKey = (parent == null ? "null" : parent.getId()) + "_" + name;
-
-        return categoryCache.computeIfAbsent(cacheKey, k ->
-                categoryRepository.findByCategoryNameAndParent(name, parent)
-                        .orElseGet(() -> {
-                            Category newCategory = Category.builder()
-                                    .categoryName(name)
-                                    .parent(parent)
-                                    .build();
-                            return categoryRepository.save(newCategory);
-                        })
-        );
-    }
-
-    private Publisher getOrCreatePublisher(String name) {
-        return publisherCache.computeIfAbsent(name, n -> publisherRepository.findByPublisherName(n)
-                .orElseGet(() -> publisherRepository.save(Publisher.builder().publisherName(n).build())));
-    }
-
-    private Author getOrCreateAuthor(String name) {
-        return authorCache.computeIfAbsent(name, n -> authorRepository.findByAuthorName(n)
-                .orElseGet(() -> authorRepository.save(Author.builder().authorName(n).build())));
-    }
-
-    private String truncate(String value, int maxLength) {
-        if (value == null || value.trim().isEmpty()) {
+        // 필수값이 없으면 스킵
+        if (!StringUtils.hasText(isbn) || !StringUtils.hasText(title)) {
             return null;
         }
 
-        value = value.trim();
-        return value.length() > maxLength ? value.substring(0, maxLength) : value;
-    }
-
-    private LocalDate parseAladinDate(String dateStr) {
-        if (isNullOrEmpty(dateStr)) {
-            return null;
-        }
-        try {
-            return LocalDate.parse(dateStr, ALADIN_DATE_FORMATTER);
-        } catch (DateTimeParseException e) {
-            log.warn("알라딘 날짜 파싱 실패 ({}): {}", dateStr, e.getMessage());
-            return null;
-        }
-    }
-
-    private Map<String, List<String>> parseAladinAuthors(String rawAuthorStr) {
-        if (isNullOrEmpty(rawAuthorStr)) {
-            return Collections.emptyMap();
+        // 출판사 처리 (캐시 조회 -> 없으면 저장 후 캐시 등록)
+        String pubName = safeGet(row, h, "PUBLISHER_NM");
+        if (!StringUtils.hasText(pubName)) {
+            pubName = "Unknown";
         }
 
-        Map<String, List<String>> result = new HashMap<>();
-        List<String> participants = Arrays.asList(rawAuthorStr.split("\\s*,\\s*"));
-        List<String> authors = participants.stream()
-                .filter(s -> s.contains("(지은이)") || !s.contains(")"))
-                .map(s -> s.replaceAll("\\s*\\(.*?\\)\\s*", "").trim())
-                .collect(Collectors.toList());
-
-        List<String> translators = participants.stream()
-                .filter(s -> s.contains("(옮긴이)"))
-                .map(s -> s.replaceAll("\\s*\\(.*?\\)\\s*", "").trim())
-                .collect(Collectors.toList());
-
-        if (authors.isEmpty() && !translators.isEmpty()) {
-            authors = participants.stream()
-                    .filter(s -> !s.contains("(옮긴이)"))
-                    .map(s -> s.replaceAll("\\s*\\(.*?\\)\\s*", "").trim())
-                    .collect(Collectors.toList());
-        }
-
-        result.put("authors", authors);
-        result.put("translators", translators);
-        return result;
-    }
-
-    private GeminiBookInfo fillMissingDataWithGemini(String isbn, String title) {
-        String prompt = String.format(
-                "Provide information for the book (ISBN: %s, Title: %s) in JSON format.\n" +
-                        "Required fields: publisher, publishDate (YYYY-MM-DD or YYYY), priceStandard (integer), author (name only).\n"
-                        +
-                        "If unknown, set null. Do not include markdown formatting.",
-                isbn, title
+        Publisher publisher = publisherCache.computeIfAbsent(pubName, name ->
+                publisherRepository.save(Publisher.builder().publisherName(name).build())
         );
 
-        try {
-            String jsonResponse = geminiApiClient.generateContent(prompt);
-            if (jsonResponse != null) {
-                return objectMapper.readValue(jsonResponse, GeminiBookInfo.class);
-            }
-        } catch (Exception e) {
-            log.warn("Gemini 보강 실패 (ISBN: {}): {}", isbn, e.getMessage());
-        }
-        return null;
-    }
-
-    private void saveBookEntity(DataParserDto dto, String finalPublisherName, LocalDate finalPublishDate,
-                                long finalPrice,
-                                long finalSalePrice,
-                                List<String> finalAuthors, List<String> finalTranslators, String finalDescription,
-                                String finalChapter,
-                                String imageUrl, String categoryString) {
-
-        String truncatedTitle = truncate(dto.getTitle(), 255);
-        String truncatedPublisher = truncate(finalPublisherName, 50);
-
-        Publisher publisher = getOrCreatePublisher(truncatedPublisher);
-
-        //작가
-        List<Author> authors = finalAuthors.stream()
-                .map(name -> truncate(name, 50))
-                .filter(name -> name != null)
-                .map(this::getOrCreateAuthor)
-                .collect(Collectors.toList());
-
-        //book 생성
+        // Book Entity 생성
         Book book = Book.builder()
-                .isbn(truncate(dto.getIsbn(), 20))
-                .title(truncatedTitle)
-                .description(finalDescription)
-                .chapter(truncate(finalChapter, 255))
-                .publishDate(finalPublishDate)
-                .priceStandard(finalPrice)
-                .priceSales(finalSalePrice)
-                .stockCount(100)
+                .isbn(truncate(isbn, 20))
+                .title(truncate(title, 255))
+                .description(safeGet(row, h, "BOOK_INTRCN_CN")) // 책 소개
+                .chapter(null) // 목차는 CSV에 없으면 null
+                .priceStandard(parsePrice(safeGet(row, h, "PRC_VALUE")))
+                .publishDate(parseDate(safeGet(row, h, "TWO_PBLICTE_DE")))
+                .stockCount(100) // 기본 재고
                 .stockStatus("Available")
-                .packed(true)
+                .isWrapped(true) // 포장 가능 여부
                 .status(BookStatus.ON_SALE)
                 .build();
 
-        // -------조인 테이블들 연결로직 부분 -------
-        book.getBookPublishers().add(
-                BookPublisher.builder()
-                        .book(book)
-                        .publisher(publisher)
-                        .build()
-        );
+        //연관관계 설정: 출판사
+        book.getBookPublishers().add(BookPublisher.builder()
+                .book(book)
+                .publisher(publisher)
+                .build());
 
-        for (Author author : authors) {
-            book.getBookAuthors().add(
-                    BookAuthor.builder()
-                            .book(book)
-                            .author(author)
-                            .build()
-            );
+        // 연관관계 설정: 작가/역자 등 (Contributor 파싱)
+        String rawAuthorStr = safeGet(row, h, "AUTHR_NM");
+        if (StringUtils.hasText(rawAuthorStr)) {
+            parseAndAddContributors(book, rawAuthorStr);
+        }
+        String imageUrl = safeGet(row, h, "IMAGE_URL");
+        if (StringUtils.hasText(imageUrl)) {
+            book.getImages().add(BookImage.builder()
+                    .book(book)
+                    .imagePath(imageUrl)
+                    .build());
         }
 
-        if (imageUrl != null && !imageUrl.isBlank()) {
-            book.getImages().add(
-                    BookImage.builder()
-                            .book(book)
-                            .imagePath(imageUrl)
-                            .build()
-            );
-
-        }
-
-        if (categoryString != null) {
-            Category deepestCategory = getOrCreateCategoriesFromString(categoryString);
-            book.getBookCategories().add(
-                    BookCategory.builder()
-                            .book(book)
-                            .category(deepestCategory)
-                            .build()
-            );
-        }
-
-        bookRepository.save(book);
-
+        return book;
     }
 
-    private LocalDate parseGenericDate(String dateStr) {
-        if (isNullOrEmpty(dateStr)) {
-            return null;
+    /**
+     * 복잡한 작가 문자열을 파싱하여 BookContributor로 연결하는 로직 예: "홍길동(지은이), 김철수(옮긴이); 이영희 그림" -> 각각 분리하여 저장
+     */
+    private void parseAndAddContributors(Book book, String rawAuthorStr) {
+        // 전처리: "by ", "illustrated by" 등 제거
+        String cleanedStr = rawAuthorStr.replaceAll("(?i)\\s*by\\s*", "")
+                .replaceAll("(?i)\\s*illustrated\\s*", "");
+
+        // 구분자로 토큰 분리
+        String[] tokens = SPLIT_PATTERN.split(cleanedStr);
+        Set<String> addedKeys = new HashSet<>();
+
+        for (String token : tokens) {
+            token = token.trim();
+            if (token.isEmpty() || token.equals("외")) {
+                continue;
+            }
+
+            // "홍길동 외 2명" 처리
+            if (token.contains(" 외")) {
+                token = token.split(" 외")[0].trim();
+            }
+
+            // 이름과 역할 추출
+            ContributorData cData = extractNameAndRole(token);
+            if (!StringUtils.hasText(cData.name)) {
+                continue;
+            }
+
+            // Contributor 가져오기 (캐시 활용)
+            Contributor contributor = contributorCache.computeIfAbsent(cData.name, n ->
+                    contributorRepository.save(Contributor.builder().contributorName(n).build())
+            );
+
+            String uniqueKey = contributor.getId() + "_" + cData.role;
+
+            if (addedKeys.contains(uniqueKey)) {
+                continue;
+            }
+
+            addedKeys.add(uniqueKey);
+
+            // BookContributor 연결
+            book.getBookContributors().add(BookContributor.builder()
+                    .book(book)
+                    .contributor(contributor)
+                    .roleType(cData.role) // 파싱된 역할(지은이, 옮긴이 등) 저장
+                    .build());
+        }
+    }
+
+    // 내부 헬퍼 클래스
+    private static class ContributorData {
+        String name;
+        String role;
+
+        public ContributorData(String name, String role) {
+            this.name = name;
+            this.role = role;
+        }
+    }
+
+    // 정규식을 이용해 "이름"과 "역할"을 분리
+    private ContributorData extractNameAndRole(String token) {
+        Matcher matcher = ROLE_PATTERN.matcher(token);
+
+        String name = token;
+        String role = "지은이"; // 기본값
+
+        if (matcher.find()) {
+            name = matcher.group(1).trim(); // 그룹1: 이름
+            String foundRole = matcher.group(2); // 그룹2: 괄호 안 역할
+
+            if (foundRole == null) {
+                foundRole = matcher.group(3); // 그룹3: 접미사 역할
+            }
+
+            if (foundRole != null) {
+                role = normalizeRole(foundRole);
+            }
+        }
+        return new ContributorData(name, role);
+    }
+
+    // 역할 명칭 통일
+    private String normalizeRole(String rawRole) {
+        rawRole = rawRole.trim();
+        if (rawRole.equals("지음") || rawRole.equals("저") || rawRole.equals("공저")) {
+            return "지은이";
+        }
+        if (rawRole.equals("옮김") || rawRole.equals("역")) {
+            return "옮긴이";
+        }
+        if (rawRole.equals("편") || rawRole.equals("엮음")) {
+            return "엮은이";
+        }
+        if (rawRole.equals("글")) {
+            return "글";
+        }
+        if (rawRole.equals("그림")) {
+            return "그림";
         }
 
+        if (rawRole.length() > 50) {
+            return rawRole.substring(0, 50);
+        }
+        return rawRole;
+    }
+
+    // --- 유틸리티 메서드 ---
+
+    private String safeGet(String[] row, Map<String, Integer> headerMap, String... keys) {
+        for (String key : keys) {
+            Integer idx = headerMap.get(key);
+            if (idx != null && idx >= 0 && idx < row.length) {
+                String val = row[idx];
+                if (val != null && !val.equalsIgnoreCase("NaN") && !val.trim().isEmpty()) {
+                    return val.trim();
+                }
+            }
+        }
+        return "";
+    }
+
+    private long parsePrice(String price) {
         try {
-            Date date = DateUtils.parseDate(dateStr.trim(), "yyyy-MM-dd", "yyyyMMdd", "yyyy-MM", "yyyy");
-            return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            return (long) Double.parseDouble(price);
         } catch (Exception e) {
-            return null;
+            return 0L;
         }
     }
 
-    private boolean isNullOrEmpty(String str) {
-        return str == null || str.trim().isEmpty();
+    private LocalDate parseDate(String dateStr) {
+        if (!StringUtils.hasText(dateStr)) {
+            return LocalDate.now();
+        }
+        try {
+            return LocalDate.parse(dateStr, DATE_FORMATTER);
+        } catch (Exception e) {
+            return LocalDate.now();
+        }
     }
 
+    private String truncate(String val, int len) {
+        if (val == null) {
+            return null;
+        }
+        return val.length() > len ? val.substring(0, len) : val;
+    }
+
+    private Map<String, Integer> createHeaderMap(String[] headers) {
+        Map<String, Integer> map = new HashMap<>();
+        for (int i = 0; i < headers.length; i++) {
+            map.put(headers[i].trim(), i);
+        }
+        return map;
+    }
 }
