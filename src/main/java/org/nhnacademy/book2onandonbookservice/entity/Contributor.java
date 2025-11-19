@@ -10,6 +10,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,27 +19,37 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "Author")
+@Table(name = "Contributor")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Author {
-    // 작가 아이디
+public class Contributor {
+    // 기여자 아이디
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "author_id")
+    @Column(name = "contributor_id")
     private Long id;
 
-    // 작가 이름
+    // 기여자 이름
     @Setter
-    @Column(name = "author_name", length = 50, nullable = false)
+    @Column(name = "contributor_name", length = 50, nullable = false)
     @Size(min = 1, max = 50)
-    private String authorName;
+    private String contributorName;
+
+    // 부가 정보
+    @Setter
+    @Column(name = "description")
+    private String description;
+
+    // 출생 연도
+    @Setter
+    @Column(name = "birth_year")
+    private Date birthYear;
 
     @Setter
-    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "contributor", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookAuthor> bookAuthors = new ArrayList<>();
+    private List<BookContributor> bookContributors = new ArrayList<>();
 
 }
