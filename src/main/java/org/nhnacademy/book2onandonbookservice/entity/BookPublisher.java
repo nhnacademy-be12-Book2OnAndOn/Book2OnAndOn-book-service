@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +17,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "BookPublisher")
+@Table(name = "BookPublisher",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_book_publisher",
+                        columnNames = {"book_id", "publisher_id"}
+                )
+        }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

@@ -9,19 +9,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "BookTranslator", uniqueConstraints = {
-        @UniqueConstraint(
-                name = "uk_book_translator_id", // 제약조건 이름 (에러 로그 볼 때 편함)
-                columnNames = {"translator_id", "book_id"} // 실제 DB의 컬럼명 입력
-        )
-})
+@Table(name = "Book-Translator")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
