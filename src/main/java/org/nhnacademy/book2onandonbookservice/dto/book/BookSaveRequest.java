@@ -2,12 +2,16 @@ package org.nhnacademy.book2onandonbookservice.dto.book;
 
 import java.time.LocalDate;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 // 도서 등록 및 수정 요청 DTO
 @Getter
+@AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class BookSaveRequest {
     // ISBN 검색
     private String isbn;
