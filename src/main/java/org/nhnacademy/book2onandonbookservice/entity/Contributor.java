@@ -39,8 +39,8 @@ public class Contributor {
 
     // 부가 정보
     @Setter
-    @Column(name = "description")
-    private String description;
+    @Column(name = "contributor_description")
+    private String contributorDescription;
 
     // 출생 연도
     @Setter
