@@ -12,6 +12,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -39,6 +40,12 @@ public class Book {
     @Column(name = "book_title", nullable = false)
     @Size(min = 1, max = 255)
     private String title;
+
+    // 권 제목
+    @Setter
+    @Column(name = "book_volume")
+    @Size(max = 500)
+    private String volume;
 
     // 목차
     @Setter
@@ -71,7 +78,7 @@ public class Book {
     // 출판 일시
     @Setter
     @Column(name = "book_publish_date", nullable = false)
-    private java.time.LocalDate publishDate;
+    private LocalDate publishDate;
 
     // 책 재고 상태
     @Setter
@@ -100,7 +107,7 @@ public class Book {
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private java.util.List<BookImage> images = new ArrayList<>();
+    private List<BookImage> images = new ArrayList<>();
 
     // 도서 카테고리 매핑
     @Setter
