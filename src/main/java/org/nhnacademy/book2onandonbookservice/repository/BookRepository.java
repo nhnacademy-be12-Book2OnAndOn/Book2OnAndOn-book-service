@@ -26,4 +26,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
         String getIsbn();
     }
+
+    @Query("SELECT b FROM Book b WHERE (b.description IS NOT NULL AND b.description != '') AND SIZE(b.bookTags) = 0")
+    List<Book> findBooksNeedingTags(Pageable pageable);
 }

@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +21,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "Category")
+@Table(name = "Category",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_category_name_parent",
+                        columnNames = {"category_name", "parent_id"}
+                )
+        }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -34,8 +42,8 @@ public class Category {
 
     // 카테고리 명
     @Setter
-    @Column(name = "category_name", length = 20, nullable = false)
-    @Size(min = 1, max = 20)
+    @Column(name = "category_name", length = 100, nullable = false)
+    @Size(min = 1, max = 100)
     private String categoryName;
 
     // 상위 카테고리 아이디

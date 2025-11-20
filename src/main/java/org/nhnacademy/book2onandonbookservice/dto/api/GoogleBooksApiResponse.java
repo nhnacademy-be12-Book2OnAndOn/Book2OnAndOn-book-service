@@ -27,7 +27,6 @@ public class GoogleBooksApiResponse {
         private String description; //책 설명
         private List<String> categories; // 카테고리
         private ImageLinks imageLinks; //이미지링크
-        private String infoLink; // 상세정보 링크 (목차 대용으로 사용?가능할듯합니다)
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
