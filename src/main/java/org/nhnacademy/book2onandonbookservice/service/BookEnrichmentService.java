@@ -26,6 +26,7 @@ import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -46,7 +47,7 @@ public class BookEnrichmentService {
     private final AladinApiClient aladinApiClient;
     private final GoogleBooksApiClient googleBooksApiClient;
     private final TransactionTemplate transactionTemplate;
-    private final Map<String, Category> categoryCache = new ConcurrentHashMap<>();
+    private final Map<String, Long> categoryIdCache = new ConcurrentHashMap<>();
 
 
     @Async("apiExecutor")
@@ -58,9 +59,18 @@ public class BookEnrichmentService {
             Thread.currentThread().interrupt();
         }
         Book book = bookRepository.findById(bookId).orElse(null);
-        if (book == null) {
+        if (!bookRepository.existsById(bookId)) {
             return CompletableFuture.completedFuture(null);
         }
+
+        Book bookForIsbn = bookRepository.findById(bookId).orElse(null);
+        if (bookForIsbn == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        String isbn = bookForIsbn.getIsbn();
+        String title = bookForIsbn.getTitle();
+        String description = bookForIsbn.getDescription();
 
         log.info("[보강 시작] 책 ID: {}, ISBN: {}", bookId, book.getIsbn());
 
@@ -74,13 +84,24 @@ public class BookEnrichmentService {
             log.error("API 호출 중 오류 발생: {}", e.getMessage());
         }
 
-        if (aladinData != null || googleData != null) {
+        List<String> generatedTags = null;
+        if (StringUtils.hasText(description)) {
+            try {
+                Thread.sleep(3000);
+                generatedTags = geminiApiClient.extractTags(title, description);
+            } catch (Exception e) {
+                log.warn("Gemini 태그 생성 실패: {}", e.getMessage());
+            }
+        }
+
+        if (aladinData != null || googleData != null || (generatedTags != null && !generatedTags.isEmpty())) {
             AladinApiResponse.Item finalAladinData = aladinData;
             GoogleBooksApiResponse.VolumeInfo finalGoogleData = googleData;
+            List<String> finalTags = generatedTags;
 
             // transactionTemplate.execute()를 쓰면 내부 호출 문제 없이 트랜잭션 적용됨
             transactionTemplate.execute(status -> {
-                updateBookInTransaction(bookId, finalAladinData, finalGoogleData);
+                updateBookInTransaction(bookId, finalAladinData, finalGoogleData, finalTags);
                 return null;
             });
         }
@@ -90,7 +111,7 @@ public class BookEnrichmentService {
     }
 
     protected void updateBookInTransaction(Long bookId, AladinApiResponse.Item aladinData,
-                                           GoogleBooksApiResponse.VolumeInfo googleData) {
+                                           GoogleBooksApiResponse.VolumeInfo googleData, List<String> finalTags) {
         Book book = bookRepository.findById(bookId).orElseThrow();
         boolean isUpdated = false;
 
@@ -136,18 +157,11 @@ public class BookEnrichmentService {
 
         }
 
-        if (book.getBookTags().isEmpty() && StringUtils.hasText(book.getDescription())) {
-            try {
-                Thread.sleep(1600);
-                List<String> tags = geminiApiClient.extractTags(book.getTitle(), book.getDescription());
-                if (!tags.isEmpty()) {
-                    saveTags(book, tags);
-                    log.info("태그 생성 완료 ({}개): {}", tags.size(), tags);
-                }
-            } catch (Exception e) {
-                log.error("태그 생성 중 오류: {}", e.getMessage());
+        if (finalTags != null && !finalTags.isEmpty()) {
+            if (book.getBookTags().isEmpty()) {
+                saveTags(book, finalTags);
+                log.info("태그 저장 완료 ({}개)", finalTags.size());
             }
-
         }
 
         if (isUpdated) {
@@ -159,23 +173,20 @@ public class BookEnrichmentService {
 
     private void saveTags(Book book, List<String> tagNames) {
         for (String tagName : tagNames) {
-            if (tagName == null || tagName.isBlank()) {
+            if (!StringUtils.hasText(tagName)) {
                 continue;
             }
-            String safeTagName = tagName.trim();
 
-            if (safeTagName.length() > 50) {
-                safeTagName = safeTagName.substring(0, 50);
-            }
+            String safeTagName = truncate(tagName.trim(), 50);
+
             try {
 
-                String finalTagName = safeTagName;
-                Tag tag = tagRepository.findByTagName(finalTagName)
+                Tag tag = tagRepository.findByTagName(safeTagName)
                         .orElseGet(() -> {
                             try {
-                                return tagRepository.save(Tag.builder().tagName(finalTagName).build());
+                                return tagRepository.saveAndFlush(Tag.builder().tagName(safeTagName).build());
                             } catch (Exception e) {
-                                return tagRepository.findByTagName(finalTagName).orElseThrow();
+                                return tagRepository.findByTagName(safeTagName).orElseThrow();
                             }
                         });
 
@@ -186,6 +197,8 @@ public class BookEnrichmentService {
                             .book(book)
                             .tag(tag)
                             .build());
+
+
                 }
             } catch (Exception e) {
                 log.error("태그 저장 실패 (Book: {}. Tag:{}): {}", book.getId(), safeTagName, e.getMessage());
@@ -231,77 +244,79 @@ public class BookEnrichmentService {
             if (categoryName.isEmpty()) {
                 continue;
             }
+            categoryName = truncate(categoryName, 100);
 
-            if (categoryName.length() > 100) {
-                categoryName = categoryName.substring(0, 100);
-            }
-            final String finalCategoryName = categoryName;
             if (currentPathKey.isEmpty()) {
                 currentPathKey = categoryName;
             } else {
                 currentPathKey = currentPathKey + ">" + categoryName;
             }
 
-            Category cachedCategory = categoryCache.get(currentPathKey);
+            Category currentCategory = null;
+            Long cachedId = categoryIdCache.get(currentPathKey);
 
-            if (cachedCategory != null) {
-                parent = cachedCategory;
-                continue;
+            if (cachedId != null) {
+                currentCategory = categoryRepository.findById(cachedId).orElse(null);
             }
 
-            synchronized (categoryCache) {
-                cachedCategory = categoryCache.get(currentPathKey);
-                if (cachedCategory != null) {
-                    parent = cachedCategory;
-                    continue;
-                }
-                try {
-                    Category savedCategory;
-                    if (parent == null) {
-                        savedCategory = categoryRepository.findByCategoryNameAndParentIsNull(finalCategoryName)
-                                .orElseGet(() ->
-                                        categoryRepository.save(
-                                                Category.builder().categoryName(finalCategoryName).build()));
-                    } else {
-                        Category finalParent = parent;
-                        savedCategory = categoryRepository.findByCategoryNameAndParent(finalCategoryName, finalParent)
-                                .orElseGet(() ->
-                                        categoryRepository.save(
-                                                Category.builder().categoryName(finalCategoryName).parent(finalParent)
-                                                        .build()));
+            if (currentCategory == null) {
+                synchronized (categoryIdCache) {
+                    cachedId = categoryIdCache.get(currentPathKey);
+                    if (cachedId != null) {
+                        currentCategory = categoryRepository.findById(cachedId).orElse(null);
                     }
 
-                    categoryCache.put(currentPathKey, savedCategory);
-                    parent = savedCategory;
-                } catch (Exception e) {
-                    if (parent == null) {
-                        parent = categoryRepository.findByCategoryNameAndParentIsNull(categoryName).orElse(null);
-                    } else {
-                        parent = categoryRepository.findByCategoryNameAndParent(categoryName, parent).orElse(null);
-                    }
+                    if (currentCategory == null) {
+                        try {
+                            final String name = categoryName;
+                            final Category p = parent;
 
-                    if (parent != null) {
-                        categoryCache.put(currentPathKey, parent);
+                            if (p == null) {
+                                currentCategory = categoryRepository.saveAndFlush(
+                                        Category.builder().categoryName(name).build());
+                            } else {
+                                currentCategory = categoryRepository.saveAndFlush(
+                                        Category.builder().categoryName(name).parent(p).build());
+                            }
+
+                        } catch (DataIntegrityViolationException e) {
+                            log.info("카테고리 중복 발생(방어 로직 동작): {}", currentPathKey);
+                            if (parent == null) {
+                                currentCategory = categoryRepository.findByCategoryNameAndParentIsNull(categoryName)
+                                        .orElseThrow();
+                            } else {
+                                currentCategory = categoryRepository.findByCategoryNameAndParent(categoryName, parent)
+                                        .orElseThrow();
+                            }
+                        } catch (Exception e) {
+                            try {
+                                if (parent == null) {
+                                    currentCategory = categoryRepository.findByCategoryNameAndParentIsNull(categoryName)
+                                            .orElse(null);
+                                } else {
+                                    currentCategory = categoryRepository.findByCategoryNameAndParent(categoryName,
+                                            parent).orElse(null);
+                                }
+                            } catch (Exception ex) {
+                            }
+                        }
+
+                        if (currentCategory != null) {
+                            categoryIdCache.put(currentPathKey, currentCategory.getId());
+                        }
                     }
-                }
-                if (parent == null) {
-                    log.error("카테고리 연결 실패: {}", currentPathKey);
-                    return;
                 }
             }
+            parent = currentCategory;
 
-            if (parent != null) {
+            if (currentCategory != null) {
                 try {
-                    if (!bookCategoryRepository.existsByBookAndCategory(book, parent)) {
+                    if (!bookCategoryRepository.existsByBookAndCategory(book, currentCategory)) {
                         bookCategoryRepository.save(BookCategory.builder()
-                                .book(book)
-                                .category(parent)
-                                .build());
+                                .book(book).category(currentCategory).build());
                     }
                 } catch (Exception e) {
-                    log.error("Book-Category 연결 실패 (Book: {}, Category: {}): {}", book.getId(),
-                            parent.getCategoryName(),
-                            e.getMessage());
+                    // 무시
                 }
             }
         }
