@@ -145,4 +145,20 @@ public class Book {
     @Builder.Default
     private List<BookLike> likes = new ArrayList<>();
 
+
+    // 헬퍼 추가 -> 중복 출판사 목록 생성 및 unique constraint 오류 방지
+    public boolean hasPublisher(Publisher publisher) {
+        return bookPublishers.stream()
+                .anyMatch(bp -> bp.getPublisher().equals(publisher));
+    }
+
+    public void addPublisher(Publisher publisher) {
+        bookPublishers.add(
+                BookPublisher.builder()
+                        .book(this)
+                        .publisher(publisher)
+                        .build()
+        );
+    }
+
 }
