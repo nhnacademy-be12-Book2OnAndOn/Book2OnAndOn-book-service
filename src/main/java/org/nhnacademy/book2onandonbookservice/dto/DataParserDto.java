@@ -2,7 +2,6 @@ package org.nhnacademy.book2onandonbookservice.dto;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -32,9 +31,6 @@ public class DataParserDto {
     private final List<String> translators;
 
     private final String imageUrl;
-
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final DateTimeFormatter DATE_FORMATTER_NO_DASH = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private static final String[] PARSE_PATTERS = {
             "yyyy-MM-dd",

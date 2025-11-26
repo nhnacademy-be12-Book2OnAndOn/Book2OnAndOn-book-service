@@ -48,7 +48,7 @@ public class BookController {
     public ResponseEntity<List<CategoryDto>> getCategory() {
         log.info("전체 카테고리 목록 조회 요청");
         List<CategoryDto> categories = bookService.getCategories();
-        log.info("카테고리: {}", categories);
+        log.info("조회된 카테고리 개수: {}", categories.size());
         return ResponseEntity.ok(categories);
     }
 
