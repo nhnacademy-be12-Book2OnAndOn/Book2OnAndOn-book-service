@@ -25,5 +25,6 @@ public class AladinApiResponse {
         private String description;
         private String categoryName;
         private String cover; // 이미지 URL
+
     }
 }

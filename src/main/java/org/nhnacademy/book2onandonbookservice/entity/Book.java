@@ -64,6 +64,11 @@ public class Book {
     @Column(name = "price_standard", nullable = false)
     private Long priceStandard;
 
+    //평점
+    @Column(name = "book_rating") // DB 컬럼명
+    @Builder.Default // 빌더 패턴 사용 시 기본값 적용되도록 함
+    private Double rating = 0.0;
+
     // 포장 여부 ->  해당 책이 포장이 가능한지, 아닌지
     @Setter
     @Column(name = "is_wrapped", nullable = false)
@@ -159,6 +164,10 @@ public class Book {
                         .publisher(publisher)
                         .build()
         );
+    }
+
+    public void updateRating(Double newRating) {
+        this.rating = newRating;
     }
 
 }
