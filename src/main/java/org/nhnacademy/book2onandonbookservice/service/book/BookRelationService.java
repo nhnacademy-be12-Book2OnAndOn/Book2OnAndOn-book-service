@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -41,7 +42,7 @@ public class BookRelationService {
 
     /// 기여자(저자) 설정: "XXX, XXX" 등의 형태를 , 기준으로 분리. 빈 문자열이면 아무것도 추가하지 않음.
     private void setContributors(Book book, String contributorName) {
-        if (StringUtils.isNotBlank(contributorName)) {
+        if (StringUtils.isBlank(contributorName)) {
             return; // null or 빈 문자열이면 기여자 없음
         }
 
@@ -96,12 +97,12 @@ public class BookRelationService {
     }
 
     /// 태그 설정: 태그명이 없으면 무시, 없는 태그 -> 신규 생성
-    private void setTags(Book book, List<String> tagNames) {
-        if (tagNames == null) {
+    private void setTags(Book book, Set<String> tagNames) {
+        if (tagNames == null || tagNames.isEmpty()) {
             return;
         }
 
-        for (String tagName : tagNames) {
+        for (String tagName : tagNames.stream().distinct().toList()) {
             if (StringUtils.isNotBlank(tagName)) {
                 Tag tag = tagRepository.findByTagName(tagName)
                         .orElseGet(() -> tagRepository.save(Tag.builder()
