@@ -23,6 +23,7 @@ import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
+import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class BookServiceImpl implements BookService {
     private final BookRepository bookRepository;
     private final BookLikeRepository bookLikeRepository;
     private final CategoryRepository categoryRepository;
+    private final BookSearchIndexService bookSearchIndexService;
 
     // 도서 등록
     @Override
@@ -48,6 +50,7 @@ public class BookServiceImpl implements BookService {
         Book book = bookFactory.createFrom(request);    // 필드 생성
         bookRelationService.applyRelationsForCreate(book, request); // 연관관계 설정
         Book saved = bookRepository.save(book); // 저장
+        bookSearchIndexService.index(saved);    // ES 인덱싱
         return saved.getId();
     }
 
@@ -60,6 +63,7 @@ public class BookServiceImpl implements BookService {
         bookValidator.validateForUpdate(request);   // 수정값 검증
         bookFactory.updateFields(book, request);    // 단일 필드 업데이트
         bookRelationService.applyRelationsForUpdate(book, request); // 연관관계
+        bookSearchIndexService.index(book); // 수정 후 인덱스 갱신
     }
 
     @Override
