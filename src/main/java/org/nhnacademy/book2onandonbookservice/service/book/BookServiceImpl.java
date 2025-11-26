@@ -1,6 +1,9 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
@@ -16,8 +19,10 @@ import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.nhnacademy.book2onandonbookservice.entity.BookTag;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
+import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,6 +39,7 @@ public class BookServiceImpl implements BookService {
     private final BookValidator bookValidator;
     private final BookRepository bookRepository;
     private final BookLikeRepository bookLikeRepository;
+    private final CategoryRepository categoryRepository;
 
     // 도서 등록
     @Override
@@ -199,6 +205,38 @@ public class BookServiceImpl implements BookService {
                 .descriptionHtml(book.getDescription())
                 .likeCount(likeCount)
                 .likedByCurrentUser(likedByCurrentUser)
+                .build();
+    }
+
+    @Override
+    public List<CategoryDto> getCategories() {
+        List<Category> entities = categoryRepository.findAll();
+        List<CategoryDto> allDtos = entities.stream().map(this::CategoryToDto).toList();
+        Map<Long, CategoryDto> dtoMap = allDtos.stream()
+                .collect(Collectors.toMap(CategoryDto::getId, Function.identity()));
+
+        List<CategoryDto> rootCategories = new ArrayList<>();
+
+        for (CategoryDto dto : allDtos) {
+            if (dto.getParentId() == null || dto.getParentId() == 0L) {
+                rootCategories.add(dto);
+            } else {
+                CategoryDto parent = dtoMap.get(dto.getParentId());
+                if (parent != null) {
+                    parent.getChildren().add(dto);
+                }
+            }
+        }
+        return rootCategories;
+    }
+
+
+    ///    내부 로직
+    private CategoryDto CategoryToDto(Category category) {
+        return CategoryDto.builder()
+                .id(category.getId())
+                .name(category.getCategoryName())
+                .parentId(category.getParent() != null ? category.getParent().getId() : null)
                 .build();
     }
 }

@@ -104,6 +104,12 @@
             <scope>test</scope>
         </dependency>
 
+        <!--        Elastic Search-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+        </dependency>
+
         <!--        MINIO-->
         <dependency>
             <groupId>io.minio</groupId>

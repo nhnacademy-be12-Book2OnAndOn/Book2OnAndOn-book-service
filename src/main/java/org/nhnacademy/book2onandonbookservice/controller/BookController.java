@@ -2,13 +2,16 @@ package org.nhnacademy.book2onandonbookservice.controller;
 
 
 import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -39,6 +42,14 @@ public class BookController {
 
         Long bookId = bookService.createBook(request);
         return ResponseEntity.created(URI.create("/api/books/" + bookId)).build();
+    }
+
+    @GetMapping("/categories")
+    public ResponseEntity<List<CategoryDto>> getCategory() {
+        log.info("전체 카테고리 목록 조회 요청");
+        List<CategoryDto> categories = bookService.getCategories();
+        log.info("카테고리: {}", categories);
+        return ResponseEntity.ok(categories);
     }
 
 }
