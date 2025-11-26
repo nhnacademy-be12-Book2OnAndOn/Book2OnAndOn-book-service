@@ -2,10 +2,12 @@ package org.nhnacademy.book2onandonbookservice.dto.book;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 // 도서 등록 및 수정 요청 DTO
 @Getter
@@ -40,10 +42,11 @@ public class BookSaveRequest {
 
     // 카테고리 및 태그, 포장 여부
     private List<Long> categoryIds; // 카테고리
-    private List<String> tagNames;  // 태그 리스트
+    private Set<String> tagNames;  // 태그 리스트
     private Boolean isWrapped;  // 포장 여부
 
     // 이미지 url(경로)
+    @Setter
     private String imagePath;
 
     // 목차
