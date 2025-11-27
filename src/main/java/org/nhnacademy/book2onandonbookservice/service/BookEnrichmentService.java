@@ -26,6 +26,7 @@ import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
+import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class BookEnrichmentService {
     private final BookCategoryRepository bookCategoryRepository;
     private final TagRepository tagRepository;
     private final BookTagRepository bookTagRepository;
+    private final BookSearchIndexService bookSearchIndexService;
 
     private final GeminiApiClient geminiApiClient;
     private final AladinApiClient aladinApiClient;
@@ -116,6 +118,7 @@ public class BookEnrichmentService {
         boolean isUpdated = false;
 
         if (aladinData != null) {
+
             if (book.getBookCategories().isEmpty() && StringUtils.hasText(aladinData.getCategoryName())) {
                 log.info("카테고리 발견: {}", aladinData.getCategoryName());
                 saveCategories(book, aladinData.getCategoryName());
@@ -145,16 +148,64 @@ public class BookEnrichmentService {
                 isUpdated = true;
             }
 
+//            if (book.getChapter().isEmpty() && StringUtils.hasText(aladinData.getItemList())) {
+//                book.setChapter(aladinData.getItemList());
+//
+//                log.info("챕터!!!!!!!:{}", book.getChapter());
+//                isUpdated = true;
+//            }
+
+//            log.info("[디버깅] 책: ID: {}, subInfo 존재?: {}", bookId, (aladinData.getSubInfo() != null));
+//
+//            if (aladinData.getSubInfo() != null && aladinData.getSubInfo().getAuthors() != null
+//                    && !aladinData.getSubInfo().getAuthors().isEmpty()) {
+//
+//                book.getBookContributors().clear();
+//
+//                for (AladinApiResponse.Author apiAuthor : aladinData.getSubInfo().getAuthors()) {
+//                    String authorName = truncate(apiAuthor.getAuthorName(), 50);
+//                    String role = truncate(apiAuthor.getAuthorTypeDesc(), 50);
+//                    String description = truncate(apiAuthor.getAuthorInfo(), 10000);
+//
+//                    if (description == null) {
+//                        log.warn("description is null!!!!!!!!!!!!!!!!");
+//                    }
+//
+//                    if (!StringUtils.hasText(authorName)) {
+//                        continue;
+//                    }
+//
+//                    Contributor contributor = contributorRepository.findByContributorName(authorName)
+//                            .orElseGet(() -> contributorRepository.save(
+//                                    Contributor.builder().contributorName(authorName).build()
+//                            ));
+//
+//                    if (StringUtils.hasText(description) && !StringUtils.hasText(
+//                            contributor.getContributorDescription())) {
+//                        contributor.setContributorDescription(description);
+//
+//                    }
+//                    contributorRepository.save(contributor);
+//
+//                    BookContributor newRelation = BookContributor.builder()
+//                            .book(book)
+//                            .contributor(contributor)
+//                            .roleType(role)
+//                            .build();
+//
+//                    book.getBookContributors().add(newRelation);
+//                }
+//                log.info("작가 정보 갱신 완료 ({}명)", aladinData.getSubInfo().getAuthors().size());
+//                isUpdated = true;
+//            }
 
         }
 
         if (googleData != null) {
             if (!StringUtils.hasText(book.getDescription()) && StringUtils.hasText(googleData.getDescription())) {
-                if (StringUtils.hasText(googleData.getDescription())) {
-                    isUpdated = true;
-                }
+                book.setDescription(googleData.getDescription());
+                isUpdated = true;
             }
-
         }
 
         if (finalTags != null && !finalTags.isEmpty()) {
@@ -167,6 +218,8 @@ public class BookEnrichmentService {
         if (isUpdated) {
             bookRepository.save(book);
             log.info("[보강 완료] 책 ID: {}", bookId);
+            bookSearchIndexService.index(book);
+
         }
 
     }
@@ -267,20 +320,26 @@ public class BookEnrichmentService {
                     }
 
                     if (currentCategory == null) {
+                        if (parent == null) {
+                            currentCategory = categoryRepository.findByCategoryNameAndParentIsNull(categoryName)
+                                    .orElse(null);
+                        } else {
+                            currentCategory = categoryRepository.findByCategoryNameAndParent(categoryName, parent)
+                                    .orElse(null);
+                        }
+                    }
+
+                    if (currentCategory == null) {
                         try {
-                            final String name = categoryName;
-                            final Category p = parent;
+                            Category newCategory = Category.builder()
+                                    .categoryName(categoryName)
+                                    .parent(parent)
+                                    .build();
 
-                            if (p == null) {
-                                currentCategory = categoryRepository.saveAndFlush(
-                                        Category.builder().categoryName(name).build());
-                            } else {
-                                currentCategory = categoryRepository.saveAndFlush(
-                                        Category.builder().categoryName(name).parent(p).build());
-                            }
-
+                            currentCategory = categoryRepository.saveAndFlush(newCategory);
                         } catch (DataIntegrityViolationException e) {
-                            log.info("카테고리 중복 발생(방어 로직 동작): {}", currentPathKey);
+                            log.info("카테고리 중복 저장 방어: {}", currentPathKey);
+
                             if (parent == null) {
                                 currentCategory = categoryRepository.findByCategoryNameAndParentIsNull(categoryName)
                                         .orElseThrow();
@@ -288,22 +347,11 @@ public class BookEnrichmentService {
                                 currentCategory = categoryRepository.findByCategoryNameAndParent(categoryName, parent)
                                         .orElseThrow();
                             }
-                        } catch (Exception e) {
-                            try {
-                                if (parent == null) {
-                                    currentCategory = categoryRepository.findByCategoryNameAndParentIsNull(categoryName)
-                                            .orElse(null);
-                                } else {
-                                    currentCategory = categoryRepository.findByCategoryNameAndParent(categoryName,
-                                            parent).orElse(null);
-                                }
-                            } catch (Exception ex) {
-                            }
                         }
+                    }
 
-                        if (currentCategory != null) {
-                            categoryIdCache.put(currentPathKey, currentCategory.getId());
-                        }
+                    if (currentCategory != null) {
+                        categoryIdCache.put(currentPathKey, currentCategory.getId());
                     }
                 }
             }
@@ -314,9 +362,12 @@ public class BookEnrichmentService {
                     if (!bookCategoryRepository.existsByBookAndCategory(book, currentCategory)) {
                         bookCategoryRepository.save(BookCategory.builder()
                                 .book(book).category(currentCategory).build());
+
                     }
                 } catch (Exception e) {
                     // 무시
+
+                    log.error("BookCategory 저장 실패");
                 }
             }
         }

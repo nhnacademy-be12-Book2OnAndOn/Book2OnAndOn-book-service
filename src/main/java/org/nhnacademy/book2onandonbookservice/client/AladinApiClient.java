@@ -39,6 +39,7 @@ public class AladinApiClient {
                 .queryParam("ItemIdType", "ISBN13")
                 .queryParam("output", "js")
                 .queryParam("Version", "20131101")
+                .queryParam("Cover", "toc")
                 .queryParam("OptResult", "description,categoryName,author,publisher,cover")
                 .build(true)
                 .toUri();
@@ -46,7 +47,6 @@ public class AladinApiClient {
         try {
             AladinApiResponse response = restTemplate.getForObject(uri, AladinApiResponse.class);
             if (response != null && response.getItem() != null && !response.getItem().isEmpty()) {
-                log.info("알라딘 API 호출 (Cache Miss): {}", isbn);
                 return response.getItem().get(0);
             } else {
                 log.warn("알라딘 API: ISBN {}에 대한 검색 결과가 없습니다. ", isbn);

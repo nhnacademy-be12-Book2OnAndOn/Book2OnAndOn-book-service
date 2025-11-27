@@ -17,7 +17,7 @@ Content-Disposition: form-data; name="book"
 Content-Type: application/json
 
 {
-  "isbn": "9780000000001",
+  "isbn": "9999999999",
   "title": "ES 테스트용 도서",
   "volume": "1권",
 
@@ -32,7 +32,7 @@ Content-Type: application/json
   "priceSales": 13000,
 
   "stockCount": 100,
-  "stockStatus": "IN_STOCK",
+  "stockStatus": null,
 
   "categoryIds": [1],
   "tagNames": ["테스트태그", "도서태그"],
