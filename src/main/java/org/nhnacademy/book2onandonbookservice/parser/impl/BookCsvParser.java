@@ -30,6 +30,7 @@ public class BookCsvParser implements DataParser {
     private static final String PUBLISHED_AT = "TWO_PBLICTE_DE";
     private static final String DESCRIPTION = "BOOK_INTRCN_CN";
     private static final String IMAGE_URL = "IMAGE_URL";
+    private static final String VOLUME = "VLM_NM";
 
     @Override
     public String getFileType() {
@@ -89,6 +90,7 @@ public class BookCsvParser implements DataParser {
         String publishedStr = getValue(values, headers.getOrDefault(PUBLISHED_AT, -1));
         String description = getValue(values, headers.getOrDefault(DESCRIPTION, -1));
         String imageUrl = getValue(values, headers.getOrDefault(IMAGE_URL, -1));
+        String volume = getValue(values, headers.getOrDefault(VOLUME, -1));
 
         return new DataParserDto(
                 seqNo,
@@ -99,7 +101,8 @@ public class BookCsvParser implements DataParser {
                 priceStr,
                 publishedStr,
                 description,
-                imageUrl
+                imageUrl,
+                volume
         );
     }
 

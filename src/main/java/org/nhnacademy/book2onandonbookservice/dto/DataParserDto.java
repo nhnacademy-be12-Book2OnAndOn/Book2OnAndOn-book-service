@@ -26,6 +26,7 @@ public class DataParserDto {
     private final long listPrice;
     private final long salePrice;
     private final String publisherName;
+    private final String volume;
 
     private final List<String> authors;
     private final List<String> translators;
@@ -40,7 +41,7 @@ public class DataParserDto {
     };
 
     public DataParserDto(String seqNo, String isbn, String title, String rawAuthorStr, String publisherName,
-                         String priceStr, String publishedAtStr, String description, String imageUrl
+                         String priceStr, String publishedAtStr, String description, String imageUrl, String volume
     ) {
         this.seqNo = seqNo;
         this.isbn = isbn;
@@ -51,6 +52,7 @@ public class DataParserDto {
         this.salePrice = this.listPrice;
         this.publisherName = publisherName;
         this.imageUrl = (imageUrl == null || imageUrl.isEmpty()) ? null : imageUrl;
+        this.volume = volume;
 
         if (rawAuthorStr == null || rawAuthorStr.isEmpty()) {
             this.authors = Collections.emptyList();

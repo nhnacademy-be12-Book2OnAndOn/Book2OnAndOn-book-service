@@ -53,8 +53,10 @@ public class BookServiceImpl implements BookService {
     public Long createBook(BookSaveRequest request) {
         bookValidator.validateForCreate(request);
         Book book = bookFactory.createFrom(request);
-        bookRelationService.applyRelationsForCreate(book, request);
+
         Book saved = bookRepository.save(book);
+
+        bookRelationService.applyRelationsForCreate(saved, request);
 
         try {
             bookSearchIndexService.index(saved);

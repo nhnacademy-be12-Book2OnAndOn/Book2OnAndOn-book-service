@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
@@ -13,6 +14,7 @@ import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookTag;
+import org.nhnacademy.book2onandonbookservice.entity.BookTagPK;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
@@ -25,6 +27,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class BookRelationService {
 
     private final CategoryRepository categoryRepository;
@@ -110,8 +113,9 @@ public class BookRelationService {
                         .orElseGet(() -> tagRepository.save(Tag.builder()
                                 .tagName(tagName)
                                 .build()));
-
+                BookTagPK pk = new BookTagPK(book.getId(), tag.getId());
                 BookTag bookTag = BookTag.builder()
+                        .pk(pk)
                         .book(book)
                         .tag(tag)
                         .build();
@@ -141,14 +145,16 @@ public class BookRelationService {
         for (Long categoryId : newIdSet) {
             if (!currentCategoryIds.contains(categoryId)) {
                 Category category = categoryRepository.findById(categoryId)
-                        .orElseThrow();
-
-                BookCategory bookCategory = BookCategory.builder()
-                        .book(book)
-                        .category(category)
-                        .build();
-
-                book.getBookCategories().add(bookCategory);
+                        .orElse(null);
+                if (category != null) {
+                    BookCategory bookCategory = BookCategory.builder()
+                            .book(book)
+                            .category(category)
+                            .build();
+                    book.getBookCategories().add(bookCategory);
+                } else {
+                    log.warn("존재하지 않는 카테고리 ID 무시됨:{}", categoryId);
+                }
             }
         }
     }
