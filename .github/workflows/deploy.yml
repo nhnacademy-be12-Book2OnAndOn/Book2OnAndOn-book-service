@@ -5,6 +5,10 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -21,14 +25,14 @@ jobs:
       - name: Build with Maven
         run: |
           chmod +x mvnw
-          ./mvnw clean package -DskipTests #테스트제외는 나중에 sonarQube할때 풀기
+          ./mvnw clean package -DskipTests
 
-      - name: Login to Docker Hub
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v4
@@ -37,7 +41,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           push: true
-          tags: onyune/book-service:v1 #태그 수정
+          tags: ghcr.io/nhnacademy-be12-book2onandon/book-service:v1
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
@@ -49,44 +53,30 @@ jobs:
           script: |
             cd /home/backend/be12-team2
             
-            
-            #orderpayment : order-payment-1 order-payment-2
-            #user : user-1 user-2
-            #coupon: coupon-1 coupon-2
-            #book: book-1 book-2
-            
-            SERVICE_NAME="BOOK-SERVICE" #수정
-            CONTAINER_1="book-1" #수정
-            CONTAINER_2="book-2" #수정
+            SERVICE_NAME="BOOK-SERVICE"
             EUREKA_URL="http://admin:admin1234@localhost:10437/eureka"
+            
+            docker compose pull book-1 book-2
 
-            docker compose pull $CONTAINER_1 $CONTAINER_2
+            # [1] book-1 배포
+            INSTANCE_ID_1="$SERVICE_NAME:book-1"
+            curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_1/status?value=OUT_OF_SERVICE" || true
+            
+            sleep 30
+            
+            docker compose up -d book-1
+            
+            sleep 40
+            
+            curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_1/status?value=UP" || true
 
-            INSTANCE_ID="$SERVICE_NAME:$CONTAINER_1"
-            
-            curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID/status?value=OUT_OF_SERVICE" || true
-            
-            sleep 35
-            
-            docker compose up -d $CONTAINER_1
-            
-            sleep 40 
-            
-            
-            
-            
-            
-            curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID/status?value=UP" || true
-            
-            
-            INSTANCE_ID_2="$SERVICE_NAME:$CONTAINER_2"
-            
-            
+            # [2] book-2 배포
+            INSTANCE_ID_2="$SERVICE_NAME:book-2"
             curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_2/status?value=OUT_OF_SERVICE" || true
             
-            sleep 35
+            sleep 30
             
-            docker compose up -d $CONTAINER_2
+            docker compose up -d book-2
             
             sleep 40
             

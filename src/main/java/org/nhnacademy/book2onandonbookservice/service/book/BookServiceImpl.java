@@ -26,6 +26,7 @@ import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMapper;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -234,6 +235,8 @@ public class BookServiceImpl implements BookService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()")
     public List<CategoryDto> getCategories() {
         List<Category> entities = categoryRepository.findAll();
         List<CategoryDto> allDtos = entities.stream().map(this::CategoryToDto).toList();
@@ -254,6 +257,8 @@ public class BookServiceImpl implements BookService {
         }
         return rootCategories;
     }
+
+    //카테고리 생성/수정/삭제 로직이 있을 경우 @CacheEvict(value="categories", allEntries=true)를 붙여줘야함
 
 
     ///    내부 로직

@@ -3,18 +3,16 @@ package org.nhnacademy.book2onandonbookservice.dto.review;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.Length;
 
-// 리뷰 작성 요청
-@AllArgsConstructor
 @Getter
 @NoArgsConstructor
-@Builder
-public class ReviewCreateRequest {
+@AllArgsConstructor
+public class ReviewUpdateRequest {
 
     @NotNull(message = "리뷰 제목은 필수입니다.")
     private String title;   // 리뷰 제목
@@ -28,4 +26,5 @@ public class ReviewCreateRequest {
     @Max(value = 5, message = "별점은 최대 5점입니다.")
     private Integer score;  // 평가 점수
 
+    private List<Long> deleteImageIds;
 }

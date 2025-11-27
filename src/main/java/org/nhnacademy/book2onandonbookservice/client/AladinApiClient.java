@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -23,6 +24,8 @@ public class AladinApiClient {
     @Value("${aladin.api-ttb-key}")
     private String ttbKey;
 
+
+    @Cacheable(value = "aladinBook", key = "#isbn", unless = "#result == null")
     public AladinApiResponse.Item searchByIsbn(String isbn) {
         if (isbn == null || isbn.isBlank()) {
             return null;
@@ -43,6 +46,7 @@ public class AladinApiClient {
         try {
             AladinApiResponse response = restTemplate.getForObject(uri, AladinApiResponse.class);
             if (response != null && response.getItem() != null && !response.getItem().isEmpty()) {
+                log.info("알라딘 API 호출 (Cache Miss): {}", isbn);
                 return response.getItem().get(0);
             } else {
                 log.warn("알라딘 API: ISBN {}에 대한 검색 결과가 없습니다. ", isbn);
