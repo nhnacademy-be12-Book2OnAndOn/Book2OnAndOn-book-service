@@ -20,15 +20,27 @@ Content-Type: application/json
   "isbn": "9780000000001",
   "title": "ES 테스트용 도서",
   "volume": "1권",
+
+  "contributorName": "홍길동, 김철수",
+
+  "publisherIds": [1],
+  "publisherName": "테스트출판사",
+
+  "publishDate": "2025-01-01",
+
   "priceStandard": 15000,
   "priceSales": 13000,
-  "publishDate": "2025-01-01",
-  "contributorIds": [1],
-  "publisherIds": [1],
-  "categoryIds": [77],
-  "tagIds": [5],
+
+  "stockCount": 100,
+  "stockStatus": "IN_STOCK",
+
+  "categoryIds": [1],
+  "tagNames": ["테스트태그", "도서태그"],
+
+  "isWrapped": true,
+
   "chapter": "1장",
-  "description": "<p>엘라스틱 서치 테스트용 설명입니다.</p>"
+  "descriptionHtml": "<p>엘라스틱 서치 테스트용 설명입니다.</p>"
 }
 ------FormBoundary--
 
@@ -45,7 +57,7 @@ GET http://localhost:8089/books/1
 
 
 
-### 도서 수정 (이미지 제거)
+### 2) 도서 수정 (일부 필드만 변경)
 PUT http://localhost:8089/books/1
 Content-Type: multipart/form-data; boundary=WebAppBoundary
 
@@ -54,21 +66,25 @@ Content-Disposition: form-data; name="book"
 Content-Type: application/json
 
 {
+  "isbn": "1234567890",
   "title": "수정된 제목",
   "volume": "1",
-  "isbn": "1234567890",
+
+  "publishDate": "2025-01-01",
+
   "priceStandard": 15000,
   "priceSales": 12000,
-  "chapter": "수정된 목차",
-  "description": "<p>수정된 설명</p>",
-  "categoryIds": [1, 2],
-  "contributorIds": [1],
-  "publisherIds": [1],
-  "tagNames": ["태그1", "태그2"],
+  "stockCount": 10,
   "stockStatus": "IN_STOCK",
-  "isWrapped": true
-}
 
+  "categoryIds": [1],
+  "tagNames": ["태그1", "태그2"],
+
+  "isWrapped": true,
+
+  "chapter": "수정된 목차",
+  "descriptionHtml": "<p>수정된 설명</p>"
+}
 --WebAppBoundary--
 
 

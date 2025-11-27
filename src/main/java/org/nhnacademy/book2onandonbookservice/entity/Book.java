@@ -13,9 +13,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -109,7 +107,7 @@ public class Book {
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookImage> images = new ArrayList<>();
+    private Set<BookImage> images = new HashSet<>();
 
     // 도서 카테고리 매핑
     @Setter
@@ -121,7 +119,7 @@ public class Book {
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookTag> bookTags = new ArrayList<>();
+    private Set<BookTag> bookTags = new HashSet<>();
 
     // 작가 매핑
     @Setter
@@ -133,19 +131,19 @@ public class Book {
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookPublisher> bookPublishers = new ArrayList<>();
+    private Set<BookPublisher> bookPublishers = new HashSet<>();
 
     // 리뷰
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<Review> reviews = new ArrayList<>();
+    private Set<Review> reviews = new HashSet<>();
 
     // 좋아요
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookLike> likes = new ArrayList<>();
+    private Set<BookLike> likes = new HashSet<>();
 
 
     // 헬퍼 추가 -> 중복 출판사 목록 생성 및 unique constraint 오류 방지
