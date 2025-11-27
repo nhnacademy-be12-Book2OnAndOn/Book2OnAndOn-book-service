@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
@@ -23,6 +24,8 @@ import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
+import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMapper;
+import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 // 등록/수정 담당
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -41,14 +45,23 @@ public class BookServiceImpl implements BookService {
     private final BookRepository bookRepository;
     private final BookLikeRepository bookLikeRepository;
     private final CategoryRepository categoryRepository;
+    private final BookSearchIndexService bookSearchIndexService;
+    private final BookListResponseMapper bookListResponseMapper;
 
     // 도서 등록
     @Override
     public Long createBook(BookSaveRequest request) {
-        bookValidator.validateForCreate(request);   // 입력값 검증
-        Book book = bookFactory.createFrom(request);    // 필드 생성
-        bookRelationService.applyRelationsForCreate(book, request); // 연관관계 설정
-        Book saved = bookRepository.save(book); // 저장
+        bookValidator.validateForCreate(request);
+        Book book = bookFactory.createFrom(request);
+        bookRelationService.applyRelationsForCreate(book, request);
+        Book saved = bookRepository.save(book);
+
+        try {
+            bookSearchIndexService.index(saved);
+        } catch (Exception e) {
+            log.error("ES 인덱싱 실패 - bookId={}", saved.getId(), e);
+        }
+
         return saved.getId();
     }
 
@@ -61,16 +74,28 @@ public class BookServiceImpl implements BookService {
         bookValidator.validateForUpdate(request);   // 수정값 검증
         bookFactory.updateFields(book, request);    // 단일 필드 업데이트
         bookRelationService.applyRelationsForUpdate(book, request); // 연관관계
+        bookSearchIndexService.index(book); // 수정 후 인덱스 갱신
     }
 
+    // 도서 삭제
+    @Override
+    public void deleteBook(Long bookId) {
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new IllegalArgumentException("도서를 찾을 수 없습니다. id = " + bookId));
+
+        // DB에서 삭제
+        bookRepository.delete(book);
+
+        // ES 인덱스에서도 삭제
+        bookSearchIndexService.deleteIndex(bookId);
+    }
+
+    // 공통 mapper 사용 -> 리스트용 DTO 매핑
     @Override
     @Transactional(readOnly = true)
     public Page<BookListResponse> getBooks(BookSearchCondition condition, Pageable pageable) {
-        // 현재는 간단히 전체 조회 + 페이징만 지원.
-        // 나중에 Querydsl 기반 searchBooks(...) 로 교체하면 됨.
         Page<Book> books = bookRepository.findAll(pageable);
-
-        return books.map(this::toBookListResponse);
+        return books.map(bookListResponseMapper::fromEntity);
     }
 
 

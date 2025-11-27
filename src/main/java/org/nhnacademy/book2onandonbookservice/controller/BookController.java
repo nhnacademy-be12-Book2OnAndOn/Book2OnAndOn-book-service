@@ -5,15 +5,26 @@ import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,7 +52,7 @@ public class BookController {
         }
 
         Long bookId = bookService.createBook(request);
-        return ResponseEntity.created(URI.create("/api/books/" + bookId)).build();
+        return ResponseEntity.created(URI.create("/books/" + bookId)).build();
     }
 
     @GetMapping("/categories")
@@ -52,4 +63,51 @@ public class BookController {
         return ResponseEntity.ok(categories);
     }
 
+    /// 도서 목록 조회
+    @GetMapping
+    public Page<BookListResponse> getBooks(
+            @ModelAttribute BookSearchCondition condition,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return bookService.getBooks(condition, pageable);
+    }
+
+    /// 도서 상세 조회
+    @GetMapping("/{bookId}")
+    public BookDetailResponse getBookDetail(
+            @PathVariable Long bookId,
+            @RequestParam(required = false) Long currentUserId
+    ) {
+        return bookService.getBookDetail(bookId, currentUserId);
+    }
+
+    /// 도서 수정
+    @PutMapping(value = "/{bookId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Void> updateBook(
+            @PathVariable Long bookId,
+            @RequestPart("book") BookSaveRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        log.info("도서 수정 요청: {}", request.getTitle());
+
+        // 새 이미지 업로드가 있는 경우
+        if (image != null && !image.isEmpty()) {
+            String minioUrl = imageUploadService.uploadBookImage(image);
+            request.setImagePath(minioUrl);
+        }
+
+        bookService.updateBook(bookId, request);
+
+        return ResponseEntity.noContent().build();  // 204
+    }
+
+    ///  도서 삭제
+    @DeleteMapping("/{bookId}")
+    public ResponseEntity<Void> deleteBook(@PathVariable Long bookId) {
+        log.info("도서 삭제 요청: {}", bookId);
+
+        bookService.deleteBook(bookId); // DB 삭제 + ES 인덱스 삭제 포함
+
+        return ResponseEntity.noContent().build(); // 204
+    }
 }

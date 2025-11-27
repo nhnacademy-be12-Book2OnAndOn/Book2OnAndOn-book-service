@@ -1,6 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -62,6 +63,7 @@ public class BookRelationService {
             BookContributor bookContributor = BookContributor.builder()
                     .book(book)
                     .contributor(contributor)
+                    .roleType("AUTHOR") // 기본값
                     .build();
             book.getBookContributors().add(bookContributor);
         }
@@ -119,23 +121,35 @@ public class BookRelationService {
         }
     }
 
-    /// 카테고리 설정: 카테고리 존재 여부만 확인
-    private void setCategories(Book book, List<Long> categoryIds) {
-        if (categoryIds == null || categoryIds.isEmpty()) {
-            return;
+    /// 카테고리 설정: diff 적용
+    private void setCategories(Book book, List<Long> newCategoryIds) {
+        if (newCategoryIds == null) {
+            newCategoryIds = List.of();
         }
 
-        List<Category> categories = categoryRepository.findAllById(categoryIds);
-        if (categories.size() != categoryIds.size()) {
-            throw new IllegalArgumentException("존재하지 않는 카테고리가 포함되어 있습니다.");
-        }
+        // 현재 매핑되어 있는 categoryId 목록
+        Set<Long> currentCategoryIds = book.getBookCategories().stream()
+                .map(bc -> bc.getCategory().getId())
+                .collect(Collectors.toSet());
 
-        for (Category category : categories) {
-            BookCategory bookCategory = BookCategory.builder()
-                    .book(book)
-                    .category(category)
-                    .build();
-            book.getBookCategories().add(bookCategory);
+        Set<Long> newIdSet = new HashSet<>(newCategoryIds);
+
+        // 1) 제거해야 할 것: 현재는 있지만, 요청에는 없는 것
+        book.getBookCategories().removeIf(bc -> !newIdSet.contains(bc.getCategory().getId()));
+
+        // 2) 추가해야 할 것: 요청에는 있지만, 현재는 없는 것
+        for (Long categoryId : newIdSet) {
+            if (!currentCategoryIds.contains(categoryId)) {
+                Category category = categoryRepository.findById(categoryId)
+                        .orElseThrow();
+
+                BookCategory bookCategory = BookCategory.builder()
+                        .book(book)
+                        .category(category)
+                        .build();
+
+                book.getBookCategories().add(bookCategory);
+            }
         }
     }
 
@@ -156,7 +170,6 @@ public class BookRelationService {
     public void applyRelationsForUpdate(Book book, BookSaveRequest request) {
         // 카테고리: null 이 아니면 전체 교체
         if (request.getCategoryIds() != null) {
-            book.getBookCategories().clear();
             setCategories(book, request.getCategoryIds());
         }
 
