@@ -13,10 +13,9 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
 
     @Query("SELECT b FROM Book b " +
-            "LEFT JOIN FETCH b.bookCategories bc " +
             "WHERE b.priceStandard = 0 " +
             "OR b.description IS NULL OR b.description = '' " +
-            "OR bc.id IS NULL")
+            "OR b.bookCategories IS EMPTY")
     List<Book> findBooksNeedingEnrichment(Pageable pageable);
 
 
@@ -38,7 +37,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             """)
     Optional<Book> findByIdWithRelations(Long bookId);
 
-    
+
     interface BookIdAndIsbn {
         Long getId();
 
