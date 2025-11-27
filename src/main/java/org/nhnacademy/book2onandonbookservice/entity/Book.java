@@ -14,7 +14,9 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -113,7 +115,7 @@ public class Book {
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookCategory> bookCategories = new ArrayList<>();
+    private Set<BookCategory> bookCategories = new HashSet<>();
 
     // 태그 매핑
     @Setter
@@ -125,7 +127,7 @@ public class Book {
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookContributor> bookContributors = new ArrayList<>();
+    private Set<BookContributor> bookContributors = new HashSet<>();
 
     // 출판사 매핑
     @Setter

@@ -1,0 +1,141 @@
+#############################################
+#  Book2OnAndOn API 전체 통합 테스트 파일
+#  - 도서 등록
+#  - 도서 수정
+#  - 도서 삭제
+#  - 도서 목록 조회
+#  - 도서 상세 조회
+#  - ES 검색 테스트
+#############################################
+
+### 1) 도서 등록 (이미지 없이)
+POST http://localhost:8089/books
+Content-Type: multipart/form-data; boundary=----FormBoundary
+
+------FormBoundary
+Content-Disposition: form-data; name="book"
+Content-Type: application/json
+
+{
+  "isbn": "9780000000001",
+  "title": "ES 테스트용 도서",
+  "volume": "1권",
+  "priceStandard": 15000,
+  "priceSales": 13000,
+  "publishDate": "2025-01-01",
+  "contributorIds": [1],
+  "publisherIds": [1],
+  "categoryIds": [77],
+  "tagIds": [5],
+  "chapter": "1장",
+  "description": "<p>엘라스틱 서치 테스트용 설명입니다.</p>"
+}
+------FormBoundary--
+
+
+
+### 2) 도서 목록 조회 (JPA)
+GET http://localhost:8089/books?page=0&size=10
+
+
+
+### 3) 도서 상세 조회
+# bookId 는 테스트 결과에 따라 변경해라 (응답 Location 헤더 참고)
+GET http://localhost:8089/books/1
+
+
+
+### 도서 수정 (이미지 제거)
+PUT http://localhost:8089/books/1
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="book"
+Content-Type: application/json
+
+{
+  "title": "수정된 제목",
+  "volume": "1",
+  "isbn": "1234567890",
+  "priceStandard": 15000,
+  "priceSales": 12000,
+  "chapter": "수정된 목차",
+  "description": "<p>수정된 설명</p>",
+  "categoryIds": [1, 2],
+  "contributorIds": [1],
+  "publisherIds": [1],
+  "tagNames": ["태그1", "태그2"],
+  "stockStatus": "IN_STOCK",
+  "isWrapped": true
+}
+
+--WebAppBoundary--
+
+
+
+#### 5) 도서 삭제
+#DELETE http://localhost:8089/books/1
+
+
+
+### 6) [검색 API] ES 기반 검색 테스트
+GET http://localhost:8089/search/books?keyword=테스트&page=0&size=10
+
+
+
+### 7) [ES 직접 검사] 인덱스 전체 조회
+GET http://s4.java21.net:9200/book2onandon-books/_search
+Authorization: Basic elastic nhnacademy123!
+Content-Type: application/json
+
+{
+  "query": {
+    "match_all": {}
+  },
+  "size": 20
+}
+
+
+
+### 8) [ES 조회] 제목 검색
+GET http://s4.java21.net:9200/book2onandon-books/_search
+Authorization: Basic elastic nhnacademy123!
+Content-Type: application/json
+
+{
+  "query": {
+    "match": {
+      "title": "테스트"
+    }
+  }
+}
+
+
+
+### 9) [ES 조회] 카테고리 검색 (categoryIds 기준)
+GET http://s4.java21.net:9200/book2onandon-books/_search
+Authorization: Basic elastic nhnacademy123!
+Content-Type: application/json
+
+{
+  "query": {
+    "term": {
+      "categoryIds": "1"
+    }
+  }
+}
+
+
+
+### 10) [ES 조회] 태그 검색
+GET http://s4.java21.net:9200/book2onandon-books/_search
+Authorization: Basic elastic nhnacademy123!
+Content-Type: application/json
+
+{
+  "query": {
+    "match": {
+      "tagNames": "테스트태그"
+    }
+  }
+}

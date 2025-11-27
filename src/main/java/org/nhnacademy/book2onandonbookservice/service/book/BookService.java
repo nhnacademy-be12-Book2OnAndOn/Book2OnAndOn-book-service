@@ -16,6 +16,9 @@ public interface BookService {
     // 도서 수정
     void updateBook(Long bookId, BookSaveRequest request);
 
+    // 도서 삭제
+    void deleteBook(Long bookId);
+
     // 도서 목록 조회(검색 시)
     Page<BookListResponse> getBooks(BookSearchCondition condition, Pageable pageable);
 

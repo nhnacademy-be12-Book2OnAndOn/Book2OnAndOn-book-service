@@ -48,6 +48,11 @@ public class BookSearchIndexService {
                                 .map(c -> c.getCategoryName())
                                 .toList()
                 )
+                .categoryIds(
+                        book.getBookCategories().stream()
+                                .map(bc -> String.valueOf(bc.getCategory().getId()))
+                                .toList()
+                )
                 .tagNames(
                         book.getBookTags().stream()
                                 .map(BookTag::getTag)
