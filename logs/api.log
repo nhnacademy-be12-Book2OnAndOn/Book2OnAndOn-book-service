@@ -1,0 +1,520 @@
+2025-11-27 13:00:37 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:00:37 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:00:37 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:00:37 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:00:37 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:00:40 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:40 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:40 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:40 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:40 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:41 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:00:41 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:00:41 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:00:42 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:00:42 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:00:44 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:44 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:44 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:45 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:45 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:45 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:00:45 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:00:45 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:00:46 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:00:46 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:00:48 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:48 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:48 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:49 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:49 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:49 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:00:49 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:00:49 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:00:50 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:00:50 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:00:52 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:52 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:52 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:53 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:53 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:00:53 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:00:53 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:53 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:00:53 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:00:54 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:00:56 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:56 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:56 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:56 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:57 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:00:57 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:00:57 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:00:58 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:00:58 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:00:58 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:01:00 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:00 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:00 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:01 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:01 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:01:01 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:01:01 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:01 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:01:01 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:01:02 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:01:04 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:04 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:04 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:04 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:05 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:01:05 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:05 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:01:05 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:01:05 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:01:06 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:01:08 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:08 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:08 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:08 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:08 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:01:09 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:09 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:01:09 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:01:10 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:01:10 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:01:11 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:12 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:12 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:13 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:01:13 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:13 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:13 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:01:32 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:01:32 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:01:32 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:01:33 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:01:33 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:01:35 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:35 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:35 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:36 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:36 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:36 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:01:36 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:01:36 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:01:37 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:01:37 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:01:39 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:39 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:40 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:40 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:40 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:40 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:01:40 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:01:40 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:01:41 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:01:41 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:01:43 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:43 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:43 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:44 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:44 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:01:44 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:44 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:01:44 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:01:45 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:01:45 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:01:47 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:47 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:47 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:01:47 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:48 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:48 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:01:48 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:48 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:01:49 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:01:49 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:01:50 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:51 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:51 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:51 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:01:52 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:01:52 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:52 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:52 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:01:53 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:01:53 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:01:54 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:55 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:55 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:01:55 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:56 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:56 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:56 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:01:57 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:01:57 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:01:57 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:01:58 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:01:59 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:00 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:02:00 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:00 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:00 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:00 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:02:01 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:02:01 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:02:02 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:02:03 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:03 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:04 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:02:04 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:04 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:04 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:02:05 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:05 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:02:05 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:02:06 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:02:07 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:07 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:08 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:08 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:08 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:02:08 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:02:09 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:09 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:02:09 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:02:10 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:02:11 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:11 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:12 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:02:12 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:02:12 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:12 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:13 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:02:13 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:02:13 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:14 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:02:15 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:15 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:15 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:02:16 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:16 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:16 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:02:17 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:17 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:02:17 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:02:18 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:02:18 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:19 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:19 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:02:20 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:02:20 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:20 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:21 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:21 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:02:22 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:02:22 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:02:22 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:23 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:23 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:02:24 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:02:24 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:25 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:25 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:25 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:02:25 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:02:26 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:02:26 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:27 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:27 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:02:28 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:02:28 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:28 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:29 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:29 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:02:30 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:02:30 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:02:30 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:31 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:32 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:02:32 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:02:32 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:33 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:33 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:02:33 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:34 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:02:34 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:02:35 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:35 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:36 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:02:36 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:36 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:02:37 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:37 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:02:37 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:38 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:02:39 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:02:39 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:39 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:40 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:40 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:02:41 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:02:41 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:41 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:02:42 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:42 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:02:42 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:02:43 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:44 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:44 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:02:44 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:45 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:02:45 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:45 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:02:45 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:02:46 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:02:46 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: sleep interrupted
+2025-11-27 13:02:46 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: sleep interrupted
+2025-11-27 13:02:46 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: sleep interrupted
+2025-11-27 13:02:46 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: sleep interrupted
+2025-11-27 13:06:24 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:06:24 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:06:24 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:06:25 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:06:25 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:06:27 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:27 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:27 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:28 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:28 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:28 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:06:28 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:06:28 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:06:29 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:06:29 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:06:31 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:31 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:31 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:32 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:06:32 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:32 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:32 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:06:33 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:06:33 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:06:33 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:06:35 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:35 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:36 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:36 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:06:36 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:36 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:37 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:06:37 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:06:37 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:06:37 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:06:39 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:40 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:40 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:40 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:06:40 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:40 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:40 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:06:41 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:06:41 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:06:41 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:06:43 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:43 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:06:43 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:44 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:44 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:44 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:44 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:06:45 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:06:45 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:06:45 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:06:46 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:47 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:06:47 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:48 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:48 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:48 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:48 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:06:49 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:06:49 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:06:49 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:06:50 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:51 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:51 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:06:52 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:52 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:06:52 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:52 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:53 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:06:53 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:06:53 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:06:54 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:55 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:55 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:06:56 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:56 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:06:56 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:56 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:57 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:06:57 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:06:58 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:06:58 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:59 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:06:59 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:06:59 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:07:00 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:00 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:01 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:07:01 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:02 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:07:02 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:07:02 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:02 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:03 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:07:04 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:04 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:07:05 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:05 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:07:05 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:07:05 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:06 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:06 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:07:07 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:07 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:07:08 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:07:08 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:08 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:09 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:07:09 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:09 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:07:10 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:07:10 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:11 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:11 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:07:12 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:12 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:07:12 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:13 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:07:13 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:07:13 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:14 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:07:14 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:15 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:07:15 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:16 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:16 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:16 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:07:17 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:07:17 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:17 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:07:18 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:18 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:07:19 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:07:19 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:20 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:20 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:21 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:21 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:07:21 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:07:21 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:07:22 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:07:22 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:23 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:07:24 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:24 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:24 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:25 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:25 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:07:25 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:07:25 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:07:26 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:07:26 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:27 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:07:28 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:28 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:28 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:28 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:07:29 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:07:29 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:29 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:07:30 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:30 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:07:30 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:07:31 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:32 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:32 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:32 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:07:33 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:07:33 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:33 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:33 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:07:34 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:07:34 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:07:35 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:36 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:36 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:07:36 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:37 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:07:37 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:07:37 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:37 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:38 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:07:39 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:07:39 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:40 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:40 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:41 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:07:41 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:07:41 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:07:41 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:42 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:43 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:07:43 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:07:44 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:44 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:44 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:44 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781
+2025-11-27 13:07:45 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 18, ISBN: 9791162542507
+2025-11-27 13:07:45 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 19, ISBN: 9791191347586
+2025-11-27 13:07:46 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:46 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:46 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 20, ISBN: 9791159713828
+2025-11-27 13:07:47 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 1, ISBN: 9791156759270
+2025-11-27 13:07:47 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:48 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:48 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 2, ISBN: 9791168120877
+2025-11-27 13:07:48 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:49 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 3, ISBN: 9791168120839
+2025-11-27 13:07:49 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 4, ISBN: 9791168120846
+2025-11-27 13:07:49 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:50 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:50 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 5, ISBN: 9791168120747
+2025-11-27 13:07:51 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 6, ISBN: 9791168030183
+2025-11-27 13:07:51 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:52 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:52 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:52 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 7, ISBN: 9791165344252
+2025-11-27 13:07:53 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 8, ISBN: 9788984054202
+2025-11-27 13:07:53 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 9, ISBN: 9788958207535
+2025-11-27 13:07:53 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:54 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:55 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 10, ISBN: 9791188726936
+2025-11-27 13:07:55 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:56 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 11, ISBN: 9788972970149
+2025-11-27 13:07:56 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:56 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 12, ISBN: 9788946422018
+2025-11-27 13:07:56 [API-Async-1] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:57 [API-Async-5] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 13, ISBN: 9791197001932
+2025-11-27 13:07:58 [API-Async-4] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:58 [API-Async-1] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 14, ISBN: 9791168120587
+2025-11-27 13:07:59 [API-Async-2] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:59 [API-Async-4] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 15, ISBN: 9791165344351
+2025-11-27 13:07:59 [API-Async-3] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:07:59 [API-Async-2] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 16, ISBN: 9791187903956
+2025-11-27 13:08:00 [API-Async-5] WARN  o.n.b.service.BookEnrichmentService - Gemini 태그 생성 실패: Unable to connect to Redis
+2025-11-27 13:08:00 [API-Async-3] INFO  o.n.b.service.BookEnrichmentService - [보강 시작] 책 ID: 17, ISBN: 9791159713781

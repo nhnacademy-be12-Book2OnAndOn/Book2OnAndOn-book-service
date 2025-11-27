@@ -49,7 +49,9 @@ public class DataInitializer implements ApplicationRunner {
 
     private final Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
     private final Map<String, Contributor> contributorCache = new ConcurrentHashMap<>();
-
+    /*
+    캐시를 Redis로 바꾸려 했는데 대량 등록 Batch 작업시엔 로컬 메모리 즉, Map을 쓰는게 압도적으로 빠르다고합니다.
+     */
     private static final Pattern SPLIT_PATTERN = Pattern.compile("[,;/&|]");
 
     // 이름 (비탐욕)
