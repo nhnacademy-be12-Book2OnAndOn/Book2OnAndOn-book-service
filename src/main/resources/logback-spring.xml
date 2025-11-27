@@ -40,7 +40,16 @@
     <logger name="org.nhnacademy.book2onandonbookservice.service.BookEnrichmentService" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
     </logger>
-    <logger name="org.nhnacademy.book2onandonbookservice.service.BookRetryScheduler" level="INFO" additivity="false">
+    <logger name="org.nhnacademy.book2onandonbookservice.scheduler.BookRetryScheduler" level="INFO" additivity="false">
+        <appender-ref ref="API_FILE"/>
+    </logger>
+    <logger name="org.nhnacademy.book2onandonbookservice.client.AladinApiClient" level="INFO" additivity="false">
+        <appender-ref ref="API_FILE"/>
+    </logger>
+    <logger name="org.nhnacademy.book2onandonbookservice.client.GeminiApiClient" level="INFO" additivity="false">
+        <appender-ref ref="API_FILE"/>
+    </logger>
+    <logger name="org.nhnacademy.book2onandonbookservice.client.GoogleBooksApiClient" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
     </logger>
 
