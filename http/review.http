@@ -1,0 +1,64 @@
+### 전역 변수 설정
+@host = http://localhost:8089
+@bookId = 1
+@reviewId = 1
+# 테스트용 유저 ID (구매 이력이 있는 유저여야 함)
+@userId = 1
+
+### 1. 리뷰 생성 (이미지 포함)
+# bookId: 1번 책에 대해 리뷰 작성
+POST {{host}}/books/{{bookId}}/reviews
+Content-Type: multipart/form-data; boundary=boundary
+X-USER-ID: {{userId}}
+
+--boundary
+Content-Disposition: form-data; name="request"
+Content-Type: application/json
+
+{
+  "title": "책이 정말 좋습니다.",
+  "content": "배송도 빠르고 내용도 알차네요. 추천합니다!",
+  "score": 5.0
+}
+--boundary
+Content-Disposition: form-data; name="images"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+# 여기에 로컬 이미지 파일 경로를 입력하거나, 테스트를 위해 이 부분을 주석 처리하고 required=false를 테스트할 수 있습니다.
+# < ./test-image.jpg
+--boundary--
+
+### 2. 특정 도서 리뷰 목록 조회 (페이징)
+# bookId: 1번 책의 리뷰 목록 조회 (페이지 0, 사이즈 10)
+GET {{host}}/books/{{bookId}}/reviews?page=0&size=10&sort=createdAt,desc
+Accept: application/json
+
+### 3. 리뷰 수정
+# reviewId: 수정할 리뷰 ID
+# deleteImageIds: 삭제할 기존 이미지 ID 리스트 (없으면 빈 배열)
+PUT {{host}}/books/reviews/{{reviewId}}
+Content-Type: multipart/form-data; boundary=boundary
+X-USER-ID: {{userId}}
+
+--boundary
+Content-Disposition: form-data; name="request"
+Content-Type: application/json
+
+{
+  "title": "리뷰 내용을 수정합니다.",
+  "content": "다시 읽어보니 생각이 좀 바뀌었네요.",
+  "score": 4.5,
+  "deleteImageIds": []
+}
+--boundary
+Content-Disposition: form-data; name="images"; filename="new-image.jpg"
+Content-Type: image/jpeg
+
+# 추가할 새 이미지 (필요 없다면 이 파트 생략 가능)
+# < ./new-image.jpg
+--boundary--
+
+### 4. 리뷰 삭제
+# reviewId: 삭제할 리뷰 ID
+DELETE {{host}}/books/reviews/{{reviewId}}
+X-USER-ID: {{userId}}
