@@ -9,21 +9,19 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
-import org.nhnacademy.book2onandonbookservice.dto.common.BookContributorDto;
+import org.nhnacademy.book2onandonbookservice.dto.book.StockDecreaseRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
-import org.nhnacademy.book2onandonbookservice.dto.common.PublisherDto;
-import org.nhnacademy.book2onandonbookservice.dto.common.TagDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
-import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
-import org.nhnacademy.book2onandonbookservice.entity.BookTag;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
@@ -119,7 +117,7 @@ public class BookServiceImpl implements BookService {
             likedByCurrentUser = bookLikeRepository.existsByBookIdAndUserId(bookId, currentUserId);
         }
 
-        return toBookDetailResponse(book, likeCount, likedByCurrentUser);
+        return BookDetailResponse.from(book, likeCount, likedByCurrentUser);
     }
 
 
@@ -187,6 +185,67 @@ public class BookServiceImpl implements BookService {
         return bookPage.map(BookListResponse::from);
     }
 
+    /// 내부 통신용 주문서 생성 및 결제 검증을 위한 도서 정보 다건 조회
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookOrderResponse> getBooksForOrder(List<Long> bookIds) {
+        if (bookIds == null || bookIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Book> books = bookRepository.findAllById(bookIds);
+
+        return books.stream().map(BookOrderResponse::from).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void decreaseStock(List<StockDecreaseRequest> requests) {
+        for (StockDecreaseRequest req : requests) {
+            int result = bookRepository.decreaseStock(req.getBookId(), req.getQuantity());
+
+            if (result == 0) {
+                throw new OutOfStockException("재고가 부족합니다. BookId: " + req.getBookId());
+            }
+
+            Book book = bookRepository.findById(req.getBookId())
+                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
+
+            if (book.getStockCount() <= 0) {
+                book.setStockStatus(BookStatus.SOLD_OUT.toString());
+            }
+
+            try {
+                bookSearchIndexService.index(book);
+            } catch (Exception e) {
+                //ES 갱신 실패가 결제 로직 전체를 롤백시켜야하나?
+                //보통 로그를 남기고, 별도의 재시도 큐(RabbitMQ)에 넣거나 넘어간다.
+                /*
+                TODO
+                DB 트랜잭션이 커밋된 직후 bookSearchIndexService.index(book)를 호출할 때
+                네트워크 문제나, ES 서버 다운/부하(엘라스틱 서치가 (Garage Collection)중이라 멈췄거나, 디스크가
+                꽉 찼거나, 너무 바빠서 타임아웃될때 )
+                DB는 품절이 됐는데 ES에서 갱신이 안돼서 홈페이지에선 판매중인데 실제 DB에선 품절인 경우가 돼버림
+                그럼 어떻게 해야되나? (방법)
+                1. 로그만 남기기
+                2. 스프링 Retry 적용 (재시도 횟수를 정할 수 있음 이러면 일시적인 네트워크문제는 해결 근데 다른 오류에 대응 부족)
+                3. 스케줄러로 해결 (인덱싱 에러에 대한 DB테이블을 만들어서 스케줄러로 5분마다 해당 테이블 읽어서 재색인 시도)
+                4. 메시지 큐 (RabbitMQ)
+                   - decreaseStock메서드에서는 DB 업데이트만 하고 이벤트를 MQ에 이벤트(BookId 변경 감지)를 MQ에 던지고 끝냄
+                   - 별도의 Consumer 서버(큐에서 메시지를 빼오는 애)가 MQ에서 메시지를 꺼내서 bookSearchIndexService.index(book)
+                   - 근데 재고 처리 로직에만 도입하는게 아닌 엘라스틱 서치 자체를 인덱싱이 수행될 때 RabbitMQ에 먼저 메시지를 던져서 뒷단에서
+                   수행되게 한다면? 지금처럼 order-service와 연동해서 로직을 처리할때 다른 서비스들을 방해하지않을 수 있음
+                   - 내 생각에는... 위의 이유가 관건이라면 재고량만 RabbitMQ로 관리하면 좋은데 코드의 일관성이나 Book-Service가 돌아갈 때
+                   사소한 Book 인덱싱까지도 언제 어떻게 에러가 터질지 모르니깐 댐 역할로 RabbitMq로 막는게 좋다고 생각은 하는데
+                   - 파싱같은 대용량은 벌크API로 하는게 나을거 같긴함
+                   - 정리하자면
+                   파싱 관련 인덱싱 (엘라스틱서치 Bulk API)
+                   사소한 인덱싱 및 재고처리로직 (RabbitMQ를 통한 인덱싱)
+                 */
+                log.error("ES 재고 동기화 실패 - bookId={}", book.getId(), e);
+            }
+        }
+    }
 
     ///    내부 로직
     private CategoryDto CategoryToDto(Category category) {
@@ -197,83 +256,6 @@ public class BookServiceImpl implements BookService {
                 .build();
     }
 
-    private BookDetailResponse toBookDetailResponse(Book book,
-                                                    long likeCount,
-                                                    Boolean likedByCurrentUser) {
-
-        // 카테고리 DTO
-        List<CategoryDto> categories = book.getBookCategories().stream()
-                .map(BookCategory::getCategory)
-                .map(category -> CategoryDto.builder()
-                        .id(category.getId())
-                        .name(category.getCategoryName())
-                        .parentId(category.getParent() != null
-                                ? category.getParent().getId()
-                                : null)
-                        .build())
-                .collect(Collectors.toList());
-
-        // 태그 DTO
-        List<TagDto> tags = book.getBookTags().stream()
-                .map(BookTag::getTag)
-                .map(tag -> TagDto.builder()
-                        .id(tag.getId())
-                        .name(tag.getTagName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 출판사 DTO
-        List<PublisherDto> publishers = book.getBookPublishers().stream()
-                .map(BookPublisher::getPublisher)
-                .map(publisher -> PublisherDto.builder()
-                        .id(publisher.getId())
-                        .name(publisher.getPublisherName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 기여자 DTO 리스트
-        List<BookContributorDto> contributors = book.getBookContributors().stream()
-                .map(bc -> BookContributorDto.builder()
-                        .id(bc.getId())
-                        .roleType(bc.getRoleType())
-                        .contributorId(bc.getContributor().getId())
-                        .contributorName(bc.getContributor().getContributorName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 대표 이미지
-        String imagePath = book.getImages().stream()
-                .findFirst()
-                .map(BookImage::getImagePath)
-                .orElse(null);
-
-        // 단일 표시용 기여자 이름(첫 번째)
-        String contributorName = contributors.isEmpty()
-                ? null
-                : contributors.get(0).getContributorName();
-
-        return BookDetailResponse.builder()
-                .id(book.getId())
-                .isbn(book.getIsbn())
-                .title(book.getTitle())
-                .volume(book.getVolume())
-                .contributorName(contributorName)
-                .publishDate(book.getPublishDate())
-                .publishers(publishers)
-                .priceStandard(book.getPriceStandard())
-                .priceSales(book.getPriceSales())
-                .stockStatus(book.getStockStatus())
-                .categories(categories)
-                .tags(tags)
-                .isWrapped(book.getIsWrapped())
-                .imagePath(imagePath)
-                .chapter(book.getChapter())
-                .descriptionHtml(book.getDescription())
-                .rating(book.getRating())
-                .likeCount(likeCount)
-                .likedByCurrentUser(likedByCurrentUser)
-                .build();
-    }
 
     private BookListResponse toBookListResponse(Book book) {
         // 대표 이미지

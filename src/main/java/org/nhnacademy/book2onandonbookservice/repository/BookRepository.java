@@ -6,6 +6,7 @@ import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -46,4 +47,10 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
         String getIsbn();
     }
+
+    //주문 후 재고 차감 로직
+    @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 동기화)
+    @Query("UPDATE Book b SET b.stockCount = b.stockCount - :quantity " +
+            "WHERE b.id = :id AND b.stockCount >= :quantity")
+    int decreaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
 }

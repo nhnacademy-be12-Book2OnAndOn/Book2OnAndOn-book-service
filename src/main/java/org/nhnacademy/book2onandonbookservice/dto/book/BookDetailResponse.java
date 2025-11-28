@@ -34,6 +34,9 @@ public class BookDetailResponse {
 
     private String stockStatus; // 책 재고 상태
 
+    private Integer stockCount; // 책 재고 갯수
+
+
     private List<CategoryDto> categories;   // 카테고리
     private List<TagDto> tags;  // 태그
     private Boolean isWrapped;  // 포장 여부
@@ -53,7 +56,7 @@ public class BookDetailResponse {
 
 
     /// 헬퍼 메서드
-    public static BookDetailResponse from(Book book, Long currentUserId) {
+    public static BookDetailResponse from(Book book, Long likeCount, Boolean likedByCurrentUser) {
         //작가 이름 연결
         String contributors = book.getBookContributors().stream()
                 .map(bc -> bc.getContributor().getContributorName())
@@ -64,13 +67,6 @@ public class BookDetailResponse {
                 .findFirst()
                 .map(BookImage::getImagePath)
                 .orElse("/images/no-image.png");
-
-        // 좋아요 여부 확인
-        boolean isLiked = false;
-        if (currentUserId != null) {
-            isLiked = book.getLikes().stream()
-                    .anyMatch(like -> like.getUserId().equals(currentUserId));
-        }
 
         List<CategoryDto> categoryDtos = book.getBookCategories().stream()
                 .map(bc -> CategoryDto.builder()
@@ -110,14 +106,15 @@ public class BookDetailResponse {
                 .priceStandard(book.getPriceStandard())
                 .priceSales(book.getPriceSales())
                 .stockStatus(book.getStockStatus())
+                .stockCount(book.getStockCount())
                 .categories(categoryDtos)
                 .tags(tagDtos)
                 .isWrapped(book.getIsWrapped())
                 .imagePath(thumbnail)
                 .chapter(book.getChapter())
                 .descriptionHtml(book.getDescription())
-                .likeCount((long) book.getLikes().size()) // List 크기로 계산
-                .likedByCurrentUser(isLiked)
+                .likeCount(likeCount)
+                .likedByCurrentUser(likedByCurrentUser)
                 .rating(book.getRating()) // 추가된 평점 필드
                 .reviewCount((long) book.getReviews().size()) // List 크기로 계산
                 .reviews(previewReviews)
