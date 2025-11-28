@@ -25,7 +25,7 @@ public class AladinApiClient {
     private String ttbKey;
 
 
-    @Cacheable(value = "aladinBook", key = "#isbn", unless = "#result == null")
+    @Cacheable(value = "aladinBook", key = "#isbn", unless = "#result == null", cacheManager = "RedisCacheManager")
     public AladinApiResponse.Item searchByIsbn(String isbn) {
         if (isbn == null || isbn.isBlank()) {
             return null;

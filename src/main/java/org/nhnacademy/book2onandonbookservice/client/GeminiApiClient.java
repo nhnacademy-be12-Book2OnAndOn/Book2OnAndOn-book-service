@@ -56,7 +56,7 @@ public class GeminiApiClient {
         return apiKeys[index];
     }
 
-    @Cacheable(value = "geminiTags", key = "#title", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "geminiTags", key = "#title", unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
     public List<String> extractTags(String title, String description) {
         if (description == null || description.isEmpty()) {
             return Collections.emptyList();
