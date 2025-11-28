@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.repository;
 import java.util.List;
 import java.util.Optional;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -34,6 +35,22 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             """)
     Optional<Book> findByIdWithRelations(Long bookId);
 
+    // 카테고리, 태그로 책 조회
+    @Query("""
+            SELECT DISTINCT b
+            FROM Book b
+            JOIN b.bookCategories bc
+            WHERE bc.category.id = :categoryId
+            """)
+    Page<Book> findByCategoryId(Long categoryId, Pageable pageable);
+
+    @Query("""
+            SELECT DISTINCT b
+            FROM Book b
+            JOIN b.bookTags bt
+            WHERE bt.tag.id = :tagId
+            """)
+    Page<Book> findByTagId(Long tagId, Pageable pageable);
 
     interface BookIdAndIsbn {
         Long getId();
