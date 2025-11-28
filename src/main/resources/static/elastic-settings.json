@@ -1,20 +1,89 @@
 {
-  "analysis": {
-    "tokenizer": {
-      "nori_tokenizer_mixed": {
-        "type": "nori_tokenizer",
-        "decompound_mode": "mixed"
+  "settings": {
+    "analysis": {
+      "tokenizer": {
+        "nori_tokenizer": {
+          "type": "nori_tokenizer",
+          "decompound_mode": "mixed"
+        }
+      },
+      "filter": {
+        "nori_pos_filter": {
+          "type": "nori_part_of_speech",
+          "stoptags": [
+            "E",
+            "IC",
+            "J",
+            "MAG",
+            "MAJ",
+            "MM",
+            "SP",
+            "SSC",
+            "SSO",
+            "SC",
+            "SE",
+            "XPN",
+            "XSA",
+            "XSN",
+            "XSV",
+            "UNA",
+            "NA",
+            "VSV"
+          ]
+        },
+        "lowercase_filter": {
+          "type": "lowercase"
+        },
+        "icu_normalizer": {
+          "type": "icu_normalizer",
+          "name": "nfkc",
+          "mode": "compose"
+        }
+      },
+      "analyzer": {
+        "korean_search": {
+          "type": "custom",
+          "tokenizer": "nori_tokenizer",
+          "filter": [
+            "nori_pos_filter",
+            "lowercase_filter",
+            "icu_normalizer"
+          ]
+        }
       }
-    },
-    "analyzer": {
-      "korean_nori_analyzer": {
-        "type": "custom",
-        "tokenizer": "nori_tokenizer_mixed",
-        "filter": [
-          "lowercase",
-          "nori_part_of_speech",
-          "nori_readingform"
-        ]
+    }
+  },
+  "mappings": {
+    "dynamic": true,
+    "properties": {
+      "id": {
+        "type": "long"
+      },
+      "isbn": {
+        "type": "keyword"
+      },
+      "title": {
+        "type": "text",
+        "analyzer": "korean_search",
+        "search_analyzer": "korean_search"
+      },
+      "name": {
+        "type": "text",
+        "analyzer": "korean_search",
+        "search_analyzer": "korean_search"
+      },
+      "contributorName": {
+        "type": "text",
+        "analyzer": "korean_search",
+        "search_analyzer": "korean_search"
+      },
+      "tagNames": {
+        "type": "text",
+        "analyzer": "korean_search",
+        "search_analyzer": "korean_search"
+      },
+      "categoryIds": {
+        "type": "long"
       }
     }
   }

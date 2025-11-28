@@ -1,0 +1,2 @@
+### 전체 도서 ES 재인덱싱
+POST http://localhost:8089/admin/reindex
