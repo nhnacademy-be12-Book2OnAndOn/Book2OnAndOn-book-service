@@ -2,6 +2,8 @@ package org.nhnacademy.book2onandonbookservice.config;
 
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,7 +19,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisConfig {
 
     @Bean //Redis가 캐시매니저인걸 EnableCaching으로 알려줌 그럼 Cacheable 어노테이션이 붙은 메서드가 호출되면 자동으로 Redis에 데이터를 저장하고 조회함
-    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+    public RedisCacheManager RedisCacheManager(RedisConnectionFactory connectionFactory) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(
                         new StringRedisSerializer())) //키는 String 으로 직렬화
@@ -25,9 +27,11 @@ public class RedisConfig {
                         new GenericJackson2JsonRedisSerializer())) // 값은 Json으로 직렬화
                 .entryTtl(Duration.ofDays(7)) // 캐시 유효시간 (TTL) 기본 7일 설정 (책 정보는 잘 안 바뀌기때문에 길게 잡는 것이 좋음)
                 .disableCachingNullValues();
-
+        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+        cacheConfigurations.put("bestsellers", config.entryTtl(Duration.ofHours(12)));
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
+                .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
     }
 }
