@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.dto.book;
 
 import lombok.Builder;
 import lombok.Getter;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 
@@ -14,7 +15,7 @@ public class BookOrderResponse {
     private String imageUrl;
     private boolean isWrapped;
     private Integer stockCount;
-    private String stockStatus;
+    private BookStatus status;
 
 
     public static BookOrderResponse from(Book book) {
@@ -29,7 +30,7 @@ public class BookOrderResponse {
                 .imageUrl(imagePath)
                 .isWrapped(book.getIsWrapped())
                 .stockCount(book.getStockCount())
-                .stockStatus(book.getStockStatus())
+                .status(book.getStatus())
                 .build();
     }
 }

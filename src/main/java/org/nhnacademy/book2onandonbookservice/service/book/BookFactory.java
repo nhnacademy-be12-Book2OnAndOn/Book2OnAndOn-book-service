@@ -17,9 +17,13 @@ public class BookFactory {
         boolean wrapped = Boolean.TRUE.equals(request.getIsWrapped());
 
         return Book.builder().title(request.getTitle()).isbn(request.getIsbn()).volume(request.getVolume())
-                .chapter(request.getChapter()).description(request.getDescriptionHtml()).priceStandard(priceStandard)
-                .priceSales(priceSales).isWrapped(wrapped).publishDate(request.getPublishDate())
-                .stockStatus(request.getStockStatus()).stockCount(stockCount)
+                .chapter(request.getChapter())
+                .description(request.getDescriptionHtml())
+                .priceStandard(priceStandard)
+                .priceSales(priceSales).isWrapped(wrapped)
+                .publishDate(request.getPublishDate())
+                .status(request.getStatus())
+                .stockCount(stockCount)
                 .status(BookStatus.ON_SALE) // 신규 등록은 기본 'ON_SALE'
                 .build();
     }
@@ -63,8 +67,8 @@ public class BookFactory {
             book.setStockCount(req.getStockCount());
         }
 
-        if (req.getStockStatus() != null) {
-            book.setStockStatus(req.getStockStatus());
+        if (req.getStatus() != null) {
+            book.setStatus(req.getStatus());
         }
 
         if (req.getIsWrapped() != null) {
