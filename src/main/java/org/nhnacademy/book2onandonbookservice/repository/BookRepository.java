@@ -53,6 +53,8 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             WHERE bt.tag.id = :tagId
             """)
     Page<Book> findByTagId(Long tagId, Pageable pageable);
+
+
     @Query("SELECT b FROM Book b JOIN b.bookCategories bc WHERE bc.category.id = :categoryId ORDER BY b.publishDate DESC")
     Page<Book> findNewArrivalsByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
 
@@ -69,4 +71,10 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     @Query("UPDATE Book b SET b.stockCount = b.stockCount - :quantity " +
             "WHERE b.id = :id AND b.stockCount >= :quantity")
     int decreaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
+
+    //주문 취소 후 재고 증감 로직
+    @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 동기화)
+    @Query("UPDATE Book b SET b.stockCount = b.stockCount + :quantity " +
+            "WHERE b.id = :id")
+    int increaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
 }

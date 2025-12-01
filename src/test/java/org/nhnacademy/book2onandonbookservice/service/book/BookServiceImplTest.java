@@ -15,6 +15,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -26,10 +27,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
+import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
@@ -40,6 +44,7 @@ import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
@@ -117,7 +122,7 @@ class BookServiceImplTest {
                 .rating(5.0)
                 .isWrapped(false)
                 .isbn("9791191370215")
-                .stockStatus(null) //null이 판매중임을 나타냄
+                .status(BookStatus.ON_SALE)
                 .stockCount(100)
                 .priceSales(9000L)
                 .images(new HashSet<>(List.of(mockBookImage)))
@@ -384,5 +389,142 @@ class BookServiceImplTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("DB 연결 불안정");
         verify(bookRepository, times(1)).findNewArrivalsByCategoryId(categoryID, pageable);
+    }
+
+    @Test
+    @DisplayName("주문용 도서 정보 다건 조회 성공")
+    void getBooksForOrder_Success() {
+        List<Long> bookIds = List.of(1L);
+
+        given(bookRepository.findAllById(bookIds)).willReturn(List.of(bookA));
+
+        List<BookOrderResponse> responses = bookService.getBooksForOrder(bookIds);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).getBookId()).isEqualTo(bookA.getId());
+        assertThat(responses.get(0).getTitle()).isEqualTo(bookA.getTitle());
+        assertThat(responses.get(0).getPriceSales()).isEqualTo(bookA.getPriceSales());
+
+        verify(bookRepository, times(1)).findAllById(bookIds);
+    }
+
+    @Test
+    @DisplayName("주문용 도서 정보 조회 - 빈 리스트 입력 시 빈 결과 반환")
+    void getBooksForOrder_EmptyInput() {
+        List<BookOrderResponse> responsesNull = bookService.getBooksForOrder(null);
+        List<BookOrderResponse> responsesEmpty = bookService.getBooksForOrder(List.of());
+
+        assertThat(responsesNull).isEmpty();
+        assertThat(responsesEmpty).isEmpty();
+
+        verify(bookRepository, never()).findAllById(anyList());
+    }
+
+    @Test
+    @DisplayName("재고 차감 성공 - 재고가 남아있을 때 상태유지")
+    void decreaseStock_Success_StatusRemains() {
+        int quantity = 1;
+        bookA.setStockCount(10);
+
+        StockRequest request = mock(StockRequest.class);
+        given(request.getBookId()).willReturn(bookA.getId());
+        given(request.getQuantity()).willReturn(quantity);
+
+        given(bookRepository.decreaseStock(bookA.getId(), quantity)).willReturn(1);
+        given(bookRepository.findById(bookA.getId())).willReturn(Optional.of(bookA));
+
+        List<StockRequest> requests = new ArrayList<>(List.of(request));
+        bookService.decreaseStock(requests);
+        assertThat(bookA.getStatus()).isEqualTo(BookStatus.ON_SALE);
+
+        verify(bookRepository, times(1)).decreaseStock(bookA.getId(), quantity);
+    }
+
+    @Test
+    @DisplayName("재고 차감 성공 - 재고가 0이 되어 품절(SOLD_OUT)로 상태변경")
+    void decreaseStock_Success_ChangeToSoldOut() {
+        int decreaseQuantity = 1;
+
+        bookA.setStockCount(0);
+        StockRequest request = mock(StockRequest.class);
+        given(request.getBookId()).willReturn(bookA.getId());
+        given(request.getQuantity()).willReturn(decreaseQuantity);
+
+        given(bookRepository.decreaseStock(bookA.getId(), decreaseQuantity)).willReturn(1);
+        given(bookRepository.findById(bookA.getId())).willReturn(Optional.of(bookA));
+
+        List<StockRequest> requests = new ArrayList<>(List.of(request));
+        bookService.decreaseStock(requests);
+
+        assertThat(bookA.getStatus()).isEqualTo(BookStatus.SOLD_OUT);
+
+        verify(bookRepository, times(1)).decreaseStock(bookA.getId(), decreaseQuantity);
+    }
+
+    @Test
+    @DisplayName("재고 차감 실패 - DB 업데이트 실패(재고부족) -> 예외 발생")
+    void decreaseStock_Fail_OutofStock() {
+        int decreaseQuantity = 999;
+
+        StockRequest request = mock(StockRequest.class);
+        given(request.getBookId()).willReturn(bookA.getId());
+        given(request.getQuantity()).willReturn(decreaseQuantity);
+
+        given(bookRepository.decreaseStock(bookA.getId(), decreaseQuantity)).willReturn(0);
+        List<StockRequest> requests = new ArrayList<>(List.of(request));
+        assertThatThrownBy(() -> bookService.decreaseStock(requests)).isInstanceOf(OutOfStockException.class)
+                .hasMessageContaining("재고가 부족합니다.");
+        verify(bookRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    @DisplayName("재고 차감 실패 - 차감은 성공했으나 도서 조회 실패 (데이터 불일치)")
+    void decreaseStock_Fail_BookNotFound() {
+        StockRequest request = mock(StockRequest.class);
+        given(request.getBookId()).willReturn(bookA.getId());
+        given(request.getQuantity()).willReturn(1);
+
+        given(bookRepository.decreaseStock(bookA.getId(), 1)).willReturn(1);
+        given(bookRepository.findById(bookA.getId())).willReturn(Optional.empty());
+        List<StockRequest> requests = new ArrayList<>(List.of(request));
+
+        assertThatThrownBy(() -> bookService.decreaseStock(requests)).isInstanceOf(NotFoundBookException.class);
+    }
+
+    @Test
+    @DisplayName("재고 증가(복구) 성공 - 품절 상태였다가 재고 확보 후 판매중으로 변경")
+    void increaseStock_Success_ChangeToOnSale() {
+        int increaseQuantity = 5;
+
+        bookA.setStatus(BookStatus.SOLD_OUT);
+        bookA.setStockCount(10);
+
+        StockRequest request = mock(StockRequest.class);
+        given(request.getBookId()).willReturn(bookA.getId());
+        given(request.getQuantity()).willReturn(increaseQuantity);
+
+        given(bookRepository.findById(bookA.getId())).willReturn(Optional.of(bookA));
+        List<StockRequest> requests = new ArrayList<>(List.of(request));
+
+        bookService.increaseStock(requests);
+
+        verify(bookRepository, times(1)).increaseStock(bookA.getId(), increaseQuantity);
+
+        assertThat(bookA.getStatus()).isEqualTo(BookStatus.ON_SALE);
+    }
+
+    @Test
+    @DisplayName("재고 증가 실패 - 도서 미발견")
+    void increaseStock_Fail_NotFound() {
+        StockRequest request = mock(StockRequest.class);
+        given(request.getBookId()).willReturn(999L);
+        given(request.getQuantity()).willReturn(1);
+
+        given(bookRepository.findById(999L)).willReturn(Optional.empty());
+        List<StockRequest> requests = new ArrayList<>(List.of(request));
+
+        assertThatThrownBy(() -> bookService.increaseStock(requests)).isInstanceOf(NotFoundBookException.class);
+
+        verify(bookRepository, times(1)).increaseStock(999L, 1);
     }
 }

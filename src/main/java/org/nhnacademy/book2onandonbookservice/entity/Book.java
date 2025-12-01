@@ -85,11 +85,6 @@ public class Book {
     @Column(name = "book_publish_date", nullable = false)
     private LocalDate publishDate;
 
-    // 책 재고 상태
-    @Setter
-    @Column(name = "stock_status", length = 50)
-    @Size(min = 1, max = 50)
-    private String stockStatus;
 
     // 판매가
     @Setter

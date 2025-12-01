@@ -4,7 +4,7 @@ package org.nhnacademy.book2onandonbookservice.controller;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
-import org.nhnacademy.book2onandonbookservice.dto.book.StockDecreaseRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,8 +31,14 @@ public class InternalBookController {
     }
 
     @PostMapping("/stock/decrease")
-    public ResponseEntity<Void> decreaseStock(@RequestBody List<StockDecreaseRequest> requests) {
+    public ResponseEntity<Void> decreaseStock(@RequestBody List<StockRequest> requests) {
         bookService.decreaseStock(requests);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/stock/increase")
+    public ResponseEntity<Void> increaseStock(@RequestBody List<StockRequest> requests) {
+        bookService.increaseStock(requests);
         return ResponseEntity.ok().build();
     }
 

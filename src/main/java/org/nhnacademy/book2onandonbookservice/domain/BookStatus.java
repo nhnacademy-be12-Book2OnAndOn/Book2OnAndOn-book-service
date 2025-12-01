@@ -5,4 +5,11 @@ public enum BookStatus {
     SOLD_OUT,   //일시 품절(재입고 예정)
     BOOK_DELETED,   //삭제, 노출 중단
     ON_SALE //판매중
+    ;
+
+
+    @Override
+    public String toString() {
+        return super.toString();
+    }
 }

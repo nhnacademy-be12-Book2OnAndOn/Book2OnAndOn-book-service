@@ -6,7 +6,7 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
-import org.nhnacademy.book2onandonbookservice.dto.book.StockDecreaseRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,5 +38,7 @@ public interface BookService {
     //[내부 통신용] 주문서 생성 및 결제 검증을 위한 도서 정보 다건 조회
     List<BookOrderResponse> getBooksForOrder(List<Long> bookIds);
 
-    void decreaseStock(List<StockDecreaseRequest> requests);
+    void decreaseStock(List<StockRequest> requests);
+
+    void increaseStock(List<StockRequest> requests);
 }

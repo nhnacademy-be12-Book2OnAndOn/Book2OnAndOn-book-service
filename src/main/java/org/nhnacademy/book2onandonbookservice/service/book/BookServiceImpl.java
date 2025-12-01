@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -15,7 +16,7 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
-import org.nhnacademy.book2onandonbookservice.dto.book.StockDecreaseRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
@@ -200,8 +201,9 @@ public class BookServiceImpl implements BookService {
 
     @Override
     @Transactional
-    public void decreaseStock(List<StockDecreaseRequest> requests) {
-        for (StockDecreaseRequest req : requests) {
+    public void decreaseStock(List<StockRequest> requests) {
+        requests.sort(Comparator.comparing(StockRequest::getBookId)); //데드락 방지
+        for (StockRequest req : requests) {
             int result = bookRepository.decreaseStock(req.getBookId(), req.getQuantity());
 
             if (result == 0) {
@@ -212,13 +214,28 @@ public class BookServiceImpl implements BookService {
                     .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
 
             if (book.getStockCount() <= 0) {
-                book.setStockStatus(BookStatus.SOLD_OUT.toString());
+                book.setStatus(BookStatus.SOLD_OUT);
             }
 
         }
     }
 
-    //TODO: 주문 취소시 increaseStock 하는 로직 필요 GET /internal/books/stock/increase
+
+    @Override
+    @Transactional
+    public void increaseStock(List<StockRequest> requests) {
+        requests.sort(Comparator.comparing(StockRequest::getBookId)); //데드락 방지
+        for (StockRequest req : requests) {
+            bookRepository.increaseStock(req.getBookId(), req.getQuantity());
+
+            Book book = bookRepository.findById(req.getBookId())
+                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
+
+            if (book.getStockCount() > 0 && isSoldOut(book.getStatus())) {
+                book.setStatus(BookStatus.ON_SALE);
+            }
+        }
+    }
 
     ///    내부 로직
     private CategoryDto CategoryToDto(Category category) {
@@ -269,5 +286,9 @@ public class BookServiceImpl implements BookService {
                 .categoryIds(categoryIds)
                 .tagNames(tagNames)
                 .build();
+    }
+
+    private boolean isSoldOut(BookStatus status) {
+        return status == BookStatus.SOLD_OUT || status == BookStatus.OUT_OF_STOCK;
     }
 }
