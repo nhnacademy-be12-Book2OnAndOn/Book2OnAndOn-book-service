@@ -36,6 +36,22 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             """)
     Optional<Book> findByIdWithRelations(Long bookId);
 
+    // 카테고리, 태그로 책 조회
+    @Query("""
+            SELECT DISTINCT b
+            FROM Book b
+            JOIN b.bookCategories bc
+            WHERE bc.category.id = :categoryId
+            """)
+    Page<Book> findByCategoryId(Long categoryId, Pageable pageable);
+
+    @Query("""
+            SELECT DISTINCT b
+            FROM Book b
+            JOIN b.bookTags bt
+            WHERE bt.tag.id = :tagId
+            """)
+    Page<Book> findByTagId(Long tagId, Pageable pageable);
     @Query("SELECT b FROM Book b JOIN b.bookCategories bc WHERE bc.category.id = :categoryId ORDER BY b.publishDate DESC")
     Page<Book> findNewArrivalsByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
 
