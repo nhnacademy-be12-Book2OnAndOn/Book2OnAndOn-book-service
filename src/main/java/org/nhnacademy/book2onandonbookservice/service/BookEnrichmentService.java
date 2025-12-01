@@ -126,8 +126,11 @@ public class BookEnrichmentService {
 
             if ((book.getPriceStandard() == null || book.getPriceStandard() == 0)
                     && aladinData.getPriceStandard() > 0) {
-                book.setPriceStandard(aladinData.getPriceStandard());
-                book.setPriceSales(aladinData.getPriceSales());
+                long newStandardPrice = aladinData.getPriceStandard();
+                book.setPriceStandard(newStandardPrice);
+                if (book.getPriceSales() == null || book.getPriceSales() == 0) {
+                    book.setPriceSales(newStandardPrice);
+                }
                 isUpdated = true;
             }
             if (book.getPublishDate() == null && StringUtils.hasText(aladinData.getPubDate())) {

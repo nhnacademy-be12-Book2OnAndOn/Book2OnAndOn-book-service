@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -23,7 +24,10 @@ import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 
 @Entity
-@Table(name = "Book")
+@Table(name = "Book", indexes = {
+        @Index(name = "idx_book_isbn", columnList = "ISBN"),
+        @Index(name = "idx_book_publish_date", columnList = "book_publish_date")
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
