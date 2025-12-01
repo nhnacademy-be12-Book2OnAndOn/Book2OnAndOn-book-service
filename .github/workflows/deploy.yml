@@ -35,9 +35,18 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw clean verify sonar:sonar \
-          -Dsonar.projectKey=book-service \
+            -Dsonar.projectKey=book-service \
+            -Dsonar.projectName="Book Service" \
             -Dsonar.host.url=$SONAR_HOST_URL \
             -Dsonar.token=$SONAR_TOKEN \
+            -Dspring.cloud.config.enabled=false \
+            -Dspring.config.import="optional:file:./" \
+            -Dminio.url="http://localhost:9000" \
+            -Dminio.access-key="dummy" \
+            -Dminio.secret-key="dummy" \
+            -Dminio.bucket-name="dummy" \
+            -Dminio.folder.book="dummy" \
+            -Dminio.folder.review="dummy"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
