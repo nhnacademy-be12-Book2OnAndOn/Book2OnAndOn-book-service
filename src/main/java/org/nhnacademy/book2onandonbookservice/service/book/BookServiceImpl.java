@@ -179,7 +179,8 @@ public class BookServiceImpl implements BookService {
         Page<Book> bookPage;
 
         if (categoryId != null) {
-            bookPage = bookRepository.findNewArrivalsByCategoryId(categoryId, pageable);
+            List<Long> allCategoryIds = getAllCategoryIds(categoryId);
+            bookPage = bookRepository.findBooksByCategoryIdsSorted(allCategoryIds, pageable);
         } else {
             bookPage = bookRepository.findAllByOrderByPublishDateDesc(pageable);
         }
@@ -237,6 +238,21 @@ public class BookServiceImpl implements BookService {
         }
     }
 
+    @Override
+    public void updateBookStatus(Long bookId, BookStatus status) {
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new NotFoundBookException(bookId));
+
+        book.setStatus(status);
+
+        try {
+            bookSearchIndexService.index(book);
+        } catch (Exception e) {
+            log.error("Es 인덱싱 실패 (상태변경) - bookId={}", bookId, e);
+        }
+    }
+
+
     ///    내부 로직
     private CategoryDto CategoryToDto(Category category) {
         return CategoryDto.builder()
@@ -290,5 +306,27 @@ public class BookServiceImpl implements BookService {
 
     private boolean isSoldOut(BookStatus status) {
         return status == BookStatus.SOLD_OUT || status == BookStatus.OUT_OF_STOCK;
+    }
+
+    private List<Long> getAllCategoryIds(Long parentId) {
+        Category parent = categoryRepository.findById(parentId)
+                .orElseThrow(() -> new IllegalArgumentException("카테고리 없음"));
+
+        List<Long> ids = new ArrayList<>();
+
+        ids.add(parent.getId());
+
+        collectChildIds(parent, ids);
+        return ids;
+    }
+
+    private void collectChildIds(Category parent, List<Long> ids) {
+        if (parent.getChildren() == null || parent.getChildren().isEmpty()) {
+            return;
+        }
+        for (Category child : parent.getChildren()) {
+            ids.add(child.getId());
+            collectChildIds(child, ids);
+        }
     }
 }

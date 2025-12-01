@@ -1,9 +1,13 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
+import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +24,7 @@ public class BookSearchSyncService {
 
     private final BookRepository bookRepository;
     private final BookSearchIndexService bookSearchIndexService;
+    private final CategoryRepository categoryRepository;
 
     /**
      * 특정 카테고리에 속한 책들을 모두 재인덱싱
@@ -27,8 +32,10 @@ public class BookSearchSyncService {
     @Transactional(readOnly = true)
     public long reindexByCategoryId(Long categoryId) {
         log.info("[ES Sync] Start reindexByCategoryId categoryId={}", categoryId);
-        long total = reindexPaged(pageable -> bookRepository.findByCategoryId(categoryId, pageable));
-        log.info("[ES Sync] Done reindexByCategoryId categoryId={} totalReindexed={}", categoryId, total);
+        List<Long> targetCategoryIds = getAllCategoryIds(categoryId);
+        long total = reindexPaged(pageable -> bookRepository.findBooksByCategoryIds(targetCategoryIds, pageable));
+        log.info("[ES Sync] Done reindexByCategoryId rootId={} (totalIds={}) totalReindexed={}",
+                categoryId, targetCategoryIds.size(), total);
         return total;
     }
 
@@ -73,5 +80,25 @@ public class BookSearchSyncService {
         }
 
         return totalReindexed;
+    }
+
+    private List<Long> getAllCategoryIds(Long rootId) {
+        Category root = categoryRepository.findById(rootId)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + rootId));
+
+        List<Long> ids = new ArrayList<>();
+        ids.add(root.getId());
+        collectChildIds(root, ids);
+        return ids;
+    }
+
+    private void collectChildIds(Category parent, List<Long> ids) {
+        if (parent.getChildren() == null || parent.getChildren().isEmpty()) {
+            return;
+        }
+        for (Category child : parent.getChildren()) {
+            ids.add(child.getId());
+            collectChildIds(child, ids);
+        }
     }
 }

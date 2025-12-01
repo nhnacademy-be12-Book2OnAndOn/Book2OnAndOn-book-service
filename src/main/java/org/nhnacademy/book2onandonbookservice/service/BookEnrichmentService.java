@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -27,7 +28,6 @@ import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -148,57 +148,6 @@ public class BookEnrichmentService {
                 isUpdated = true;
             }
 
-//            if (book.getChapter().isEmpty() && StringUtils.hasText(aladinData.getItemList())) {
-//                book.setChapter(aladinData.getItemList());
-//
-//                log.info("챕터!!!!!!!:{}", book.getChapter());
-//                isUpdated = true;
-//            }
-
-//            log.info("[디버깅] 책: ID: {}, subInfo 존재?: {}", bookId, (aladinData.getSubInfo() != null));
-//
-//            if (aladinData.getSubInfo() != null && aladinData.getSubInfo().getAuthors() != null
-//                    && !aladinData.getSubInfo().getAuthors().isEmpty()) {
-//
-//                book.getBookContributors().clear();
-//
-//                for (AladinApiResponse.Author apiAuthor : aladinData.getSubInfo().getAuthors()) {
-//                    String authorName = truncate(apiAuthor.getAuthorName(), 50);
-//                    String role = truncate(apiAuthor.getAuthorTypeDesc(), 50);
-//                    String description = truncate(apiAuthor.getAuthorInfo(), 10000);
-//
-//                    if (description == null) {
-//                        log.warn("description is null!!!!!!!!!!!!!!!!");
-//                    }
-//
-//                    if (!StringUtils.hasText(authorName)) {
-//                        continue;
-//                    }
-//
-//                    Contributor contributor = contributorRepository.findByContributorName(authorName)
-//                            .orElseGet(() -> contributorRepository.save(
-//                                    Contributor.builder().contributorName(authorName).build()
-//                            ));
-//
-//                    if (StringUtils.hasText(description) && !StringUtils.hasText(
-//                            contributor.getContributorDescription())) {
-//                        contributor.setContributorDescription(description);
-//
-//                    }
-//                    contributorRepository.save(contributor);
-//
-//                    BookContributor newRelation = BookContributor.builder()
-//                            .book(book)
-//                            .contributor(contributor)
-//                            .roleType(role)
-//                            .build();
-//
-//                    book.getBookContributors().add(newRelation);
-//                }
-//                log.info("작가 정보 갱신 완료 ({}명)", aladinData.getSubInfo().getAuthors().size());
-//                isUpdated = true;
-//            }
-
         }
 
         if (googleData != null) {
@@ -288,9 +237,9 @@ public class BookEnrichmentService {
             return;
         }
 
-        String[] parts = categoryPath.split(">");
+        String[] parts = categoryPath.split("\\s*>\\s*");
         Category parent = null;
-        String currentPathKey = "";
+        Category currentCategory = null;
 
         for (String part : parts) {
             String categoryName = part.trim();
@@ -299,77 +248,55 @@ public class BookEnrichmentService {
             }
             categoryName = truncate(categoryName, 100);
 
-            if (currentPathKey.isEmpty()) {
-                currentPathKey = categoryName;
-            } else {
-                currentPathKey = currentPathKey + ">" + categoryName;
-            }
+            currentCategory = findOrCreateCategory(categoryName, parent);
 
-            Category currentCategory = null;
-            Long cachedId = categoryIdCache.get(currentPathKey);
-
-            if (cachedId != null) {
-                currentCategory = categoryRepository.findById(cachedId).orElse(null);
-            }
-
-            if (currentCategory == null) {
-                synchronized (categoryIdCache) {
-                    cachedId = categoryIdCache.get(currentPathKey);
-                    if (cachedId != null) {
-                        currentCategory = categoryRepository.findById(cachedId).orElse(null);
-                    }
-
-                    if (currentCategory == null) {
-                        if (parent == null) {
-                            currentCategory = categoryRepository.findByCategoryNameAndParentIsNull(categoryName)
-                                    .orElse(null);
-                        } else {
-                            currentCategory = categoryRepository.findByCategoryNameAndParent(categoryName, parent)
-                                    .orElse(null);
-                        }
-                    }
-
-                    if (currentCategory == null) {
-                        try {
-                            Category newCategory = Category.builder()
-                                    .categoryName(categoryName)
-                                    .parent(parent)
-                                    .build();
-
-                            currentCategory = categoryRepository.saveAndFlush(newCategory);
-                        } catch (DataIntegrityViolationException e) {
-                            log.info("카테고리 중복 저장 방어: {}", currentPathKey);
-
-                            if (parent == null) {
-                                currentCategory = categoryRepository.findByCategoryNameAndParentIsNull(categoryName)
-                                        .orElseThrow();
-                            } else {
-                                currentCategory = categoryRepository.findByCategoryNameAndParent(categoryName, parent)
-                                        .orElseThrow();
-                            }
-                        }
-                    }
-
-                    if (currentCategory != null) {
-                        categoryIdCache.put(currentPathKey, currentCategory.getId());
-                    }
-                }
-            }
             parent = currentCategory;
+        }
 
-            if (currentCategory != null) {
-                try {
-                    if (!bookCategoryRepository.existsByBookAndCategory(book, currentCategory)) {
-                        bookCategoryRepository.save(BookCategory.builder()
-                                .book(book).category(currentCategory).build());
+        if (currentCategory != null) {
+            linkBookToCategory(book, currentCategory);
+        }
+    }
 
-                    }
-                } catch (Exception e) {
-                    // 무시
+    private Category findOrCreateCategory(String name, Category parent) {
+        Optional<Category> existing;
 
-                    log.error("BookCategory 저장 실패");
-                }
+        if (parent == null) {
+            existing = categoryRepository.findByCategoryNameAndParentIsNull(name);
+        } else {
+            existing = categoryRepository.findByCategoryNameAndParent(name, parent);
+        }
+
+        return existing.orElseGet(() -> createCategorySafely(name, parent));
+    }
+
+    private Category createCategorySafely(String name, Category parent) {
+        try {
+            Category newCategory = Category.builder()
+                    .categoryName(name)
+                    .parent(parent)
+                    .build();
+            return categoryRepository.save(newCategory);
+        } catch (Exception e) {
+            //동시에 다른 서버가 생성해서 에러가 난다면, 다시 조회해서 리턴(방어로직)
+            if (parent == null) {
+                return categoryRepository.findByCategoryNameAndParentIsNull(name).orElseThrow();
+            } else {
+                return categoryRepository.findByCategoryNameAndParent(name, parent).orElseThrow();
             }
+        }
+    }
+
+    private void linkBookToCategory(Book book, Category category) {
+        try {
+            if (!bookCategoryRepository.existsByBookAndCategory(book, category)) {
+                bookCategoryRepository.save(BookCategory.builder()
+                        .book(book)
+                        .category(category)
+                        .build());
+            }
+        } catch (Exception e) {
+            log.warn("이미 연결된 카테고리 입니다: BookID={}, CategoryId={}", book.getId(), category.getId());
         }
     }
 

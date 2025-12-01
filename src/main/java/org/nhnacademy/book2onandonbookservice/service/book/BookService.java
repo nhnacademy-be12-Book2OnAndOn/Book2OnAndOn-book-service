@@ -1,6 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.util.List;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
@@ -41,4 +42,6 @@ public interface BookService {
     void decreaseStock(List<StockRequest> requests);
 
     void increaseStock(List<StockRequest> requests);
+
+    void updateBookStatus(Long bookId, BookStatus status);
 }

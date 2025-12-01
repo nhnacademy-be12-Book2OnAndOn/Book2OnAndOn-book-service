@@ -527,4 +527,37 @@ class BookServiceImplTest {
 
         verify(bookRepository, times(1)).increaseStock(999L, 1);
     }
+
+    @Test
+    @DisplayName("도서 상태만 변경 - 성공")
+    void updateBookStatus_Success() {
+        Long bookId = 1L;
+        BookStatus bookStatus = BookStatus.SOLD_OUT;
+
+        bookA.setStatus(BookStatus.ON_SALE);
+
+        given(bookRepository.findById(bookId)).willReturn(Optional.of(bookA));
+
+        bookService.updateBookStatus(bookId, bookStatus);
+
+        assertThat(bookA.getStatus()).isEqualTo(bookStatus);
+
+        verify(bookSearchIndexService, times(1)).index(bookA);
+    }
+
+    @Test
+    @DisplayName("도서 상태 변경 성공 - ES 인덱싱 실패해도 트랜잭션은 커밋")
+    void updateBookStatus_Success_EvenIfEsFails() {
+        Long bookId = 1L;
+        BookStatus newStatus = BookStatus.BOOK_DELETED;
+
+        given(bookRepository.findById(bookId)).willReturn(Optional.of(bookA));
+
+        willThrow(new RuntimeException("ES Server Error")).given(bookSearchIndexService).index(bookA);
+        bookService.updateBookStatus(bookId, newStatus);
+
+        assertThat(bookA.getStatus()).isEqualTo(newStatus);
+
+        verify(bookSearchIndexService, times(1)).index(bookA);
+    }
 }
