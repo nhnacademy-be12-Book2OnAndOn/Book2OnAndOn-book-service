@@ -39,6 +39,9 @@ public interface BookService {
     //[내부 통신용] 주문서 생성 및 결제 검증을 위한 도서 정보 다건 조회
     List<BookOrderResponse> getBooksForOrder(List<Long> bookIds);
 
+    // 인기 도서 조회(좋아요 순)
+    Page<BookListResponse> getPopularBooks(Pageable pageable);
+  
     void decreaseStock(List<StockRequest> requests);
 
     void increaseStock(List<StockRequest> requests);

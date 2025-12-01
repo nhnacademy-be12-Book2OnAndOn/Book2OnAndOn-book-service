@@ -11,7 +11,7 @@ public class UserHeaderUtil {
     private static final String HEADER_USER_ID = "X-User-Id";
     private static final String HEADER_USER_ROLE = "X-User-Role";
 
-    public Long getUserId() {
+    public static Long getUserId() {
         HttpServletRequest request = getRequest();
         if (request == null) {
             return null;
@@ -29,6 +29,11 @@ public class UserHeaderUtil {
         }
     }
 
+    private static HttpServletRequest getRequest() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes(); // spring은 요청이 들어오면 저 컨텍스트 홀더에 요청 정보를 저장해 두기 때문에 홀더에서 꺼내씀
+        return (attributes != null) ? attributes.getRequest() : null;
+    }
+
     /**
      * ROLE_USER: 일반 회원 ROLE_BOOK_ADMIN:
      *
@@ -37,12 +42,6 @@ public class UserHeaderUtil {
     public String getUserRole() {
         HttpServletRequest request = getRequest();
         return (request != null) ? request.getHeader(HEADER_USER_ROLE) : null;
-    }
-
-
-    private HttpServletRequest getRequest() {
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes(); // spring은 요청이 들어오면 저 컨텍스트 홀더에 요청 정보를 저장해 두기 때문에 홀더에서 꺼내씀
-        return (attributes != null) ? attributes.getRequest() : null;
     }
 }
 
