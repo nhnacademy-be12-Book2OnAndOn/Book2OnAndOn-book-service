@@ -216,17 +216,20 @@ public class DataInitializer implements ApplicationRunner {
                 publisherRepository.save(Publisher.builder().publisherName(name).build())
         );
 
+        long price = parsePrice(safeGet(row, h, "PRC_VALUE"));
         // Book Entity 생성
         Book book = Book.builder()
                 .isbn(truncate(isbn, 20))
                 .title(truncate(title, 255))
                 .description(safeGet(row, h, "BOOK_INTRCN_CN")) // 책 소개
                 .chapter(null) // 목차는 CSV에 없으면 null
-                .priceStandard(parsePrice(safeGet(row, h, "PRC_VALUE")))
+                .priceStandard(price)
+                .priceSales(price)
                 .publishDate(parseDate(safeGet(row, h, "TWO_PBLICTE_DE")))
                 .stockCount(100) // 기본 재고
                 .isWrapped(true) // 포장 가능 여부
                 .status(BookStatus.ON_SALE)
+                .volume(safeGet(row, h, "VLM_NM")) //volume
                 .build();
 
         //연관관계 설정: 출판사
