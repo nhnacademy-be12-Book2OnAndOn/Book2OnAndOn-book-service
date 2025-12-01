@@ -11,9 +11,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
+    interface BookIdAndIsbn {
+        Long getId();
 
-    boolean existsByIsbn(String isbn);
-
+        String getIsbn();
+    }
 
     @Query("SELECT b FROM Book b " +
             "WHERE b.priceStandard = 0 " +
@@ -37,14 +39,18 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             """)
     Optional<Book> findByIdWithRelations(Long bookId);
 
-    // 카테고리, 태그로 책 조회
+    /// 신간 도서 조회용 (정렬 O)
+    @Query("SELECT DISTINCT b FROM Book b JOIN b.bookCategories bc WHERE bc.category.id IN :categoryIds ORDER BY b.publishDate DESC")
+    Page<Book> findBooksByCategoryIdsSorted(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
+
+    /// 검색 동기화용 (정렬 X)
     @Query("""
             SELECT DISTINCT b
             FROM Book b
             JOIN b.bookCategories bc
-            WHERE bc.category.id = :categoryId
+            WHERE bc.category.id IN :categoryIds
             """)
-    Page<Book> findByCategoryId(Long categoryId, Pageable pageable);
+    Page<Book> findBooksByCategoryIds(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
     @Query("""
             SELECT DISTINCT b
@@ -60,11 +66,6 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     Page<Book> findAllByOrderByPublishDateDesc(Pageable pageable);
 
-    interface BookIdAndIsbn {
-        Long getId();
-
-        String getIsbn();
-    }
 
     //주문 후 재고 차감 로직
     @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 동기화)
