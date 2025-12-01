@@ -126,7 +126,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw new AccessDeniedException("본인의 리뷰만 수정할 수 있습니다.");
         }
         //더티 체킹 (@Transactional 덕분에 가능함)
-        //2. 자바 객체의 값을 바꿈 (아직 DB에 간게 아니라 메모리 상의 객체만 바뀐 상태
+        //2. 자바 객체의 값을 바꿈 (아직 DB에 간게 아니라 메모리 상의 객체만 바뀐 상태)
         review.update(request.getTitle(), request.getContent(), request.getScore());
 
         if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()) {

@@ -14,6 +14,7 @@ import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -109,5 +110,21 @@ public class BookController {
         bookService.deleteBook(bookId); // DB 삭제 + ES 인덱스 삭제 포함
 
         return ResponseEntity.noContent().build(); // 204
+    }
+
+    /// 베스트셀러 조회 API GET /books/bestsellers?period=DAILY
+    @GetMapping("/bestsellers")
+    public ResponseEntity<List<BookListResponse>> getBestsellers(@RequestParam("period") String period) {
+        List<BookListResponse> bestsellers = bookService.getBestsellers(period.toUpperCase());
+        return ResponseEntity.ok(bestsellers);
+    }
+
+    /// 신간 도서 조회 GET /books/new-arrivals?categoryId=10&size=20
+    @GetMapping("/new-arrivals")
+    public ResponseEntity<Page<BookListResponse>> getNewArrivals(
+            @RequestParam(value = "categoryId", required = false) Long categoryId,
+            @PageableDefault(sort = "publishDate", direction = Direction.DESC) Pageable pageable) {
+        Page<BookListResponse> newArrivals = bookService.getNewArrivals(categoryId, pageable);
+        return ResponseEntity.ok(newArrivals);
     }
 }
