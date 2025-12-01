@@ -93,7 +93,6 @@ public class ImageUploadService {
     /**
      * 공통 파일 삭제 로직 Book 이미지든 Review 이미지든 MINIO 면 삭제
      */
-
     public void remove(String imageUrl) {
         if (imageUrl == null || imageUrl.isEmpty()) {
             return;

@@ -215,37 +215,10 @@ public class BookServiceImpl implements BookService {
                 book.setStockStatus(BookStatus.SOLD_OUT.toString());
             }
 
-            try {
-                bookSearchIndexService.index(book);
-            } catch (Exception e) {
-                //ES 갱신 실패가 결제 로직 전체를 롤백시켜야하나?
-                //보통 로그를 남기고, 별도의 재시도 큐(RabbitMQ)에 넣거나 넘어간다.
-                /*
-                TODO
-                DB 트랜잭션이 커밋된 직후 bookSearchIndexService.index(book)를 호출할 때
-                네트워크 문제나, ES 서버 다운/부하(엘라스틱 서치가 (Garage Collection)중이라 멈췄거나, 디스크가
-                꽉 찼거나, 너무 바빠서 타임아웃될때 )
-                DB는 품절이 됐는데 ES에서 갱신이 안돼서 홈페이지에선 판매중인데 실제 DB에선 품절인 경우가 돼버림
-                그럼 어떻게 해야되나? (방법)
-                1. 로그만 남기기
-                2. 스프링 Retry 적용 (재시도 횟수를 정할 수 있음 이러면 일시적인 네트워크문제는 해결 근데 다른 오류에 대응 부족)
-                3. 스케줄러로 해결 (인덱싱 에러에 대한 DB테이블을 만들어서 스케줄러로 5분마다 해당 테이블 읽어서 재색인 시도)
-                4. 메시지 큐 (RabbitMQ)
-                   - decreaseStock메서드에서는 DB 업데이트만 하고 이벤트를 MQ에 이벤트(BookId 변경 감지)를 MQ에 던지고 끝냄
-                   - 별도의 Consumer 서버(큐에서 메시지를 빼오는 애)가 MQ에서 메시지를 꺼내서 bookSearchIndexService.index(book)
-                   - 근데 재고 처리 로직에만 도입하는게 아닌 엘라스틱 서치 자체를 인덱싱이 수행될 때 RabbitMQ에 먼저 메시지를 던져서 뒷단에서
-                   수행되게 한다면? 지금처럼 order-service와 연동해서 로직을 처리할때 다른 서비스들을 방해하지않을 수 있음
-                   - 내 생각에는... 위의 이유가 관건이라면 재고량만 RabbitMQ로 관리하면 좋은데 코드의 일관성이나 Book-Service가 돌아갈 때
-                   사소한 Book 인덱싱까지도 언제 어떻게 에러가 터질지 모르니깐 댐 역할로 RabbitMq로 막는게 좋다고 생각은 하는데
-                   - 파싱같은 대용량은 벌크API로 하는게 나을거 같긴함
-                   - 정리하자면
-                   파싱 관련 인덱싱 (엘라스틱서치 Bulk API)
-                   사소한 인덱싱 및 재고처리로직 (RabbitMQ를 통한 인덱싱)
-                 */
-                log.error("ES 재고 동기화 실패 - bookId={}", book.getId(), e);
-            }
         }
     }
+
+    //TODO: 주문 취소시 increaseStock 하는 로직 필요 GET /internal/books/stock/increase
 
     ///    내부 로직
     private CategoryDto CategoryToDto(Category category) {
