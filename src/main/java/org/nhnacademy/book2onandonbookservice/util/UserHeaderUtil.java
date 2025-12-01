@@ -11,7 +11,7 @@ public class UserHeaderUtil {
     private static final String HEADER_USER_ID = "X-User-Id";
     private static final String HEADER_USER_ROLE = "X-User-Role";
 
-    public static Long getUserId() {
+    public Long getUserId() {
         HttpServletRequest request = getRequest();
         if (request == null) {
             return null;

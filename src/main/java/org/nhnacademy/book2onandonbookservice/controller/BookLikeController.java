@@ -19,11 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class BookLikeController {
     private final BookLikeService bookLikeService;
+    private final UserHeaderUtil util;
 
     /// 좋아요 토글 POST /books/{bookId}/likes
     @PostMapping("/{bookId}/likes")
     public ResponseEntity<BookLikeToggleResponse> toggleLike(@PathVariable Long bookId) {
-        Long userId = UserHeaderUtil.getUserId();
+        Long userId = util.getUserId();
         BookLikeToggleResult result = bookLikeService.toggleLike(bookId, userId);
         BookLikeToggleResponse body = new BookLikeToggleResponse(
                 result.liked(),
@@ -36,7 +37,7 @@ public class BookLikeController {
     /// 사용자 좋아요 목록 조회 GET /books/likes/me User Service에서 호출 후 List<Long> 형태를 받아감
     @GetMapping("/likes/me")
     public ResponseEntity<List<Long>> getMyLikedBooks() {
-        Long userId = UserHeaderUtil.getUserId();
+        Long userId = util.getUserId();
         List<Long> bookIds = bookLikeService.getMyLikedBookIds(userId);
         return ResponseEntity.ok(bookIds);
     }

@@ -58,13 +58,13 @@ class ReviewServiceImplTest {
     void createReview() {
         Long bookId = 1L;
         Long userId = 100L;
-
+        Long reviewId = 10L;
         ReviewCreateRequest request = ReviewCreateRequest.builder()
                 .title("좋아요")
                 .score(5)
                 .content("내용이 알차요 배송도 빨라요")
                 .build();
-        Book book = Book.builder().id(bookId).build();
+        Book book = Book.builder().id(bookId).rating(0.0).build();
 
         given(bookRepository.findById(bookId)).willReturn(Optional.of(book));
         given(util.getUserId()).willReturn(userId);

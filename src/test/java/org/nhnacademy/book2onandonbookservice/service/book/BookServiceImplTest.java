@@ -366,29 +366,56 @@ class BookServiceImplTest {
     @Test
     @DisplayName("신간 도서 조회 성공")
     void getNewArrivals() {
-        Long categoryID = 5L;
+        Long categoryId = 5L;
+        Category mockCategory = Category.builder()
+                .id(categoryId)
+                .categoryName("Test Category")
+                .children(new ArrayList<>())
+                .build();
+
+        given(categoryRepository.findById(categoryId)).willReturn(Optional.of(mockCategory));
+
         Page<Book> page = new PageImpl<>(List.of(bookA), pageable, 1);
 
-        given(bookRepository.findNewArrivalsByCategoryId(eq(categoryID), any(Pageable.class))).willReturn(page);
+        given(bookRepository.findBooksByCategoryIdsSorted(anyList(), any(Pageable.class)))
+                .willReturn(page);
 
-        Page<BookListResponse> responses = bookService.getNewArrivals(categoryID, pageable);
+        Page<BookListResponse> responses = bookService.getNewArrivals(categoryId, pageable);
 
         assertThat(responses).hasSize(1);
-        verify(bookRepository, times(1)).findNewArrivalsByCategoryId(categoryID, pageable);
+
+        verify(categoryRepository, times(1)).findById(categoryId);
+        verify(bookRepository, times(1)).findBooksByCategoryIdsSorted(anyList(), eq(pageable));
     }
 
     @Test
-    @DisplayName("신간 도서 조회 실패 - DB 연결 오류 발생")
-    void getNewArrivals_Fail() {
-        Long categoryID = 5L;
+    @DisplayName("신간 도서 조회 실패 - 존재하지 않는 카테고리 ID 요청")
+    void getNewArrivals_Fail_CategoryNotFound() {
+        Long categoryId = 999L;
 
-        given(bookRepository.findNewArrivalsByCategoryId(eq(categoryID), any(Pageable.class)))
+        given(categoryRepository.findById(categoryId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> bookService.getNewArrivals(categoryId, pageable))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("카테고리 없음");
+
+        verify(bookRepository, never()).findBooksByCategoryIdsSorted(anyList(), any());
+    }
+
+    @Test
+    @DisplayName("신간 도서 조회 실패 - DB 연결 오류 (도서 조회 시점)")
+    void getNewArrivals_Fail_DBError() {
+        Long categoryId = 5L;
+        Category mockCategory = Category.builder().id(categoryId).children(new ArrayList<>()).build();
+
+        given(categoryRepository.findById(categoryId)).willReturn(Optional.of(mockCategory));
+
+        given(bookRepository.findBooksByCategoryIdsSorted(anyList(), any(Pageable.class)))
                 .willThrow(new RuntimeException("DB 연결 불안정"));
 
-        assertThatThrownBy(() -> bookService.getNewArrivals(categoryID, pageable))
+        assertThatThrownBy(() -> bookService.getNewArrivals(categoryId, pageable))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("DB 연결 불안정");
-        verify(bookRepository, times(1)).findNewArrivalsByCategoryId(categoryID, pageable);
     }
 
     @Test
