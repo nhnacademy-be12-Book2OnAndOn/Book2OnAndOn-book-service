@@ -12,24 +12,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
-    interface BookIdAndIsbn {
-        Long getId();
-
-        String getIsbn();
-    }
-
     @Query("SELECT b FROM Book b " +
             "WHERE b.priceStandard = 0 " +
             "OR b.description IS NULL OR b.description = '' " +
             "OR b.bookCategories IS EMPTY")
     List<Book> findBooksNeedingEnrichment(Pageable pageable);
 
-
     List<BookIdAndIsbn> findByIsbnIn(List<String> isbns);
 
     @Query("SELECT b FROM Book b WHERE (b.description IS NOT NULL AND b.description != '') AND SIZE(b.bookTags) = 0")
     List<Book> findBooksNeedingTags(Pageable pageable);
-
 
     // Book 수정 시 연관관계를 한 번에 가져오기 위한 전용 쿼리
     @Query("""
@@ -61,12 +53,10 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             """)
     Page<Book> findByTagId(Long tagId, Pageable pageable);
 
-
     @Query("SELECT b FROM Book b JOIN b.bookCategories bc WHERE bc.category.id = :categoryId ORDER BY b.publishDate DESC")
     Page<Book> findNewArrivalsByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
 
     Page<Book> findAllByOrderByPublishDateDesc(Pageable pageable);
-
 
     //주문 후 재고 차감 로직
     @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 동기화)
@@ -77,14 +67,15 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     // 판매중 + 좋아요순 + 페이징
     Page<Book> findByStatusOrderByLikeCountDesc(BookStatus status, Pageable pageable);
 
-    interface BookIdAndIsbn {
-        Long getId();
-
-        String getIsbn();
-    }
     //주문 취소 후 재고 증감 로직
     @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 동기화)
     @Query("UPDATE Book b SET b.stockCount = b.stockCount + :quantity " +
             "WHERE b.id = :id")
     int increaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
+
+    interface BookIdAndIsbn {
+        Long getId();
+
+        String getIsbn();
+    }
 }
