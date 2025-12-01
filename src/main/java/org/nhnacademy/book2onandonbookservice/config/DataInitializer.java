@@ -14,7 +14,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
@@ -28,12 +27,12 @@ import org.nhnacademy.book2onandonbookservice.repository.BatchInsertRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
+import org.nhnacademy.book2onandonbookservice.service.BookBatchService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Slf4j
@@ -45,6 +44,7 @@ public class DataInitializer implements ApplicationRunner {
     private final PublisherRepository publisherRepository;
     private final ContributorRepository contributorRepository;
     private final BatchInsertRepository batchInsertRepository;
+    private final BookBatchService bookBatchService;
     private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
     private final Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
@@ -96,7 +96,7 @@ public class DataInitializer implements ApplicationRunner {
         log.info("캐시 로드 완료 (Publisher: {}, Contributor: {})", publisherCache.size(), contributorCache.size());
     }
 
-    @Transactional
+
     public void processCsvFile(Resource resource) {
         try (CSVReader csvReader = new CSVReader(
                 new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
@@ -133,7 +133,7 @@ public class DataInitializer implements ApplicationRunner {
 
                 // 1000개가 모이면 DB로
                 if (bookBatch.size() >= 1000) {
-                    saveBatch(bookBatch);
+                    bookBatchService.saveBooksInBatch(bookBatch);
                     bookBatch.clear();
                     if (i % 10000 == 0) {
                         log.info("{} 건 처리 완료...", i);
@@ -143,7 +143,7 @@ public class DataInitializer implements ApplicationRunner {
 
             // 남은 데이터 처리
             if (!bookBatch.isEmpty()) {
-                saveBatch(bookBatch);
+                bookBatchService.saveBooksInBatch(bookBatch);
             }
 
         } catch (Exception e) {
@@ -151,50 +151,6 @@ public class DataInitializer implements ApplicationRunner {
         }
     }
 
-    private void saveBatch(List<Book> books) {
-        if (books.isEmpty()) {
-            return;
-        }
-
-        batchInsertRepository.saveAllBooks(books);
-
-        List<String> isbns = books.stream().map(Book::getIsbn).collect(Collectors.toList());
-        List<BookRepository.BookIdAndIsbn> savedIds = bookRepository.findByIsbnIn(isbns);
-
-        Map<String, Long> isbnIdMap = savedIds.stream()
-                .collect(Collectors.toMap(BookRepository.BookIdAndIsbn::getIsbn, BookRepository.BookIdAndIsbn::getId,
-                        (b1, b2) -> b1));
-
-        List<BookContributor> allContributors = new ArrayList<>();
-        List<BookPublisher> allPublishers = new ArrayList<>();
-        List<BookImage> allImages = new ArrayList<>();
-
-        for (Book originalBook : books) {
-            Long bookId = isbnIdMap.get(originalBook.getIsbn());
-            Book proxyBook = Book.builder().id(bookId).build();
-            if (bookId == null) {
-                continue;
-            }
-
-            for (BookContributor bc : originalBook.getBookContributors()) {
-                bc.setBook(proxyBook);
-                allContributors.add(bc);
-            }
-
-            // BookPublisher 처리
-            for (BookPublisher bp : originalBook.getBookPublishers()) {
-                bp.setBook(proxyBook);
-                allPublishers.add(bp);
-            }
-
-            for (BookImage bi : originalBook.getImages()) {
-                bi.setBook(proxyBook);
-                allImages.add(bi);
-            }
-        }
-        batchInsertRepository.saveBookImages(allImages);
-        batchInsertRepository.saveBookRelations(allContributors, allPublishers);
-    }
 
     private Book convertToBook(String[] row, Map<String, Integer> h) {
         // 안전하게 필수값 가져오기

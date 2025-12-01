@@ -13,7 +13,6 @@ import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Repository
@@ -22,7 +21,7 @@ public class BatchInsertRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    @Transactional
+
     public void saveAllBooks(List<Book> books) {
 
         String sql =
@@ -55,7 +54,6 @@ public class BatchInsertRepository {
         });
     }
 
-    @Transactional
     public void saveBookImages(List<BookImage> images) {
         if (images.isEmpty()) {
             return;
@@ -77,7 +75,6 @@ public class BatchInsertRepository {
         });
     }
 
-    @Transactional
     public void saveBookRelations(List<BookContributor> contributors, List<BookPublisher> publishers) {
         if (!contributors.isEmpty()) {
             String sql = "INSERT IGNORE INTO book_contributor (book_id, contributor_id, role_type) VALUES (?, ?, ?)";

@@ -91,6 +91,9 @@ public class BookEnrichmentService {
             try {
                 Thread.sleep(3000);
                 generatedTags = geminiApiClient.extractTags(title, description);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Gemini 태그 생성 대기 중 인터럽트 발생");
             } catch (Exception e) {
                 log.warn("Gemini 태그 생성 실패: {}", e.getMessage());
             }
