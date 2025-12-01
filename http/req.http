@@ -34,7 +34,7 @@ Content-Type: application/json
   "stockCount": 100,
   "stockStatus": null,
 
-  "categoryIds": [1],
+  "categoryIds": [77],
   "tagNames": ["테스트태그", "도서태그"],
 
   "isWrapped": true,
@@ -77,8 +77,8 @@ Content-Type: application/json
   "stockCount": 10,
   "stockStatus": "IN_STOCK",
 
-  "categoryIds": [1],
-  "tagNames": ["태그1", "태그2"],
+  "categoryIds": [1, 2],
+  "tagNames": ["에세이", "달빛천사"],
 
   "isWrapped": true,
 
@@ -89,13 +89,74 @@ Content-Type: application/json
 
 
 
-#### 5) 도서 삭제
-#DELETE http://localhost:8089/books/1
+#### 인덱스 삭제
+DELETE http://s4.java21.net:9200/book2onandon-books
+Authorization: Basic elastic nhnacademy123!
+
+###
+GET http://s4.java21.net:9200/_cat/plugins?v
+Authorization: Basic elastic nhnacademy123!
+
+### 인덱스 존재 여부 및 문서 수 확인
+GET http://s4.java21.net:9200/book2onandon-books/_count
+Authorization: Basic elastic nhnacademy123!
 
 
+###
+POST http://s4.java21.net:9200/book2onandon-books/_analyze
+Content-Type: application/json
+Authorization: Basic elastic nhnacademy123!
+
+{
+  "analyzer": "korean_nori_analyzer",
+  "text": "아버지가방에들어가신다"
+}
+
+### 1. 기존 인덱스 삭제
+DELETE http://s4.java21.net:9200/book2onandon-books
+Authorization: Basic elastic nhnacademy123!
+
+### 2. 인덱스 수동 생성 (분석기 설정 포함)
+PUT http://s4.java21.net:9200/book2onandon-books
+Content-Type: application/json
+Authorization: Basic elastic nhnacademy123!
+
+{
+  "settings": {
+    "analysis": {
+      "tokenizer": {
+        "nori_none_mixed": {
+          "type": "nori_tokenizer",
+          "decompound_mode": "mixed"
+        }
+      },
+      "analyzer": {
+        "korean_nori_analyzer": {
+          "type": "custom",
+          "tokenizer": "nori_none_mixed",
+          "filter": [
+            "lowercase",
+            "nori_readingform",
+            "nori_part_of_speech"
+          ]
+        }
+      }
+    }
+  }
+}
+
+### 3. 형태소 분석 테스트
+POST http://s4.java21.net:9200/book2onandon-books/_analyze
+Content-Type: application/json
+Authorization: Basic elastic nhnacademy123!
+
+{
+  "analyzer": "korean_nori_analyzer",
+  "text": "아버지가방에들어가신다"
+}
 
 ### 6) [검색 API] ES 기반 검색 테스트
-GET http://localhost:8089/search/books?keyword=테스트&page=0&size=10
+GET http://localhost:8089/search/books?keyword=자기계발&page=0&size=10
 
 
 
@@ -108,7 +169,7 @@ Content-Type: application/json
   "query": {
     "match_all": {}
   },
-  "size": 20
+  "size": 30
 }
 
 
@@ -121,7 +182,7 @@ Content-Type: application/json
 {
   "query": {
     "match": {
-      "title": "테스트"
+      "title": "컴퓨터"
     }
   }
 }
@@ -151,7 +212,7 @@ Content-Type: application/json
 {
   "query": {
     "match": {
-      "tagNames": "테스트태그"
+      "tagIdes": "7"
     }
   }
 }

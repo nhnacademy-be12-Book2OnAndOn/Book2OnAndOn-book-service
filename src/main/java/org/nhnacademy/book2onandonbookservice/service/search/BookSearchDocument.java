@@ -17,7 +17,8 @@ import org.springframework.data.elasticsearch.annotations.Setting;
 // Elastic Search 도구 이용 코드 -> 검색 시 이용
 @Getter
 @NoArgsConstructor
-@Document(indexName = "book2onandon-books")  // 인덱스 이름
+@Document(indexName = "book2onandon-books",
+        createIndex = false)    // 인덱스 이름
 // nori 분석기 설정 (한글 분석기)
 @Setting(settingPath = "static/elastic-settings.json")
 @Builder
