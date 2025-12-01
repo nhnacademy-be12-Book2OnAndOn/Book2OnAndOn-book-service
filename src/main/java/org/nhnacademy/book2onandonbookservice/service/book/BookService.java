@@ -39,4 +39,7 @@ public interface BookService {
     List<BookOrderResponse> getBooksForOrder(List<Long> bookIds);
 
     void decreaseStock(List<StockDecreaseRequest> requests);
+
+    // 인기 도서 조회(좋아요 순)
+    Page<BookListResponse> getPopularBooks(Pageable pageable);
 }

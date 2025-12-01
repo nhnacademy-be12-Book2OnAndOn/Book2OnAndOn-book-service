@@ -218,6 +218,16 @@ public class BookServiceImpl implements BookService {
         }
     }
 
+    /// 인기 도서 조회(좋아요순)
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BookListResponse> getPopularBooks(Pageable pageable) {
+        Page<Book> bookPage =
+                bookRepository.findByStatusOrderByLikeCountDesc(BookStatus.ON_SALE, pageable);
+
+        return bookPage.map(BookListResponse::from);
+    }
+
     //TODO: 주문 취소시 increaseStock 하는 로직 필요 GET /internal/books/stock/increase
 
     ///    내부 로직

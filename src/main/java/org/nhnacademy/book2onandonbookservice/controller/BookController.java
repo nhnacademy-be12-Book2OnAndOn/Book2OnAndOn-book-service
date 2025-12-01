@@ -1,6 +1,5 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
-
 import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +45,7 @@ public class BookController {
                                            @RequestPart(value = "image", required = false) MultipartFile image) {
         log.info("도서 등록 요청: {}", request.getTitle());
 
-        /// 이미지 처리 로직 참고 (minio url 을 만들어서 db에 저장해야됨)
+        // 이미지 처리 로직 참고 (minio url 을 만들어서 db에 저장해야됨)
         if (image != null && !image.isEmpty()) {
             String minioUrl = imageUploadService.uploadBookImage(image);
             request.setImagePath(minioUrl);
@@ -126,5 +125,12 @@ public class BookController {
             @PageableDefault(sort = "publishDate", direction = Direction.DESC) Pageable pageable) {
         Page<BookListResponse> newArrivals = bookService.getNewArrivals(categoryId, pageable);
         return ResponseEntity.ok(newArrivals);
+    }
+
+    /// 인기 도서 조회 API
+    @GetMapping("/popular")
+    public ResponseEntity<Page<BookListResponse>> getPopularBooks(Pageable pageable) {
+        Page<BookListResponse> result = bookService.getPopularBooks(pageable);
+        return ResponseEntity.ok(result);
     }
 }

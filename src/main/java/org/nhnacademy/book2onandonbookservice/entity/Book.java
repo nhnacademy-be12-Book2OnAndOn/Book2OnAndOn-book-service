@@ -107,7 +107,7 @@ public class Book {
     @Column(name = "book_status", length = 30, nullable = false)
     private BookStatus status;
 
-    /*연관 관계 설정*/
+    /// 연관 관계 설정
     // 도서 이미지 매핑
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -150,6 +150,10 @@ public class Book {
     @Builder.Default
     private Set<BookLike> likes = new HashSet<>();
 
+    // 도서 like count 필드 추가
+    @Builder.Default
+    @Column(name = "like_count", nullable = false)
+    private Long likeCount = 0L;
 
     // 헬퍼 추가 -> 중복 출판사 목록 생성 및 unique constraint 오류 방지
     public boolean hasPublisher(Publisher publisher) {
@@ -168,6 +172,23 @@ public class Book {
 
     public void updateRating(Double newRating) {
         this.rating = newRating;
+    }
+
+    // 편의 메서드 - 좋아요 증가
+    public void increaseLikeCount() {
+        if (likeCount == null) {
+            likeCount = 0L;
+        }
+        likeCount++;
+    }
+
+    // 편의 메서드 - 좋아요 감소
+    public void decreaseLikeCount() {
+        if (likeCount == null || likeCount <= 0) {
+            likeCount = 0L;
+            return;
+        }
+        likeCount--;
     }
 
 }
