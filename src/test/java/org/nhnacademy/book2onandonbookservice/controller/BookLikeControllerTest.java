@@ -2,7 +2,6 @@ package org.nhnacademy.book2onandonbookservice.controller;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mockStatic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -12,7 +11,6 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.MockedStatic;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService.BookLikeToggleResult;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
@@ -34,6 +32,9 @@ class BookLikeControllerTest {
     @MockitoBean
     BookLikeService bookLikeService;
 
+    @MockitoBean
+    UserHeaderUtil util;
+
     @Test
     @DisplayName("POST /books/{bookId}/likes - 좋아요 토글 API")
     void toggleLike() throws Exception {
@@ -42,17 +43,15 @@ class BookLikeControllerTest {
         Long userId = 10L;
         BookLikeToggleResult result = new BookLikeToggleResult(true, 5L);
 
+        given(util.getUserId()).willReturn(userId);
         given(bookLikeService.toggleLike(bookId, userId)).willReturn(result);
 
-        try (MockedStatic<UserHeaderUtil> mockedStatic = mockStatic(UserHeaderUtil.class)) {
-            mockedStatic.when(UserHeaderUtil::getUserId).thenReturn(userId);
+        // when & then
+        mockMvc.perform(post("/books/{bookId}/likes", bookId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.liked", is(true)))
+                .andExpect(jsonPath("$.likeCount", is(5)));
 
-            // when & then
-            mockMvc.perform(post("/books/{bookId}/likes", bookId))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.liked", is(true)))
-                    .andExpect(jsonPath("$.likeCount", is(5)));
-        }
     }
 
     @Test
@@ -62,17 +61,15 @@ class BookLikeControllerTest {
         Long userId = 10L;
         List<Long> ids = List.of(1L, 2L, 3L);
 
+        given(util.getUserId()).willReturn(userId);
         given(bookLikeService.getMyLikedBookIds(userId)).willReturn(ids);
 
-        try (MockedStatic<UserHeaderUtil> mockedStatic = mockStatic(UserHeaderUtil.class)) {
-            mockedStatic.when(UserHeaderUtil::getUserId).thenReturn(userId);
+        // when & then
+        mockMvc.perform(get("/books/likes/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]", is(1)))
+                .andExpect(jsonPath("$[1]", is(2)))
+                .andExpect(jsonPath("$[2]", is(3)));
 
-            // when & then
-            mockMvc.perform(get("/books/likes/me"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0]", is(1)))
-                    .andExpect(jsonPath("$[1]", is(2)))
-                    .andExpect(jsonPath("$[2]", is(3)));
-        }
     }
 }
