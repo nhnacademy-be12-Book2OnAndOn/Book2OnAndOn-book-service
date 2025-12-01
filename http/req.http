@@ -32,7 +32,7 @@ Content-Type: application/json
   "priceSales": 13000,
 
   "stockCount": 100,
-  "stockStatus": null,
+  "stockStatus": "ON_SALE",
 
   "categoryIds": [77],
   "tagNames": ["테스트태그", "도서태그"],

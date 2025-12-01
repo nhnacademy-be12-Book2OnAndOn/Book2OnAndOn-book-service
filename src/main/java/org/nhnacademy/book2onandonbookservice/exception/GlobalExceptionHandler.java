@@ -44,6 +44,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * [409 Conflict] 재고 부족 예외 처리 주문 시 재고가 부족할 경우 발생
+     */
+    @ExceptionHandler(OutOfStockException.class)
+    public ResponseEntity<ErrorResponse> handleOutOfStockException(OutOfStockException e) {
+        ErrorResponse response = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                "Stock Conflict",
+                e.getMessage()
+        );
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+    }
+
+    /**
      * [500] 그 외 나머지 모든 에러 처리 (안전망)
      */
     @ExceptionHandler(Exception.class)

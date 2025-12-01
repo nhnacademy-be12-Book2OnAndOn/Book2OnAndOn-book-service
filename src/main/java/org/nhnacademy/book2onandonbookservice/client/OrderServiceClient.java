@@ -17,5 +17,5 @@ public interface OrderServiceClient {
     /// 판매량 순 period=DAILY, WEEKLY GET /orders/bestsellers?period=DAILY GET /orders/bestsellers?period=WEEKLY
     @GetMapping("orders/bestsellers")
     List<Long> getBestSellersBookIds(@RequestParam("period") String period);
-
+    
 }

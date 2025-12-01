@@ -9,21 +9,19 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
-import org.nhnacademy.book2onandonbookservice.dto.common.BookContributorDto;
+import org.nhnacademy.book2onandonbookservice.dto.book.StockDecreaseRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
-import org.nhnacademy.book2onandonbookservice.dto.common.PublisherDto;
-import org.nhnacademy.book2onandonbookservice.dto.common.TagDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
-import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
-import org.nhnacademy.book2onandonbookservice.entity.BookTag;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
@@ -119,7 +117,7 @@ public class BookServiceImpl implements BookService {
             likedByCurrentUser = bookLikeRepository.existsByBookIdAndUserId(bookId, currentUserId);
         }
 
-        return toBookDetailResponse(book, likeCount, likedByCurrentUser);
+        return BookDetailResponse.from(book, likeCount, likedByCurrentUser);
     }
 
 
@@ -187,6 +185,40 @@ public class BookServiceImpl implements BookService {
         return bookPage.map(BookListResponse::from);
     }
 
+    /// 내부 통신용 주문서 생성 및 결제 검증을 위한 도서 정보 다건 조회
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookOrderResponse> getBooksForOrder(List<Long> bookIds) {
+        if (bookIds == null || bookIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Book> books = bookRepository.findAllById(bookIds);
+
+        return books.stream().map(BookOrderResponse::from).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void decreaseStock(List<StockDecreaseRequest> requests) {
+        for (StockDecreaseRequest req : requests) {
+            int result = bookRepository.decreaseStock(req.getBookId(), req.getQuantity());
+
+            if (result == 0) {
+                throw new OutOfStockException("재고가 부족합니다. BookId: " + req.getBookId());
+            }
+
+            Book book = bookRepository.findById(req.getBookId())
+                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
+
+            if (book.getStockCount() <= 0) {
+                book.setStockStatus(BookStatus.SOLD_OUT.toString());
+            }
+
+        }
+    }
+
+    //TODO: 주문 취소시 increaseStock 하는 로직 필요 GET /internal/books/stock/increase
 
     ///    내부 로직
     private CategoryDto CategoryToDto(Category category) {
@@ -197,83 +229,6 @@ public class BookServiceImpl implements BookService {
                 .build();
     }
 
-    private BookDetailResponse toBookDetailResponse(Book book,
-                                                    long likeCount,
-                                                    Boolean likedByCurrentUser) {
-
-        // 카테고리 DTO
-        List<CategoryDto> categories = book.getBookCategories().stream()
-                .map(BookCategory::getCategory)
-                .map(category -> CategoryDto.builder()
-                        .id(category.getId())
-                        .name(category.getCategoryName())
-                        .parentId(category.getParent() != null
-                                ? category.getParent().getId()
-                                : null)
-                        .build())
-                .collect(Collectors.toList());
-
-        // 태그 DTO
-        List<TagDto> tags = book.getBookTags().stream()
-                .map(BookTag::getTag)
-                .map(tag -> TagDto.builder()
-                        .id(tag.getId())
-                        .name(tag.getTagName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 출판사 DTO
-        List<PublisherDto> publishers = book.getBookPublishers().stream()
-                .map(BookPublisher::getPublisher)
-                .map(publisher -> PublisherDto.builder()
-                        .id(publisher.getId())
-                        .name(publisher.getPublisherName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 기여자 DTO 리스트
-        List<BookContributorDto> contributors = book.getBookContributors().stream()
-                .map(bc -> BookContributorDto.builder()
-                        .id(bc.getId())
-                        .roleType(bc.getRoleType())
-                        .contributorId(bc.getContributor().getId())
-                        .contributorName(bc.getContributor().getContributorName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 대표 이미지
-        String imagePath = book.getImages().stream()
-                .findFirst()
-                .map(BookImage::getImagePath)
-                .orElse(null);
-
-        // 단일 표시용 기여자 이름(첫 번째)
-        String contributorName = contributors.isEmpty()
-                ? null
-                : contributors.get(0).getContributorName();
-
-        return BookDetailResponse.builder()
-                .id(book.getId())
-                .isbn(book.getIsbn())
-                .title(book.getTitle())
-                .volume(book.getVolume())
-                .contributorName(contributorName)
-                .publishDate(book.getPublishDate())
-                .publishers(publishers)
-                .priceStandard(book.getPriceStandard())
-                .priceSales(book.getPriceSales())
-                .stockStatus(book.getStockStatus())
-                .categories(categories)
-                .tags(tags)
-                .isWrapped(book.getIsWrapped())
-                .imagePath(imagePath)
-                .chapter(book.getChapter())
-                .descriptionHtml(book.getDescription())
-                .rating(book.getRating())
-                .likeCount(likeCount)
-                .likedByCurrentUser(likedByCurrentUser)
-                .build();
-    }
 
     private BookListResponse toBookListResponse(Book book) {
         // 대표 이미지
