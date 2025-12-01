@@ -26,7 +26,7 @@ public class BatchInsertRepository {
     public void saveAllBooks(List<Book> books) {
 
         String sql =
-                "INSERT INTO book (book_title, ISBN, book_publish_date, price_standard, price_sales, is_wrapped, stock_count, book_status, book_description, book_chapter, book_volume) "
+                "INSERT INTO book (book_title, ISBN, book_publish_date, price_standard, price_sales, is_wrapped, stock_count, book_status, book_description, book_chapter, book_volume, like_count) "
                         +
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -45,6 +45,7 @@ public class BatchInsertRepository {
                 ps.setString(9, book.getDescription());
                 ps.setString(10, book.getChapter());
                 ps.setString(11, book.getVolume());
+                ps.setLong(12, book.getLikeCount());
             }
 
             @Override
