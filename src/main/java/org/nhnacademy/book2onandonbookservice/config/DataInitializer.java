@@ -225,7 +225,6 @@ public class DataInitializer implements ApplicationRunner {
                 .priceStandard(parsePrice(safeGet(row, h, "PRC_VALUE")))
                 .publishDate(parseDate(safeGet(row, h, "TWO_PBLICTE_DE")))
                 .stockCount(100) // 기본 재고
-                .stockStatus("Available")
                 .isWrapped(true) // 포장 가능 여부
                 .status(BookStatus.ON_SALE)
                 .build();

@@ -40,7 +40,7 @@ public class BatchInsertRepository {
                 ps.setLong(4, book.getPriceStandard());
                 ps.setLong(5, book.getPriceSales() != null ? book.getPriceSales() : 0L);
                 ps.setBoolean(6, book.getIsWrapped());
-                ps.setString(7, book.getStockStatus());
+                ps.setString(7, book.getStatus().toString());
                 ps.setInt(8, book.getStockCount());
                 ps.setString(9, book.getStatus().name());
                 ps.setString(10, book.getDescription());

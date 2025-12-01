@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.dto.common.PublisherDto;
 import org.nhnacademy.book2onandonbookservice.dto.common.TagDto;
@@ -32,7 +33,7 @@ public class BookDetailResponse {
     private Long priceStandard; // 도서 정가
     private Long priceSales; // 도서 판매가
 
-    private String stockStatus; // 책 재고 상태
+    private BookStatus status; // 책 재고 상태
 
     private Integer stockCount; // 책 재고 갯수
 
@@ -105,7 +106,7 @@ public class BookDetailResponse {
                 .publishers(publisherDtos)
                 .priceStandard(book.getPriceStandard())
                 .priceSales(book.getPriceSales())
-                .stockStatus(book.getStockStatus())
+                .status(book.getStatus())
                 .stockCount(book.getStockCount())
                 .categories(categoryDtos)
                 .tags(tagDtos)
