@@ -1,34 +1,41 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
-import org.nhnacademy.book2onandonbookservice.dto.common.BookContributorDto;
+import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
-import org.nhnacademy.book2onandonbookservice.dto.common.PublisherDto;
-import org.nhnacademy.book2onandonbookservice.dto.common.TagDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
-import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
-import org.nhnacademy.book2onandonbookservice.entity.BookTag;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
+import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMapper;
+import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 // 등록/수정 담당
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -40,14 +47,26 @@ public class BookServiceImpl implements BookService {
     private final BookRepository bookRepository;
     private final BookLikeRepository bookLikeRepository;
     private final CategoryRepository categoryRepository;
+    private final BookSearchIndexService bookSearchIndexService;
+    private final BookListResponseMapper bookListResponseMapper;
+    private final OrderServiceClient orderServiceClient;
 
     // 도서 등록
     @Override
     public Long createBook(BookSaveRequest request) {
-        bookValidator.validateForCreate(request);   // 입력값 검증
-        Book book = bookFactory.createFrom(request);    // 필드 생성
-        bookRelationService.applyRelationsForCreate(book, request); // 연관관계 설정
-        Book saved = bookRepository.save(book); // 저장
+        bookValidator.validateForCreate(request);
+        Book book = bookFactory.createFrom(request);
+
+        Book saved = bookRepository.save(book);
+
+        bookRelationService.applyRelationsForCreate(saved, request);
+
+        try {
+            bookSearchIndexService.index(saved);
+        } catch (Exception e) {
+            log.error("ES 인덱싱 실패 - bookId={}", saved.getId(), e);
+        }
+
         return saved.getId();
     }
 
@@ -55,21 +74,33 @@ public class BookServiceImpl implements BookService {
     @Override
     public void updateBook(Long bookId, BookSaveRequest request) {
         Book book = bookRepository.findByIdWithRelations(bookId)
-                .orElseThrow(() -> new IllegalArgumentException("도서를 찾을 수 없습니다. id = " + bookId));
+                .orElseThrow(() -> new NotFoundBookException(bookId));
 
         bookValidator.validateForUpdate(request);   // 수정값 검증
         bookFactory.updateFields(book, request);    // 단일 필드 업데이트
         bookRelationService.applyRelationsForUpdate(book, request); // 연관관계
+        bookSearchIndexService.index(book); // 수정 후 인덱스 갱신
     }
 
+    // 도서 삭제
+    @Override
+    public void deleteBook(Long bookId) {
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new NotFoundBookException(bookId));
+
+        // DB에서 삭제
+        bookRepository.delete(book);
+
+        // ES 인덱스에서도 삭제
+        bookSearchIndexService.deleteIndex(bookId);
+    }
+
+    // 공통 mapper 사용 -> 리스트용 DTO 매핑
     @Override
     @Transactional(readOnly = true)
     public Page<BookListResponse> getBooks(BookSearchCondition condition, Pageable pageable) {
-        // 현재는 간단히 전체 조회 + 페이징만 지원.
-        // 나중에 Querydsl 기반 searchBooks(...) 로 교체하면 됨.
         Page<Book> books = bookRepository.findAll(pageable);
-
-        return books.map(this::toBookListResponse);
+        return books.map(bookListResponseMapper::fromEntity);
     }
 
 
@@ -77,7 +108,7 @@ public class BookServiceImpl implements BookService {
     @Transactional(readOnly = true)
     public BookDetailResponse getBookDetail(Long bookId, Long currentUserId) {
         Book book = bookRepository.findByIdWithRelations(bookId)
-                .orElseThrow(() -> new IllegalArgumentException("도서를 찾을 수 없습니다. id = " + bookId));
+                .orElseThrow(() -> new NotFoundBookException(bookId));
 
         long likeCount = bookLikeRepository.countByBookId(bookId);
 
@@ -87,8 +118,161 @@ public class BookServiceImpl implements BookService {
             likedByCurrentUser = bookLikeRepository.existsByBookIdAndUserId(bookId, currentUserId);
         }
 
-        return toBookDetailResponse(book, likeCount, likedByCurrentUser);
+        return BookDetailResponse.from(book, likeCount, likedByCurrentUser);
     }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
+    public List<CategoryDto> getCategories() {
+        List<Category> entities = categoryRepository.findAll();
+        List<CategoryDto> allDtos = entities.stream().map(this::CategoryToDto).toList();
+        Map<Long, CategoryDto> dtoMap = allDtos.stream()
+                .collect(Collectors.toMap(CategoryDto::getId, Function.identity()));
+
+        List<CategoryDto> rootCategories = new ArrayList<>();
+
+        for (CategoryDto dto : allDtos) {
+            if (dto.getParentId() == null || dto.getParentId() == 0L) {
+                rootCategories.add(dto);
+            } else {
+                CategoryDto parent = dtoMap.get(dto.getParentId());
+                if (parent != null) {
+                    parent.getChildren().add(dto);
+                }
+            }
+        }
+        return rootCategories;
+    }
+
+    //카테고리 생성/수정/삭제 로직이 있을 경우 @CacheEvict(value="categories", allEntries=true)를 붙여줘야함
+
+    /// 베스트셀러 조회 및 캐싱
+    @Cacheable(value = "bestsellers", key = "#period", cacheManager = "RedisCacheManager") //redis
+    @Override
+    public List<BookListResponse> getBestsellers(String period) {
+        List<Long> bookIds = orderServiceClient.getBestSellersBookIds(period);
+        //기간별로 받아옵니다 DAILY, WEEK
+
+        if (bookIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Book> books = bookRepository.findAllById(bookIds); //bookId 리스트로 관련된 book 엔티티를 찾습니다.
+
+        Map<Long, Book> bookMap = books.stream()
+                .collect(Collectors.toMap(Book::getId,
+                        Function.identity())); //Function.identity: 스트림의 요소 그 자체를 값으로 사용하는 것 Book 객체 자체
+
+        return bookIds.stream()
+                .filter(bookMap::containsKey)
+                .map(bookMap::get)
+                .map(BookListResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /// 신간 도서를 출간일 최신순으로 조회하고 캐싱
+    @Cacheable(value = "newArrivals", key = "#categoryId + '_' + #pageable.pageNumber", cacheManager = "RedisCacheManager")
+    @Override
+    public Page<BookListResponse> getNewArrivals(Long categoryId, Pageable pageable) {
+        Page<Book> bookPage;
+
+        if (categoryId != null) {
+            List<Long> allCategoryIds = getAllCategoryIds(categoryId);
+            bookPage = bookRepository.findBooksByCategoryIdsSorted(allCategoryIds, pageable);
+        } else {
+            bookPage = bookRepository.findAllByOrderByPublishDateDesc(pageable);
+        }
+        return bookPage.map(BookListResponse::from);
+    }
+
+    /// 내부 통신용 주문서 생성 및 결제 검증을 위한 도서 정보 다건 조회
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookOrderResponse> getBooksForOrder(List<Long> bookIds) {
+        if (bookIds == null || bookIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Book> books = bookRepository.findAllById(bookIds);
+
+        return books.stream().map(BookOrderResponse::from).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void decreaseStock(List<StockRequest> requests) {
+        requests.sort(Comparator.comparing(StockRequest::getBookId)); //데드락 방지
+        for (StockRequest req : requests) {
+            int result = bookRepository.decreaseStock(req.getBookId(), req.getQuantity());
+
+            if (result == 0) {
+                throw new OutOfStockException("재고가 부족합니다. BookId: " + req.getBookId());
+            }
+
+            Book book = bookRepository.findById(req.getBookId())
+                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
+
+            if (book.getStockCount() <= 0) {
+                book.setStatus(BookStatus.SOLD_OUT);
+            }
+
+        }
+    }
+
+    /// 인기 도서 조회(좋아요순)
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BookListResponse> getPopularBooks(Pageable pageable) {
+        Page<Book> bookPage =
+                bookRepository.findByStatusOrderByLikeCountDesc(BookStatus.ON_SALE, pageable);
+
+        return bookPage.map(BookListResponse::from);
+    }
+
+    //TODO: 주문 취소시 increaseStock 하는 로직 필요 GET /internal/books/stock/increase
+
+    @Override
+    @Transactional
+    public void increaseStock(List<StockRequest> requests) {
+        requests.sort(Comparator.comparing(StockRequest::getBookId)); //데드락 방지
+        for (StockRequest req : requests) {
+            bookRepository.increaseStock(req.getBookId(), req.getQuantity());
+
+            Book book = bookRepository.findById(req.getBookId())
+                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
+
+            if (book.getStockCount() > 0 && isSoldOut(book.getStatus())) {
+                book.setStatus(BookStatus.ON_SALE);
+            }
+        }
+    }
+
+    @Override
+    public void updateBookStatus(Long bookId, BookStatus status) {
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new NotFoundBookException(bookId));
+
+        book.setStatus(status);
+
+        try {
+            bookSearchIndexService.index(book);
+        } catch (Exception e) {
+            log.error("Es 인덱싱 실패 (상태변경) - bookId={}", bookId, e);
+        }
+    }
+
+
+    ///    내부 로직
+    private CategoryDto CategoryToDto(Category category) {
+        return CategoryDto.builder()
+                .id(category.getId())
+                .name(category.getCategoryName())
+                .parentId(category.getParent() != null ? category.getParent().getId() : null)
+                .build();
+    }
+
 
     private BookListResponse toBookListResponse(Book book) {
         // 대표 이미지
@@ -131,112 +315,29 @@ public class BookServiceImpl implements BookService {
                 .build();
     }
 
-    private BookDetailResponse toBookDetailResponse(Book book,
-                                                    long likeCount,
-                                                    Boolean likedByCurrentUser) {
-
-        // 카테고리 DTO
-        List<CategoryDto> categories = book.getBookCategories().stream()
-                .map(BookCategory::getCategory)
-                .map(category -> CategoryDto.builder()
-                        .id(category.getId())
-                        .name(category.getCategoryName())
-                        .parentId(category.getParent() != null
-                                ? category.getParent().getId()
-                                : null)
-                        .build())
-                .collect(Collectors.toList());
-
-        // 태그 DTO
-        List<TagDto> tags = book.getBookTags().stream()
-                .map(BookTag::getTag)
-                .map(tag -> TagDto.builder()
-                        .id(tag.getId())
-                        .name(tag.getTagName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 출판사 DTO
-        List<PublisherDto> publishers = book.getBookPublishers().stream()
-                .map(BookPublisher::getPublisher)
-                .map(publisher -> PublisherDto.builder()
-                        .id(publisher.getId())
-                        .name(publisher.getPublisherName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 기여자 DTO 리스트
-        List<BookContributorDto> contributors = book.getBookContributors().stream()
-                .map(bc -> BookContributorDto.builder()
-                        .id(bc.getId())
-                        .roleType(bc.getRoleType())
-                        .contributorId(bc.getContributor().getId())
-                        .contributorName(bc.getContributor().getContributorName())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 대표 이미지
-        String imagePath = book.getImages().stream()
-                .findFirst()
-                .map(BookImage::getImagePath)
-                .orElse(null);
-
-        // 단일 표시용 기여자 이름(첫 번째)
-        String contributorName = contributors.isEmpty()
-                ? null
-                : contributors.get(0).getContributorName();
-
-        return BookDetailResponse.builder()
-                .id(book.getId())
-                .isbn(book.getIsbn())
-                .title(book.getTitle())
-                .volume(book.getVolume())
-                .contributorName(contributorName)
-                .publishDate(book.getPublishDate())
-                .publishers(publishers)
-                .priceStandard(book.getPriceStandard())
-                .priceSales(book.getPriceSales())
-                .stockStatus(book.getStockStatus())
-                .categories(categories)
-                .tags(tags)
-                .isWrapped(book.getIsWrapped())
-                .imagePath(imagePath)
-                .chapter(book.getChapter())
-                .descriptionHtml(book.getDescription())
-                .likeCount(likeCount)
-                .likedByCurrentUser(likedByCurrentUser)
-                .build();
+    private boolean isSoldOut(BookStatus status) {
+        return status == BookStatus.SOLD_OUT || status == BookStatus.OUT_OF_STOCK;
     }
 
-    @Override
-    public List<CategoryDto> getCategories() {
-        List<Category> entities = categoryRepository.findAll();
-        List<CategoryDto> allDtos = entities.stream().map(this::CategoryToDto).toList();
-        Map<Long, CategoryDto> dtoMap = allDtos.stream()
-                .collect(Collectors.toMap(CategoryDto::getId, Function.identity()));
+    private List<Long> getAllCategoryIds(Long parentId) {
+        Category parent = categoryRepository.findById(parentId)
+                .orElseThrow(() -> new IllegalArgumentException("카테고리 없음"));
 
-        List<CategoryDto> rootCategories = new ArrayList<>();
+        List<Long> ids = new ArrayList<>();
 
-        for (CategoryDto dto : allDtos) {
-            if (dto.getParentId() == null || dto.getParentId() == 0L) {
-                rootCategories.add(dto);
-            } else {
-                CategoryDto parent = dtoMap.get(dto.getParentId());
-                if (parent != null) {
-                    parent.getChildren().add(dto);
-                }
-            }
+        ids.add(parent.getId());
+
+        collectChildIds(parent, ids);
+        return ids;
+    }
+
+    private void collectChildIds(Category parent, List<Long> ids) {
+        if (parent.getChildren() == null || parent.getChildren().isEmpty()) {
+            return;
         }
-        return rootCategories;
-    }
-
-
-    ///    내부 로직
-    private CategoryDto CategoryToDto(Category category) {
-        return CategoryDto.builder()
-                .id(category.getId())
-                .name(category.getCategoryName())
-                .parentId(category.getParent() != null ? category.getParent().getId() : null)
-                .build();
+        for (Category child : parent.getChildren()) {
+            ids.add(child.getId());
+            collectChildIds(child, ids);
+        }
     }
 }

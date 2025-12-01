@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 
 // 도서 등록 및 수정 요청 DTO
 @Getter
@@ -38,7 +39,7 @@ public class BookSaveRequest {
 
     // 도서 재고 관련
     private Integer stockCount; // 책 재고량
-    private String stockStatus; // 책 재고 상태
+    private BookStatus status; // 책 재고 상태
 
     // 카테고리 및 태그, 포장 여부
     private List<Long> categoryIds; // 카테고리

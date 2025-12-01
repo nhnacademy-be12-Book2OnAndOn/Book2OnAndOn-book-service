@@ -2,13 +2,18 @@ package org.nhnacademy.book2onandonbookservice.service.image;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+@Slf4j
 public class ImageUploadService {
     private final MinioClient minioClient;
 
@@ -84,4 +89,36 @@ public class ImageUploadService {
             throw new RuntimeException("이미지 업로드 실패", e);
         }
     }
+
+    /**
+     * 공통 파일 삭제 로직 Book 이미지든 Review 이미지든 MINIO 면 삭제
+     */
+    public void remove(String imageUrl) {
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            return;
+        }
+        try {
+            String minioPrefix = minioUrl + "/" + rootBucket + "/";
+
+            if (!imageUrl.startsWith(minioPrefix)) {
+                log.info("외부 링크이므로 삭제 건너뜀: {}", imageUrl);
+                return;
+            }
+
+            String objectName = imageUrl.substring(minioPrefix.length());
+            objectName = URLDecoder.decode(objectName, StandardCharsets.UTF_8);
+
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(rootBucket)
+                    .object(objectName)
+                    .build()
+            );
+
+            log.info("MINIO 삭제 성공: {}", objectName);
+        } catch (Exception e) {
+            log.error("MINIO 이미지 삭제 실패 : URL={}", imageUrl, e);
+        }
+    }
+
+
 }

@@ -1,0 +1,17 @@
+### 전체 도서 ES 재인덱싱
+POST http://localhost:8089/admin/reindex
+
+### 특정 카테고리만 재인덱싱
+POST http://localhost:8089/admin/reindex/category/77
+
+### 특정 태그만 재인덱싱
+POST http://localhost:8089/admin/reindex/tag/5
+
+
+### 태그명 변경 테스트
+PUT http://localhost:8089/admin/category/7
+Content-Type: application/json
+
+{
+  "newName": "자기계발"
+}

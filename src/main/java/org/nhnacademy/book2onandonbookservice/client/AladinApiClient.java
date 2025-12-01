@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -23,6 +24,8 @@ public class AladinApiClient {
     @Value("${aladin.api-ttb-key}")
     private String ttbKey;
 
+
+    @Cacheable(value = "aladinBook", key = "#isbn", unless = "#result == null", cacheManager = "RedisCacheManager")
     public AladinApiResponse.Item searchByIsbn(String isbn) {
         if (isbn == null || isbn.isBlank()) {
             return null;
@@ -36,6 +39,7 @@ public class AladinApiClient {
                 .queryParam("ItemIdType", "ISBN13")
                 .queryParam("output", "js")
                 .queryParam("Version", "20131101")
+                .queryParam("Cover", "toc")
                 .queryParam("OptResult", "description,categoryName,author,publisher,cover")
                 .build(true)
                 .toUri();

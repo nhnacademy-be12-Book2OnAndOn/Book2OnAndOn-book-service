@@ -73,4 +73,12 @@ public class Review {
     @Builder.Default
     @Setter
     private List<ReviewImage> images = new ArrayList<>();
+
+
+    /// 헬퍼 메소드
+    public void update(String title, String content, Integer score) {
+        this.title = title;
+        this.content = content;
+        this.score = score;
+    }
 }

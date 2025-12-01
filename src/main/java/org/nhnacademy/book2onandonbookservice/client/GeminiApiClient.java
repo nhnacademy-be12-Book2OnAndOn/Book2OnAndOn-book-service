@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiRequest;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -55,6 +56,7 @@ public class GeminiApiClient {
         return apiKeys[index];
     }
 
+    @Cacheable(value = "geminiTags", key = "#title", unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
     public List<String> extractTags(String title, String description) {
         if (description == null || description.isEmpty()) {
             return Collections.emptyList();

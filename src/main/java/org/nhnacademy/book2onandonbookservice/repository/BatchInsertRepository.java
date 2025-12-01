@@ -26,9 +26,9 @@ public class BatchInsertRepository {
     public void saveAllBooks(List<Book> books) {
 
         String sql =
-                "INSERT INTO book (book_title, ISBN, book_publish_date, price_standard, price_sales, is_wrapped, stock_status, stock_count, book_status, book_description, book_chapter) "
+                "INSERT INTO book (book_title, ISBN, book_publish_date, price_standard, price_sales, is_wrapped, stock_status, stock_count, book_status, book_description, book_chapter, book_volume) "
                         +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)";
 
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
@@ -40,11 +40,12 @@ public class BatchInsertRepository {
                 ps.setLong(4, book.getPriceStandard());
                 ps.setLong(5, book.getPriceSales() != null ? book.getPriceSales() : 0L);
                 ps.setBoolean(6, book.getIsWrapped());
-                ps.setString(7, book.getStockStatus());
+                ps.setString(7, book.getStatus().toString());
                 ps.setInt(8, book.getStockCount());
                 ps.setString(9, book.getStatus().name());
                 ps.setString(10, book.getDescription());
                 ps.setString(11, book.getChapter());
+                ps.setString(12, book.getVolume());
             }
 
             @Override

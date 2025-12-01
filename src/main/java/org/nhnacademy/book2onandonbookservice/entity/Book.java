@@ -13,8 +13,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -64,6 +64,11 @@ public class Book {
     @Column(name = "price_standard", nullable = false)
     private Long priceStandard;
 
+    //평점
+    @Column(name = "book_rating") // DB 컬럼명
+    @Builder.Default // 빌더 패턴 사용 시 기본값 적용되도록 함
+    private Double rating = 0.0;
+
     // 포장 여부 ->  해당 책이 포장이 가능한지, 아닌지
     @Setter
     @Column(name = "is_wrapped", nullable = false)
@@ -80,11 +85,6 @@ public class Book {
     @Column(name = "book_publish_date", nullable = false)
     private LocalDate publishDate;
 
-    // 책 재고 상태
-    @Setter
-    @Column(name = "stock_status", length = 50)
-    @Size(min = 1, max = 50)
-    private String stockStatus;
 
     // 판매가
     @Setter
@@ -102,49 +102,53 @@ public class Book {
     @Column(name = "book_status", length = 30, nullable = false)
     private BookStatus status;
 
-    /*연관 관계 설정*/
+    /// 연관 관계 설정
     // 도서 이미지 매핑
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookImage> images = new ArrayList<>();
+    private Set<BookImage> images = new HashSet<>();
 
     // 도서 카테고리 매핑
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookCategory> bookCategories = new ArrayList<>();
+    private Set<BookCategory> bookCategories = new HashSet<>();
 
     // 태그 매핑
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookTag> bookTags = new ArrayList<>();
+    private Set<BookTag> bookTags = new HashSet<>();
 
     // 작가 매핑
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookContributor> bookContributors = new ArrayList<>();
+    private Set<BookContributor> bookContributors = new HashSet<>();
 
     // 출판사 매핑
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookPublisher> bookPublishers = new ArrayList<>();
+    private Set<BookPublisher> bookPublishers = new HashSet<>();
 
     // 리뷰
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<Review> reviews = new ArrayList<>();
+    private Set<Review> reviews = new HashSet<>();
 
     // 좋아요
     @Setter
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BookLike> likes = new ArrayList<>();
+    private Set<BookLike> likes = new HashSet<>();
 
+    // 도서 like count 필드 추가
+    @Builder.Default
+    @Column(name = "like_count", nullable = false)
+    private Long likeCount = 0L;
 
     // 헬퍼 추가 -> 중복 출판사 목록 생성 및 unique constraint 오류 방지
     public boolean hasPublisher(Publisher publisher) {
@@ -159,6 +163,27 @@ public class Book {
                         .publisher(publisher)
                         .build()
         );
+    }
+
+    public void updateRating(Double newRating) {
+        this.rating = newRating;
+    }
+
+    // 편의 메서드 - 좋아요 증가
+    public void increaseLikeCount() {
+        if (likeCount == null) {
+            likeCount = 0L;
+        }
+        likeCount++;
+    }
+
+    // 편의 메서드 - 좋아요 감소
+    public void decreaseLikeCount() {
+        if (likeCount == null || likeCount <= 0) {
+            likeCount = 0L;
+            return;
+        }
+        likeCount--;
     }
 
 }
