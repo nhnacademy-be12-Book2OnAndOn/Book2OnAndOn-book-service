@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
 
@@ -26,7 +27,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     List<Book> findBooksNeedingTags(Pageable pageable);
 
 
-    // 연관관계 전체 Featch Join 조회 쿼리 추가 -> Book 수정 시 연관관계를 한 번에 가져오기 위한 전용 쿼리
+    // Book 수정 시 연관관계를 한 번에 가져오기 위한 전용 쿼리
     @Query("""
             SELECT DISTINCT b FROM Book b
             LEFT JOIN FETCH b.bookCategories bc
@@ -51,6 +52,10 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             WHERE bt.tag.id = :tagId
             """)
     Page<Book> findByTagId(Long tagId, Pageable pageable);
+    @Query("SELECT b FROM Book b JOIN b.bookCategories bc WHERE bc.category.id = :categoryId ORDER BY b.publishDate DESC")
+    Page<Book> findNewArrivalsByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
+
+    Page<Book> findAllByOrderByPublishDateDesc(Pageable pageable);
 
     interface BookIdAndIsbn {
         Long getId();

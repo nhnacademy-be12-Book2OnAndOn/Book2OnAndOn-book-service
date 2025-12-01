@@ -122,3 +122,10 @@ Caused by: java.lang.IllegalStateException: EntityManagerFactory is closed
 2025-11-27 19:24:04 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
 2025-11-27 19:28:19 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
 2025-11-27 19:39:18 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
+2025-11-28 12:36:59 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
+2025-11-28 13:04:59 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
+2025-11-28 13:08:23 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
+2025-11-28 13:08:37 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
+2025-11-28 13:11:22 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
+2025-11-28 13:11:37 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.
+2025-11-28 13:22:56 [restartedMain] INFO  o.n.b.config.DataInitializer - 데이터가 이미 존재합니다. 초기화를 건너뜁니다.

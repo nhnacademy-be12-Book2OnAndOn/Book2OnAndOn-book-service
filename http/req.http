@@ -217,3 +217,60 @@ Content-Type: application/json
   }
 }
 
+
+###
+GET http://s4.java21.net:9200/_cat/plugins?v
+Authorization: Basic elastic nhnacademy123!
+
+###
+POST http://s4.java21.net:9200/book2onandon-books/_analyze
+Content-Type: application/json
+Authorization: Basic elastic nhnacademy123!
+
+{
+  "analyzer": "korean_nori_analyzer",
+  "text": "아버지가방에들어가신다"
+}
+
+### 1. 기존 인덱스 삭제
+DELETE http://s4.java21.net:9200/book2onandon-books
+Authorization: Basic elastic nhnacademy123!
+
+### 2. 인덱스 수동 생성 (분석기 설정 포함)
+PUT http://s4.java21.net:9200/book2onandon-books
+Content-Type: application/json
+Authorization: Basic elastic nhnacademy123!
+
+{
+  "settings": {
+    "analysis": {
+      "tokenizer": {
+        "nori_none_mixed": {
+          "type": "nori_tokenizer",
+          "decompound_mode": "mixed"
+        }
+      },
+      "analyzer": {
+        "korean_nori_analyzer": {
+          "type": "custom",
+          "tokenizer": "nori_none_mixed",
+          "filter": [
+            "lowercase",
+            "nori_readingform",
+            "nori_part_of_speech"
+          ]
+        }
+      }
+    }
+  }
+}
+
+### 3. 형태소 분석 테스트
+POST http://s4.java21.net:9200/book2onandon-books/_analyze
+Content-Type: application/json
+Authorization: Basic elastic nhnacademy123!
+
+{
+  "analyzer": "korean_nori_analyzer",
+  "text": "아버지가방에들어가신다"
+}
