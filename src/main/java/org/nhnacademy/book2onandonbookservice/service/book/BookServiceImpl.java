@@ -128,7 +128,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
+    //@Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
     public List<CategoryDto> getCategories() {
         List<Category> entities = categoryRepository.findAll();
         List<CategoryDto> allDtos = entities.stream().map(this::CategoryToDto).toList();
