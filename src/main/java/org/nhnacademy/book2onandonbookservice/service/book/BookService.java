@@ -26,7 +26,7 @@ public interface BookService {
     Page<BookListResponse> getBooks(BookSearchCondition condition, Pageable pageable);
 
     // 도서 상세 조회
-    BookDetailResponse getBookDetail(Long bookId, Long currentUserId);
+    BookDetailResponse getBookDetail(Long bookId, Long currentUserId, String guestId);
 
     List<CategoryDto> getCategories();
 
@@ -41,10 +41,19 @@ public interface BookService {
 
     // 인기 도서 조회(좋아요 순)
     Page<BookListResponse> getPopularBooks(Pageable pageable);
-  
+
+    //재고 감소
     void decreaseStock(List<StockRequest> requests);
 
+    //재고 증가
     void increaseStock(List<StockRequest> requests);
 
+    //도서 상태 변경
     void updateBookStatus(Long bookId, BookStatus status);
+
+    // 최근 본 상품 조회
+    List<BookListResponse> getRecentViews(Long userId, String guestId);
+
+    //최근 본 상품 guest -> 로그인 했을 때 merge
+    void mergeRecentViews(String guestId, Long userId);
 }

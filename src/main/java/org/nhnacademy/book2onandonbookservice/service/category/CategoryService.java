@@ -36,9 +36,6 @@ public class CategoryService {
         // 영속 엔티티 변경 -> DB 반영
         category.setCategoryName(newName);
 
-        long total = bookSearchSyncService.reindexByCategoryId(categoryId);
-
-        log.info("카테고리 변경 사항을 ES에서 재인덱싱 했습니다. total={} ", total);
         log.info("카테고리 이름 변경 사항이 업데이트 되었습니다. id={}, oldName={}, newName={}", categoryId, oldName, newName);
 
         // 변경 감지 이벤트 발생
