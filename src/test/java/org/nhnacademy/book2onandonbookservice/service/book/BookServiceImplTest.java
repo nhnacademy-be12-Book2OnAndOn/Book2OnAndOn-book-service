@@ -265,12 +265,12 @@ class BookServiceImplTest {
         BookListResponse mockResponse = BookListResponse.builder().id(bookA.getId()).title("Book A").build();
         given(bookListResponseMapper.fromEntity(bookA)).willReturn(mockResponse);
 
-        given(bookRepository.findAll(pageable)).willReturn(bookPage);
+        given(bookRepository.findByStatusNot(BookStatus.BOOK_DELETED, pageable)).willReturn(bookPage);
 
         Page<BookListResponse> responses = bookService.getBooks(condition, pageable);
 
         assertThat(responses).hasSize(1);
-        verify(bookRepository, times(1)).findAll(pageable);
+        verify(bookRepository, times(1)).findByStatusNot(BookStatus.BOOK_DELETED, pageable);
     }
 
     @Test
