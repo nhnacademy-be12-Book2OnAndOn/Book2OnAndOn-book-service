@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.controller;
 
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookStatusUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
+import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
@@ -43,6 +45,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class BookController {
     private final BookService bookService;
     private final ImageUploadService imageUploadService;
+    private final UserHeaderUtil util;
 
     /**
      * 도서 등록 (관리자용) - 방식: multipart/form-data -"book": Json 데이터 (BookSaveRequest) - "image" : 파일 데이터
@@ -73,20 +76,21 @@ public class BookController {
 
     /// 도서 목록 조회
     @GetMapping
-    public Page<BookListResponse> getBooks(
+    public ResponseEntity<Page<BookListResponse>> getBooks(
             @ModelAttribute BookSearchCondition condition,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        return bookService.getBooks(condition, pageable);
+        Page<BookListResponse> page = bookService.getBooks(condition, pageable);
+        return ResponseEntity.ok(page);
     }
 
     /// 도서 상세 조회
     @GetMapping("/{bookId}")
-    public BookDetailResponse getBookDetail(
-            @PathVariable Long bookId,
-            @RequestParam(required = false) Long currentUserId
-    ) {
-        return bookService.getBookDetail(bookId, currentUserId);
+    public ResponseEntity<BookDetailResponse> getBookDetail(@PathVariable Long bookId) {
+        Long userId = util.getUserId();
+        String guestId = util.getGuestId();
+        BookDetailResponse response = bookService.getBookDetail(bookId, userId, guestId);
+        return ResponseEntity.ok(response);
     }
 
     /// 도서 수정
@@ -151,5 +155,30 @@ public class BookController {
     public ResponseEntity<Page<BookListResponse>> getPopularBooks(Pageable pageable) {
         Page<BookListResponse> result = bookService.getPopularBooks(pageable);
         return ResponseEntity.ok(result);
+    }
+
+    /// 최근 본 상품 조회 (최신순 50개)
+    @GetMapping("/recent-views")
+    public ResponseEntity<List<BookListResponse>> getRecentViews() {
+        Long userId = util.getUserId();
+        String guestId = util.getGuestId();
+
+        if (userId == null && (guestId == null || guestId.isBlank())) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        List<BookListResponse> responses = bookService.getRecentViews(userId, guestId);
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * 로그인 직후 비회원 기록 병합 API POST /books/recent-views/merge Header: X-User-ID, X-Guest-Id
+     */
+    @PostMapping("/recent-views/merge")
+    public ResponseEntity<Void> mergeRecentViews() {
+        Long userId = util.getUserId();
+        String guestId = util.getGuestId();
+
+        bookService.mergeRecentViews(guestId, userId);
+        return ResponseEntity.ok().build();
     }
 }

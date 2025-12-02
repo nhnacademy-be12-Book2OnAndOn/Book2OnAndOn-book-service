@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,6 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
 import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
@@ -50,6 +50,7 @@ public class BookServiceImpl implements BookService {
     private final BookSearchIndexService bookSearchIndexService;
     private final BookListResponseMapper bookListResponseMapper;
     private final OrderServiceClient orderServiceClient;
+    private final BookHistoryService bookHistoryService;
 
     // 도서 등록
     @Override
@@ -99,23 +100,26 @@ public class BookServiceImpl implements BookService {
     @Override
     @Transactional(readOnly = true)
     public Page<BookListResponse> getBooks(BookSearchCondition condition, Pageable pageable) {
-        Page<Book> books = bookRepository.findAll(pageable);
+        Page<Book> books = bookRepository.findByStatusNot(BookStatus.BOOK_DELETED, pageable);
         return books.map(bookListResponseMapper::fromEntity);
     }
 
 
     @Override
     @Transactional(readOnly = true)
-    public BookDetailResponse getBookDetail(Long bookId, Long currentUserId) {
+    public BookDetailResponse getBookDetail(Long bookId, Long userId, String guestId) {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
 
+        if (userId != null) {
+            CompletableFuture.runAsync(() -> bookHistoryService.addRecentView(userId, guestId, bookId));
+        }
         long likeCount = bookLikeRepository.countByBookId(bookId);
 
         // 비로그인: null, 로그인: true/false
         Boolean likedByCurrentUser = null;
-        if (currentUserId != null) {
-            likedByCurrentUser = bookLikeRepository.existsByBookIdAndUserId(bookId, currentUserId);
+        if (userId != null) {
+            likedByCurrentUser = bookLikeRepository.existsByBookIdAndUserId(bookId, userId);
         }
 
         return BookDetailResponse.from(book, likeCount, likedByCurrentUser);
@@ -128,22 +132,16 @@ public class BookServiceImpl implements BookService {
     public List<CategoryDto> getCategories() {
         List<Category> entities = categoryRepository.findAll();
         List<CategoryDto> allDtos = entities.stream().map(this::CategoryToDto).toList();
-        Map<Long, CategoryDto> dtoMap = allDtos.stream()
-                .collect(Collectors.toMap(CategoryDto::getId, Function.identity()));
+        Map<Long, List<CategoryDto>> childrenMap = allDtos.stream()
+                .collect(Collectors.groupingBy(dto -> dto.getParentId() != null ? dto.getParentId() : 0L));
 
-        List<CategoryDto> rootCategories = new ArrayList<>();
-
-        for (CategoryDto dto : allDtos) {
-            if (dto.getParentId() == null || dto.getParentId() == 0L) {
-                rootCategories.add(dto);
-            } else {
-                CategoryDto parent = dtoMap.get(dto.getParentId());
-                if (parent != null) {
-                    parent.getChildren().add(dto);
-                }
+        allDtos.forEach(dto -> {
+            List<CategoryDto> children = childrenMap.get(dto.getId());
+            if (children != null) {
+                dto.getChildren().addAll(children);
             }
-        }
-        return rootCategories;
+        });
+        return childrenMap.getOrDefault(0L, Collections.emptyList());
     }
 
     //카테고리 생성/수정/삭제 로직이 있을 경우 @CacheEvict(value="categories", allEntries=true)를 붙여줘야함
@@ -200,6 +198,7 @@ public class BookServiceImpl implements BookService {
         return books.stream().map(BookOrderResponse::from).collect(Collectors.toList());
     }
 
+    /// 재고 감소
     @Override
     @Transactional
     public void decreaseStock(List<StockRequest> requests) {
@@ -221,18 +220,7 @@ public class BookServiceImpl implements BookService {
         }
     }
 
-    /// 인기 도서 조회(좋아요순)
-    @Override
-    @Transactional(readOnly = true)
-    public Page<BookListResponse> getPopularBooks(Pageable pageable) {
-        Page<Book> bookPage =
-                bookRepository.findByStatusOrderByLikeCountDesc(BookStatus.ON_SALE, pageable);
-
-        return bookPage.map(BookListResponse::from);
-    }
-
-    //TODO: 주문 취소시 increaseStock 하는 로직 필요 GET /internal/books/stock/increase
-
+    /// 재고 증가
     @Override
     @Transactional
     public void increaseStock(List<StockRequest> requests) {
@@ -249,6 +237,18 @@ public class BookServiceImpl implements BookService {
         }
     }
 
+    /// 인기 도서 조회(좋아요순)
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BookListResponse> getPopularBooks(Pageable pageable) {
+        Page<Book> bookPage =
+                bookRepository.findByStatusOrderByLikeCountDesc(BookStatus.ON_SALE, pageable);
+
+        return bookPage.map(BookListResponse::from);
+    }
+
+
+    /// 도서 상태변경
     @Override
     public void updateBookStatus(Long bookId, BookStatus status) {
         Book book = bookRepository.findById(bookId)
@@ -263,6 +263,34 @@ public class BookServiceImpl implements BookService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookListResponse> getRecentViews(Long userId, String guestId) {
+        List<Long> bookIds = bookHistoryService.getRecentViews(userId, guestId);
+
+        if (bookIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Book> books = bookRepository.findAllById(bookIds);
+
+        Map<Long, Book> bookMap = books.stream()
+                .collect(Collectors.toMap(Book::getId, Function.identity()));
+
+        return bookIds.stream()
+                .filter(bookMap::containsKey)
+                .map(bookMap::get)
+                .map(BookListResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void mergeRecentViews(String guestId, Long userId) {
+        if (guestId == null || guestId.isBlank() || userId == null) {
+            return;
+        }
+        bookHistoryService.mergeHistory(guestId, userId);
+    }
 
     ///    내부 로직
     private CategoryDto CategoryToDto(Category category) {
@@ -270,48 +298,6 @@ public class BookServiceImpl implements BookService {
                 .id(category.getId())
                 .name(category.getCategoryName())
                 .parentId(category.getParent() != null ? category.getParent().getId() : null)
-                .build();
-    }
-
-
-    private BookListResponse toBookListResponse(Book book) {
-        // 대표 이미지
-        String imagePath = book.getImages().stream()
-                .findFirst()
-                .map(BookImage::getImagePath)
-                .orElse(null);
-
-        // 기여자 이름 리스트
-        List<String> contributorNames = book.getBookContributors().stream()
-                .map(bc -> bc.getContributor().getContributorName())
-                .collect(Collectors.toList());
-
-        // 출판사 이름 리스트
-        List<String> publisherNames = book.getBookPublishers().stream()
-                .map(bp -> bp.getPublisher().getPublisherName())
-                .collect(Collectors.toList());
-
-        // 카테고리 id 리스트 (문자열)
-        List<String> categoryIds = book.getBookCategories().stream()
-                .map(bc -> String.valueOf(bc.getCategory().getId()))
-                .collect(Collectors.toList());
-
-        // 태그 이름 리스트
-        List<String> tagNames = book.getBookTags().stream()
-                .map(bt -> bt.getTag().getTagName())
-                .collect(Collectors.toList());
-
-        return BookListResponse.builder()
-                .id(book.getId())
-                .title(book.getTitle())
-                .volume(book.getVolume())
-                .priceStandard(book.getPriceStandard())
-                .priceSales(book.getPriceSales())
-                .imagePath(imagePath)
-                .contributorNames(contributorNames)
-                .publisherNames(publisherNames)
-                .categoryIds(categoryIds)
-                .tagNames(tagNames)
                 .build();
     }
 

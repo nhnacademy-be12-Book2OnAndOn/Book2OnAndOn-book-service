@@ -9,7 +9,7 @@ POST http://localhost:8089/admin/reindex/tag/5
 
 
 ### 태그명 변경 테스트
-PUT http://localhost:8089/admin/category/7
+PUT http://localhost:8089/admin/category/5
 Content-Type: application/json
 
 {

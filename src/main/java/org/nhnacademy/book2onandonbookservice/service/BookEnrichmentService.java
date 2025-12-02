@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
 import org.nhnacademy.book2onandonbookservice.client.GeminiApiClient;
 import org.nhnacademy.book2onandonbookservice.client.GoogleBooksApiClient;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
 import org.nhnacademy.book2onandonbookservice.dto.api.GoogleBooksApiResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
@@ -118,8 +119,14 @@ public class BookEnrichmentService {
     protected void updateBookInTransaction(Long bookId, AladinApiResponse.Item aladinData,
                                            GoogleBooksApiResponse.VolumeInfo googleData, List<String> finalTags) {
         Book book = bookRepository.findById(bookId).orElseThrow();
+        boolean hasExternalData = (aladinData != null) || (googleData != null);
         boolean isUpdated = false;
-
+        if (!hasExternalData) {
+            book.setStatus(BookStatus.BOOK_DELETED);
+            bookRepository.save(book);
+            bookSearchIndexService.deleteIndex(bookId);
+            return;
+        }
         if (aladinData != null) {
 
             if (book.getBookCategories().isEmpty() && StringUtils.hasText(aladinData.getCategoryName())) {
@@ -265,26 +272,58 @@ public class BookEnrichmentService {
     }
 
     private Category findOrCreateCategory(String name, Category parent) {
-        Optional<Category> existing;
+        String parentKey = (parent == null) ? "root" : String.valueOf(parent.getId());
+        String cacheKey = parentKey + ":" + name;
 
+        if (categoryIdCache.containsKey(cacheKey)) {
+            Long cachedId = categoryIdCache.get(cacheKey);
+            return categoryRepository.findById(cachedId).orElseGet(() -> {
+                categoryIdCache.remove(cacheKey);
+                return createCategorySafely(name, parent, cacheKey);
+            });
+        }
+
+        Optional<Category> existing;
         if (parent == null) {
             existing = categoryRepository.findByCategoryNameAndParentIsNull(name);
         } else {
             existing = categoryRepository.findByCategoryNameAndParent(name, parent);
         }
 
-        return existing.orElseGet(() -> createCategorySafely(name, parent));
+        return existing.map(category -> {
+            categoryIdCache.put(cacheKey, category.getId());
+            return category;
+        }).orElseGet(() -> createCategorySafely(name, parent, cacheKey));
     }
 
-    private Category createCategorySafely(String name, Category parent) {
+    private synchronized Category createCategorySafely(String name, Category parent, String cacheKey) {
+        if (categoryIdCache.containsKey(cacheKey)) {
+            return categoryRepository.findById(categoryIdCache.get(cacheKey)).orElseThrow();
+        }
+
+        Optional<Category> doubleCheck;
+        if (parent == null) {
+            doubleCheck = categoryRepository.findByCategoryNameAndParentIsNull(name);
+        } else {
+            doubleCheck = categoryRepository.findByCategoryNameAndParent(name, parent);
+        }
+
+        if (doubleCheck.isPresent()) {
+            Category found = doubleCheck.get();
+            categoryIdCache.put(cacheKey, found.getId());
+            return found;
+        }
+
         try {
             Category newCategory = Category.builder()
                     .categoryName(name)
                     .parent(parent)
                     .build();
-            return categoryRepository.save(newCategory);
+            Category saved = categoryRepository.save(newCategory);
+            categoryIdCache.put(cacheKey, saved.getId());
+            return saved;
         } catch (Exception e) {
-            //동시에 다른 서버가 생성해서 에러가 난다면, 다시 조회해서 리턴(방어로직)
+            log.warn("카테고리 동시 생성 충돌 발생, 재조회 시도: {}", name);
             if (parent == null) {
                 return categoryRepository.findByCategoryNameAndParentIsNull(name).orElseThrow();
             } else {
