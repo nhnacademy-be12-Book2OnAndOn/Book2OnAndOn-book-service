@@ -62,12 +62,12 @@ public class GeminiApiClient {
             return Collections.emptyList();
         }
 
-        String prompt = String.format(
-                "다음 책의 제목과 설명을 확인하고 핵심 태그(키워드) 3개를 추출해줘 또한 " +
-                        "무조건 JSON 문자열 배열 형식([\"태그1\", \"태그2\",...)으로만 대답해."
-                        + "부가적인 말은 생략하고 형식에 맞춰서만 대답해 \n\n"
-                        + "제목: %s\n설명: %s", title, description
-        );
+        String prompt = """
+                다음 책의 제목과 설명을 확인하고 핵심 태그(키워드) 3개를 추출해줘 또한 무조건 JSON 문자열 배열 형식(["태그1", "태그2",...)으로만 대답해.
+                부가적인 말은 생략하고 형식에 맞춰서만 대답해
+                
+                제목: %s
+                설명: %s""".formatted(title, description);
 
         String currentKey = getNextKey();
         String url = String.format("%s/%s:generateContent?key=%s", baseUrl, MODEL_NAME, currentKey);
@@ -95,7 +95,7 @@ public class GeminiApiClient {
             return Collections.emptyList();
         }
 
-        String jsonText = rawText.replaceAll("```json", "").replaceAll("```", "")
+        String jsonText = rawText.replace("```json", "").replace("```", "")
                 .trim();
 
         try {

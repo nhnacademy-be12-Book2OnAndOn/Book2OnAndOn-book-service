@@ -104,6 +104,21 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handleImageUploadException() {
+        String errorMessage = "이미지 업로드 실패";
+        // 원인 예외(cause)를 포함하여 생성
+        ImageUploadException exception = new ImageUploadException(errorMessage, new RuntimeException("MinIO Error"));
+
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleImageUploadException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(500);
+        assertThat(response.getBody().getError()).isEqualTo("Image Upload Error");
+        assertThat(response.getBody().getMessage()).isEqualTo(errorMessage);
+    }
+
+    @Test
     void handleGlobalException() {
         Exception exception = new RuntimeException("Unexpected error");
 

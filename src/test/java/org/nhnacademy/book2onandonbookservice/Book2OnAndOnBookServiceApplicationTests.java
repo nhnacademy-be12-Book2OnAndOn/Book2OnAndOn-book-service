@@ -47,7 +47,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         "minio.folder.review=reviews",
 
         // 6. 외부 API 키 (가짜 설정 - 실제 호출 안 함)
-        "google.api-key=dummy-google-key",
         "aladin.api.base-url=http://localhost/dummy-aladin",
         "aladin.api-ttb-key=dummy-ttb-key",
         "gemini.api.base-url=http://localhost/dummy-gemini",
@@ -65,6 +64,7 @@ class Book2OnAndOnBookServiceApplicationTests {
 
     @Test
     void contextLoads() {
+        //애플리케이션 컨텍스트 오류 없이 정상적으로 로드되는지 확인하는 테스트입니다.
     }
 
     @TestConfiguration // 테스트 환경에서만 사용되는 설정 클래스임을 나타냄

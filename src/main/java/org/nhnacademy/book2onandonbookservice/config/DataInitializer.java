@@ -52,13 +52,13 @@ public class DataInitializer implements ApplicationRunner {
     /*
     캐시를 Redis로 바꾸려 했는데 대량 등록 Batch 작업시엔 로컬 메모리 즉, Map을 쓰는게 압도적으로 빠르다고합니다.
      */
-    private static final Pattern SPLIT_PATTERN = Pattern.compile("[,;/&|]");
+    private static final Pattern SPLIT_PATTERN = Pattern.compile("[,;/&|]", Pattern.CANON_EQ);
 
     // 이름 (비탐욕)
     // 구분: 괄호() 또는 띄어쓰기 후 역할명
     // 예: "홍길동(지은이)", "홍길동 지음", "홍길동 편", "홍길동 그림"
     private static final Pattern ROLE_PATTERN = Pattern.compile(
-            "^(.*?)(?:\\s*\\((.*?)\\)|\\s+(지음|옮김|그림|글|엮음|편|저|공저|감수|사진|기획))\\s*$");
+            "^(.*?)(?:\\s*\\((.*?)\\)|\\s+(지음|옮김|그림|글|엮음|편|저|공저|감수|사진|기획))\\s*$", Pattern.CANON_EQ);
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -118,17 +118,9 @@ public class DataInitializer implements ApplicationRunner {
             List<Book> bookBatch = new ArrayList<>(1000);
 
             for (int i = 0; i < dataRows.size(); i++) {
-                String[] row = dataRows.get(i);
-
-                try {
-                    // DTO 변환 없이 바로 Entity 생성
-                    Book book = convertToBook(row, headerMap);
-                    if (book != null) {
-                        bookBatch.add(book);
-                    }
-                } catch (Exception e) {
-                    // 개별 라인 에러는 전체 중단을 막기 위해 로그만 찍고 넘어감
-                    log.debug("라인 {} 파싱 스킵: {}", i, e.getMessage());
+                Book book = processSingleRow(dataRows.get(i), headerMap, i);
+                if (book != null) {
+                    bookBatch.add(book);
                 }
 
                 // 1000개가 모이면 DB로
@@ -148,6 +140,15 @@ public class DataInitializer implements ApplicationRunner {
 
         } catch (Exception e) {
             log.error("파일 처리 중 치명적 오류 발생: {}", resource.getFilename(), e);
+        }
+    }
+
+    private Book processSingleRow(String[] row, Map<String, Integer> headerMap, int index) {
+        try {
+            return convertToBook(row, headerMap);
+        } catch (Exception e) {
+            log.debug("라인 {} 파싱 스킵: {}", index, e.getMessage());
+            return null;
         }
     }
 
@@ -215,8 +216,8 @@ public class DataInitializer implements ApplicationRunner {
      */
     private void parseAndAddContributors(Book book, String rawAuthorStr) {
         // 전처리: "by ", "illustrated by" 등 제거
-        String cleanedStr = rawAuthorStr.replaceAll("(?i)\\s*by\\s*", "")
-                .replaceAll("(?i)\\s*illustrated\\s*", "");
+        String cleanedStr = rawAuthorStr.replace("(?i)\\s*by\\s*", "")
+                .replace("(?i)\\s*illustrated\\s*", "");
 
         // 구분자로 토큰 분리
         String[] tokens = SPLIT_PATTERN.split(cleanedStr);
@@ -230,7 +231,8 @@ public class DataInitializer implements ApplicationRunner {
 
             // "홍길동 외 2명" 처리
             if (token.contains(" 외")) {
-                token = token.split(" 외")[0].trim();
+                int index = token.indexOf(" 외");
+                token = token.substring(0, index).trim();
             }
 
             // 이름과 역할 추출

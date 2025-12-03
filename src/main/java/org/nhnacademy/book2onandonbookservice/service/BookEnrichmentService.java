@@ -8,14 +8,13 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
 import org.nhnacademy.book2onandonbookservice.client.GeminiApiClient;
-import org.nhnacademy.book2onandonbookservice.client.GoogleBooksApiClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
-import org.nhnacademy.book2onandonbookservice.dto.api.GoogleBooksApiResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
@@ -48,10 +47,10 @@ public class BookEnrichmentService {
 
     private final GeminiApiClient geminiApiClient;
     private final AladinApiClient aladinApiClient;
-    private final GoogleBooksApiClient googleBooksApiClient;
     private final TransactionTemplate transactionTemplate;
     private final Map<String, Long> categoryIdCache = new ConcurrentHashMap<>();
 
+    private static final Pattern CATEGORY_SPLIT_PATTERN = Pattern.compile("\\s*>\\s*");
 
     @Async("apiExecutor")
     public CompletableFuture<Void> enrichBookData(Long bookId) {
@@ -71,18 +70,15 @@ public class BookEnrichmentService {
             return CompletableFuture.completedFuture(null);
         }
 
-        String isbn = bookForIsbn.getIsbn();
         String title = bookForIsbn.getTitle();
         String description = bookForIsbn.getDescription();
 
         log.info("[보강 시작] 책 ID: {}, ISBN: {}", bookId, book.getIsbn());
 
         AladinApiResponse.Item aladinData = null;
-        GoogleBooksApiResponse.VolumeInfo googleData = null;
 
         try {
             aladinData = fetchAladinData(book.getIsbn());
-//            googleData = fetchGoogleData(book.getIsbn());
         } catch (Exception e) {
             log.error("API 호출 중 오류 발생: {}", e.getMessage());
         }
@@ -100,14 +96,13 @@ public class BookEnrichmentService {
             }
         }
 
-        if (aladinData != null || googleData != null || (generatedTags != null && !generatedTags.isEmpty())) {
+        if (aladinData != null || (generatedTags != null && !generatedTags.isEmpty())) {
             AladinApiResponse.Item finalAladinData = aladinData;
-            GoogleBooksApiResponse.VolumeInfo finalGoogleData = googleData;
             List<String> finalTags = generatedTags;
 
             // transactionTemplate.execute()를 쓰면 내부 호출 문제 없이 트랜잭션 적용됨
             transactionTemplate.execute(status -> {
-                updateBookInTransaction(bookId, finalAladinData, finalGoogleData, finalTags);
+                updateBookInTransaction(bookId, finalAladinData, finalTags);
                 return null;
             });
         }
@@ -117,73 +112,104 @@ public class BookEnrichmentService {
     }
 
     protected void updateBookInTransaction(Long bookId, AladinApiResponse.Item aladinData,
-                                           GoogleBooksApiResponse.VolumeInfo googleData, List<String> finalTags) {
+                                           List<String> finalTags) {
+
         Book book = bookRepository.findById(bookId).orElseThrow();
-        boolean hasExternalData = (aladinData != null) || (googleData != null);
-        boolean isUpdated = false;
-        if (!hasExternalData) {
-            book.setStatus(BookStatus.BOOK_DELETED);
-            bookRepository.save(book);
-            bookSearchIndexService.deleteIndex(bookId);
+
+        // 1. 외부 데이터가 아예 없는 경우 삭제 처리 (처리했다면 종료)
+        if (processDeleteIfNoExternalData(book, bookId, aladinData)) {
             return;
         }
-        if (aladinData != null) {
 
-            if (book.getBookCategories().isEmpty() && StringUtils.hasText(aladinData.getCategoryName())) {
-                log.info("카테고리 발견: {}", aladinData.getCategoryName());
-                saveCategories(book, aladinData.getCategoryName());
-            }
+        // 2. 데이터 업데이트 진행 (Aladin)
+        boolean isUpdated = false;
+        isUpdated |= updateFromAladin(book, aladinData);
 
-            if ((book.getPriceStandard() == null || book.getPriceStandard() == 0)
-                    && aladinData.getPriceStandard() > 0) {
-                long newStandardPrice = aladinData.getPriceStandard();
-                book.setPriceStandard(newStandardPrice);
-                if (book.getPriceSales() == null || book.getPriceSales() == 0) {
-                    book.setPriceSales(newStandardPrice);
-                }
-                isUpdated = true;
-            }
-            if (book.getPublishDate() == null && StringUtils.hasText(aladinData.getPubDate())) {
-                book.setPublishDate(parseDate(aladinData.getPubDate()));
-                isUpdated = true;
-            }
-            if (!StringUtils.hasText(book.getDescription()) && StringUtils.hasText(aladinData.getDescription())) {
-                book.setDescription(aladinData.getDescription());
-                isUpdated = true;
-            }
-            if (book.getImages().isEmpty() && StringUtils.hasText(aladinData.getCover())) {
-                BookImage newImage = BookImage.builder()
-                        .book(book)
-                        .imagePath(aladinData.getCover())
-                        .build();
+        // 3. 태그 저장 (태그 저장은 isUpdated 플래그와 별개로 동작하던 기존 로직 유지)
+        updateTags(book, finalTags);
 
-                book.getImages().add(newImage);
-                isUpdated = true;
-            }
-
-        }
-
-        if (googleData != null) {
-            if (!StringUtils.hasText(book.getDescription()) && StringUtils.hasText(googleData.getDescription())) {
-                book.setDescription(googleData.getDescription());
-                isUpdated = true;
-            }
-        }
-
-        if (finalTags != null && !finalTags.isEmpty()) {
-            if (book.getBookTags().isEmpty()) {
-                saveTags(book, finalTags);
-                log.info("태그 저장 완료 ({}개)", finalTags.size());
-            }
-        }
-
+        // 4. 변경사항이 있으면 저장 및 인덱싱
         if (isUpdated) {
             bookRepository.save(book);
             log.info("[보강 완료] 책 ID: {}", bookId);
             bookSearchIndexService.index(book);
+        }
+    }
 
+// --- 아래는 추출한 헬퍼 메서드들입니다 ---
+
+    // 외부 데이터가 없으면 책을 삭제 처리하고 true 반환, 데이터가 있으면 false 반환
+    private boolean processDeleteIfNoExternalData(Book book, Long bookId,
+                                                  AladinApiResponse.Item aladinData
+    ) {
+        boolean hasExternalData = (aladinData != null);
+
+        if (!hasExternalData) {
+            book.setStatus(BookStatus.BOOK_DELETED);
+            bookRepository.save(book);
+            bookSearchIndexService.deleteIndex(bookId);
+            return true;
+        }
+        return false;
+    }
+
+    // 알라딘 데이터로 책 정보 업데이트
+    private boolean updateFromAladin(Book book, AladinApiResponse.Item aladinData) {
+        if (aladinData == null) {
+            return false;
         }
 
+        boolean updated = false;
+
+        // 카테고리
+        if (book.getBookCategories().isEmpty() && StringUtils.hasText(aladinData.getCategoryName())) {
+            log.info("카테고리 발견: {}", aladinData.getCategoryName());
+            saveCategories(book, aladinData.getCategoryName());
+        }
+
+        // 가격
+        if ((book.getPriceStandard() == null || book.getPriceStandard() == 0) && aladinData.getPriceStandard() > 0) {
+            long newStandardPrice = aladinData.getPriceStandard();
+            book.setPriceStandard(newStandardPrice);
+            if (book.getPriceSales() == null || book.getPriceSales() == 0) {
+                book.setPriceSales(newStandardPrice);
+            }
+            updated = true;
+        }
+
+        // 출판일
+        if (book.getPublishDate() == null && StringUtils.hasText(aladinData.getPubDate())) {
+            book.setPublishDate(parseDate(aladinData.getPubDate()));
+            updated = true;
+        }
+
+        // 설명
+        if (!StringUtils.hasText(book.getDescription()) && StringUtils.hasText(aladinData.getDescription())) {
+            book.setDescription(aladinData.getDescription());
+            updated = true;
+        }
+
+        // 이미지
+        if (book.getImages().isEmpty() && StringUtils.hasText(aladinData.getCover())) {
+            BookImage newImage = BookImage.builder()
+                    .book(book)
+                    .imagePath(aladinData.getCover())
+                    .build();
+            book.getImages().add(newImage);
+            updated = true;
+        }
+
+        return updated;
+    }
+
+
+    private void updateTags(Book book, List<String> finalTags) {
+        if (finalTags != null && !finalTags.isEmpty() && book.getBookTags().isEmpty()) {
+
+            saveTags(book, finalTags);
+            log.info("태그 저장 완료 ({}개)", finalTags.size());
+
+        }
     }
 
     private void saveTags(Book book, List<String> tagNames) {
@@ -229,13 +255,6 @@ public class BookEnrichmentService {
         }
     }
 
-    private GoogleBooksApiResponse.VolumeInfo fetchGoogleData(String isbn) {
-        try {
-            return googleBooksApiClient.searchByIsbn(isbn);
-        } catch (Exception e) {
-            return null;
-        }
-    }
 
     private LocalDate parseDate(String dateStr) {
         try {
@@ -250,7 +269,7 @@ public class BookEnrichmentService {
             return;
         }
 
-        String[] parts = categoryPath.split("\\s*>\\s*");
+        String[] parts = CATEGORY_SPLIT_PATTERN.split(categoryPath);
         Category parent = null;
         Category currentCategory = null;
 

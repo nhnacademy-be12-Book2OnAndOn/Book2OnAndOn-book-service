@@ -8,7 +8,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.time.DateUtils;
@@ -40,6 +39,8 @@ public class DataParserDto {
             "yyyy"
     };
 
+    @SuppressWarnings("java:S107")
+    //파라미터 개수 경고 무시 설정(DTO 특성상 필드가 많아서 어쩔 수 없어용)
     public DataParserDto(String seqNo, String isbn, String title, String rawAuthorStr, String publisherName,
                          String priceStr, String publishedAtStr, String description, String imageUrl, String volume
     ) {
@@ -62,13 +63,13 @@ public class DataParserDto {
 
             this.authors = participants.stream()
                     .filter(s -> s.contains("(지은이)") || !s.contains(")"))
-                    .map(s -> s.replaceAll("\\s*\\(.*?\\)\\s*", "").trim())
-                    .collect(Collectors.toList());
+                    .map(s -> s.replace("\\s*\\(.*?\\)\\s*", "").trim())
+                    .toList();
 
             this.translators = participants.stream()
                     .filter(s -> s.contains("(옮긴이)") || !s.contains(")"))
-                    .map(s -> s.replaceAll("\\s*\\(.*?\\)\\s*", "").trim())
-                    .collect(Collectors.toList());
+                    .map(s -> s.replace("\\s*\\(.*?\\)\\s*", "").trim())
+                    .toList();
         }
 
     }
@@ -78,7 +79,6 @@ public class DataParserDto {
             return null;
         }
 
-        String originalDateStr = dateStr;
         String cleanedDateStr = dateStr.trim();
 
         try {
@@ -119,6 +119,7 @@ public class DataParserDto {
                 int year = Integer.parseInt(matcher.group());
                 return LocalDate.of(year, 1, 1); // 1월 1일로 저장
             } catch (NumberFormatException ignored) {
+                //연도 파싱 실패 시 null 반환을 위해 예외 무시
             }
         }
 

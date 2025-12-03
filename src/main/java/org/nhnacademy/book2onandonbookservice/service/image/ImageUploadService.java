@@ -8,6 +8,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.nhnacademy.book2onandonbookservice.exception.ImageUploadException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -86,7 +87,7 @@ public class ImageUploadService {
             );
             return minioUrl + "/" + rootBucket + "/" + objectName;
         } catch (Exception e) {
-            throw new RuntimeException("이미지 업로드 실패", e);
+            throw new ImageUploadException("이미지 업로드 실패", e);
         }
     }
 
