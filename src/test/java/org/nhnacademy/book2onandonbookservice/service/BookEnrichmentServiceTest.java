@@ -26,10 +26,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
 import org.nhnacademy.book2onandonbookservice.client.GeminiApiClient;
-import org.nhnacademy.book2onandonbookservice.client.GoogleBooksApiClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
-import org.nhnacademy.book2onandonbookservice.dto.api.GoogleBooksApiResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
@@ -63,8 +61,7 @@ class BookEnrichmentServiceTest {
     private GeminiApiClient geminiApiClient;
     @Mock
     private AladinApiClient aladinApiClient;
-    @Mock
-    private GoogleBooksApiClient googleBooksApiClient;
+
     @Mock
     private TransactionTemplate transactionTemplate;
 
@@ -73,7 +70,6 @@ class BookEnrichmentServiceTest {
 
     private Book testBook;
     private AladinApiResponse.Item aladinItem;
-    private GoogleBooksApiResponse.VolumeInfo googleVolumeInfo;
 
     @BeforeEach
     void setUp() {
@@ -88,12 +84,11 @@ class BookEnrichmentServiceTest {
                 .build();
 
         aladinItem = mock(AladinApiResponse.Item.class);
-        googleVolumeInfo = mock(GoogleBooksApiResponse.VolumeInfo.class);
     }
 
     @Test
     @DisplayName("책이 존재하지 않을 때 처리")
-    void enrichBookData_BookNotExists() throws Exception {
+    void enrichBookData_BookNotExists() {
         when(bookRepository.findById(1L)).thenReturn(Optional.empty());
 
         CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
@@ -104,7 +99,7 @@ class BookEnrichmentServiceTest {
 
     @Test
     @DisplayName("ISBN으로 책을 찾을 수 없을 때")
-    void enrichBookData_BookForIsbnNotFound() throws Exception {
+    void enrichBookData_BookForIsbnNotFound() {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(bookRepository.existsById(1L)).thenReturn(true);
 
@@ -119,7 +114,7 @@ class BookEnrichmentServiceTest {
 
     @Test
     @DisplayName("알라딘 데이터로 책 정보 보강 성공")
-    void enrichBookData_WithAladinData() throws Exception {
+    void enrichBookData_WithAladinData() {
         when(bookRepository.existsById(1L)).thenReturn(true);
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(aladinApiClient.searchByIsbn(anyString())).thenReturn(aladinItem);
@@ -152,7 +147,7 @@ class BookEnrichmentServiceTest {
     void updateBookInTransaction_NoExternalData_DeleteBook() {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
 
-        bookEnrichmentService.updateBookInTransaction(1L, null, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, null, null);
 
         assertThat(testBook.getStatus()).isEqualTo(BookStatus.BOOK_DELETED);
         verify(bookRepository).save(testBook);
@@ -177,7 +172,7 @@ class BookEnrichmentServiceTest {
                 .thenReturn(Optional.of(leafCategory));
         when(bookCategoryRepository.existsByBookAndCategory(any(), any())).thenReturn(false);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         verify(bookCategoryRepository).save(any(BookCategory.class));
     }
@@ -190,7 +185,7 @@ class BookEnrichmentServiceTest {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(aladinItem.getPriceStandard()).thenReturn(15000L);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         assertThat(testBook.getPriceStandard()).isEqualTo(15000L);
         assertThat(testBook.getPriceSales()).isEqualTo(15000L);
@@ -205,7 +200,7 @@ class BookEnrichmentServiceTest {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(aladinItem.getPubDate()).thenReturn("2024-01-15");
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         assertThat(testBook.getPublishDate()).isEqualTo(LocalDate.of(2024, 1, 15));
         verify(bookRepository).save(testBook);
@@ -218,7 +213,7 @@ class BookEnrichmentServiceTest {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(aladinItem.getDescription()).thenReturn("알라딘 설명");
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         assertThat(testBook.getDescription()).isEqualTo("알라딘 설명");
         verify(bookRepository).save(testBook);
@@ -230,24 +225,12 @@ class BookEnrichmentServiceTest {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(aladinItem.getCover()).thenReturn("http://example.com/cover.jpg");
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         assertThat(testBook.getImages()).hasSize(1);
         verify(bookRepository).save(testBook);
     }
 
-    @Test
-    @DisplayName("구글 북스 데이터로 설명 업데이트")
-    void updateBookInTransaction_UpdateDescriptionFromGoogle() {
-        testBook.setDescription(null);
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(googleVolumeInfo.getDescription()).thenReturn("구글 북스 설명");
-
-        bookEnrichmentService.updateBookInTransaction(1L, null, googleVolumeInfo, null);
-
-        assertThat(testBook.getDescription()).isEqualTo("구글 북스 설명");
-        verify(bookRepository).save(testBook);
-    }
 
     @Test
     @DisplayName("Gemini로 생성한 태그 저장")
@@ -264,7 +247,7 @@ class BookEnrichmentServiceTest {
         when(tagRepository.findByTagName("베스트셀러")).thenReturn(Optional.of(tag3));
         when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, tags);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
 
         verify(bookTagRepository, times(3)).save(any(BookTag.class));
     }
@@ -281,7 +264,7 @@ class BookEnrichmentServiceTest {
         when(tagRepository.saveAndFlush(any(Tag.class))).thenReturn(newTag);
         when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, tags);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
 
         verify(tagRepository).saveAndFlush(any(Tag.class));
         verify(bookTagRepository).save(any(BookTag.class));
@@ -298,7 +281,7 @@ class BookEnrichmentServiceTest {
         when(tagRepository.findByTagName(anyString())).thenReturn(Optional.of(tag));
         when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, tags);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(tagRepository).findByTagName(captor.capture());
@@ -315,7 +298,7 @@ class BookEnrichmentServiceTest {
         when(tagRepository.findByTagName("유효한태그")).thenReturn(Optional.of(tag));
         when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, tags);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
 
         verify(bookTagRepository, times(1)).save(any(BookTag.class));
     }
@@ -330,7 +313,7 @@ class BookEnrichmentServiceTest {
         when(tagRepository.findByTagName("중복태그")).thenReturn(Optional.of(tag));
         when(bookTagRepository.existsByBookAndTag(testBook, tag)).thenReturn(true);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, tags);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
 
         verify(bookTagRepository, never()).save(any(BookTag.class));
     }
@@ -352,7 +335,7 @@ class BookEnrichmentServiceTest {
                 .thenReturn(Optional.of(category));
         when(bookCategoryRepository.existsByBookAndCategory(any(), any())).thenReturn(false);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(categoryRepository).findByCategoryNameAndParentIsNull(captor.capture());
@@ -373,7 +356,7 @@ class BookEnrichmentServiceTest {
         when(categoryRepository.save(any(Category.class))).thenReturn(newCategory);
         when(bookCategoryRepository.existsByBookAndCategory(any(), any())).thenReturn(false);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         verify(categoryRepository).save(any(Category.class));
     }
@@ -391,7 +374,7 @@ class BookEnrichmentServiceTest {
                 .thenReturn(Optional.of(category));
         when(bookCategoryRepository.existsByBookAndCategory(testBook, category)).thenReturn(true);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         verify(bookCategoryRepository, never()).save(any(BookCategory.class));
     }
@@ -405,7 +388,7 @@ class BookEnrichmentServiceTest {
 
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         assertThat(testBook.getPublishDate()).isEqualTo(LocalDate.now());
     }
@@ -497,7 +480,7 @@ class BookEnrichmentServiceTest {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
 
         // aladinItem은 있지만 모든 필드가 이미 채워져있어서 업데이트 안됨
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         assertThat(testBook.getPriceStandard()).isEqualTo(15000L);
         verify(bookRepository, never()).save(any());
@@ -515,7 +498,7 @@ class BookEnrichmentServiceTest {
 
         when(aladinItem.getPriceStandard()).thenReturn(10000L);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         assertThat(testBook.getImages()).hasSize(1);
     }
@@ -533,7 +516,7 @@ class BookEnrichmentServiceTest {
         when(tagRepository.findByTagName("태그2")).thenReturn(Optional.of(tag2));
         when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, tags);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
 
         verify(bookTagRepository, times(1)).save(any(BookTag.class));
     }
@@ -546,7 +529,7 @@ class BookEnrichmentServiceTest {
 
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
 
         verify(categoryRepository, never()).save(any());
         verify(bookCategoryRepository, never()).save(any());
@@ -567,6 +550,9 @@ class BookEnrichmentServiceTest {
         when(bookCategoryRepository.save(any(BookCategory.class)))
                 .thenThrow(new RuntimeException("Duplicate"));
 
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null, null);
+        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
+
+        verify(bookCategoryRepository).save(any(BookCategory.class));
+        verify(bookRepository).save(testBook);
     }
 }

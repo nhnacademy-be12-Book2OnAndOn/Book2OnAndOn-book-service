@@ -1,0 +1,11 @@
+package org.nhnacademy.book2onandonbookservice.exception;
+
+public class ImageUploadException extends RuntimeException {
+    public ImageUploadException(String message) {
+        super(message);
+    }
+
+    public ImageUploadException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

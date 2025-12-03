@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,6 +18,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -87,22 +90,6 @@ class DataInitializerTest {
         verify(contributorRepository, never()).findAll();
     }
 
-//    @Test
-//    @DisplayName("데이터가 없으면 초기화 진행")
-//    void run_ProcessWhenNoData() throws Exception {
-//        // given
-//        when(bookRepository.count()).thenReturn(0L);
-//        when(publisherRepository.findAll()).thenReturn(new ArrayList<>());
-//        when(contributorRepository.findAll()).thenReturn(new ArrayList<>());
-//
-//        // when
-//        dataInitializer.run(applicationArguments);
-//
-//        // then
-//        verify(bookRepository).count();
-//        verify(publisherRepository).findAll();
-//        verify(contributorRepository).findAll();
-//    }
 
     @Test
     @DisplayName("CSV 파일 처리 - 정상 케이스")
@@ -201,103 +188,25 @@ class DataInitializerTest {
         assertThat(result.getBookPublishers()).hasSize(1);
     }
 
-    @Test
-    @DisplayName("parseAndAddContributors - 단일 작가")
-    void parseAndAddContributors_SingleAuthor() throws Exception {
+    @DisplayName("parseAndAddContributors - 다양한 입력 케이스 통합 테스트")
+    @ParameterizedTest(name = "[{index}] 입력: \"{0}\" -> 예상 작가 수: {1}")
+    @CsvSource(value = {
+            "'홍길동(지은이)', 1",                 // 단일 작가
+            "'홍길동(지은이),김철수(옮긴이)', 2",      // 쉼표 구분
+            "'홍길동(지은이);김철수(옮긴이)', 2",      // 세미콜론 구분
+            "'홍길동 외', 1",                     // '외' 처리
+            "'홍길동 외 2명', 1",                  // '외 N명' 처리
+            "'by 홍길동', 1",                     // 'by' 접두사 제거
+            "'', 0"                             // 빈 문자열 (Result 0)
+    })
+    void parseAndAddContributors_Parameterized(String authorStr, int expectedSize) throws Exception {
         Book book = Book.builder().build();
-        String authorStr = "홍길동(지은이)";
 
-        when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
+        lenient().when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
 
         invokeParseAndAddContributors(book, authorStr);
 
-        assertThat(book.getBookContributors()).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("parseAndAddContributors - 복수 작가 쉼표 구분")
-    void parseAndAddContributors_MultipleAuthorsComma() throws Exception {
-        Book book = Book.builder().build();
-        String authorStr = "홍길동(지은이),김철수(옮긴이)";
-
-        Contributor contributor1 = Contributor.builder().id(1L).contributorName("홍길동").build();
-        Contributor contributor2 = Contributor.builder().id(2L).contributorName("김철수").build();
-
-        when(contributorRepository.save(any(Contributor.class)))
-                .thenReturn(contributor1)
-                .thenReturn(contributor2);
-
-        invokeParseAndAddContributors(book, authorStr);
-
-        assertThat(book.getBookContributors()).hasSize(2);
-    }
-
-    @Test
-    @DisplayName("parseAndAddContributors - 세미콜론 구분")
-    void parseAndAddContributors_SemicolonSeparator() throws Exception {
-        Book book = Book.builder().build();
-        String authorStr = "홍길동(지은이);김철수(옮긴이)";
-
-        Contributor contributor1 = Contributor.builder().id(1L).contributorName("홍길동").build();
-        Contributor contributor2 = Contributor.builder().id(2L).contributorName("김철수").build();
-
-        when(contributorRepository.save(any(Contributor.class)))
-                .thenReturn(contributor1)
-                .thenReturn(contributor2);
-
-        invokeParseAndAddContributors(book, authorStr);
-
-        assertThat(book.getBookContributors()).hasSize(2);
-    }
-
-    @Test
-    @DisplayName("parseAndAddContributors - 외 처리")
-    void parseAndAddContributors_WithEtc() throws Exception {
-        Book book = Book.builder().build();
-        String authorStr = "홍길동 외";
-
-        when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
-
-        invokeParseAndAddContributors(book, authorStr);
-
-        assertThat(book.getBookContributors()).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("parseAndAddContributors - 외 N명 처리")
-    void parseAndAddContributors_WithEtcNumber() throws Exception {
-        Book book = Book.builder().build();
-        String authorStr = "홍길동 외 2명";
-
-        when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
-
-        invokeParseAndAddContributors(book, authorStr);
-
-        assertThat(book.getBookContributors()).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("parseAndAddContributors - by 접두사 제거")
-    void parseAndAddContributors_RemoveByPrefix() throws Exception {
-        Book book = Book.builder().build();
-        String authorStr = "by 홍길동";
-
-        when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
-
-        invokeParseAndAddContributors(book, authorStr);
-
-        assertThat(book.getBookContributors()).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("parseAndAddContributors - 빈 문자열")
-    void parseAndAddContributors_EmptyString() throws Exception {
-        Book book = Book.builder().build();
-        String authorStr = "";
-
-        invokeParseAndAddContributors(book, authorStr);
-
-        assertThat(book.getBookContributors()).isEmpty();
+        assertThat(book.getBookContributors()).hasSize(expectedSize);
     }
 
     @Test
@@ -426,8 +335,8 @@ class DataInitializerTest {
     @Test
     @DisplayName("parsePrice - 파싱 실패시 0")
     void parsePrice_Fail() throws Exception {
-        assertThat(invokeParsePrice("invalid")).isEqualTo(0L);
-        assertThat(invokeParsePrice("")).isEqualTo(0L);
+        assertThat(invokeParsePrice("invalid")).isZero();
+        assertThat(invokeParsePrice("")).isZero();
     }
 
     @Test
@@ -455,8 +364,7 @@ class DataInitializerTest {
     @DisplayName("truncate - 문자열 자르기")
     void truncate_Success() throws Exception {
         String result = invokeTruncate("12345678901234567890", 10);
-        assertThat(result).hasSize(10);
-        assertThat(result).isEqualTo("1234567890");
+        assertThat(result).hasSize(10).isEqualTo("1234567890");
     }
 
     @Test
@@ -476,17 +384,15 @@ class DataInitializerTest {
     @Test
     @DisplayName("createHeaderMap - 헤더 맵 생성")
     void createHeaderMap_Success() throws Exception {
-        // given
         String[] headers = {"col1", "col2", "col3"};
 
-        // when
         Map<String, Integer> result = invokeCreateHeaderMap(headers);
 
-        // then
         assertThat(result).hasSize(3);
-        assertThat(result.get("col1")).isEqualTo(0);
-        assertThat(result.get("col2")).isEqualTo(1);
-        assertThat(result.get("col3")).isEqualTo(2);
+        assertThat(result).containsEntry("col1", 0);
+        assertThat(result).containsEntry("col2", 1);
+        assertThat(result).containsEntry("col3", 2);
+
     }
 
     // ===== Private Helper Methods =====

@@ -53,7 +53,7 @@ public class BookRelationService {
         List<String> names = Arrays.stream(contributorName.split(","))
                 .map(String::trim)
                 .filter(this::notBlank)
-                .collect(Collectors.toList());
+                .toList();
 
         for (String name : names) {
             Contributor contributor = contributorRepository.findByContributorName(name)
