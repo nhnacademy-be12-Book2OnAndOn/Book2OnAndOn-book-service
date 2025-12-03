@@ -20,11 +20,12 @@ public class BookRetryScheduler {
     private final BookEnrichmentService bookEnrichmentService;
 
     @Scheduled(fixedDelay = 5000)
-    @SchedulerLock(name = "runEnrichment", lockAtLeastFor = "4s", lockAtMostFor = "10s")
+    @SchedulerLock(name = "runEnrichment_v2", lockAtLeastFor = "4s", lockAtMostFor = "10s")
     public void runEnrichment() {
         List<Book> books = bookRepository.findBooksNeedingEnrichment(PageRequest.of(0, 20));
 
         if (books.isEmpty()) {
+            log.info("[Scheduler] 보강 대상 도서가 0건입니다. 종료합니다");
             return;
         }
 

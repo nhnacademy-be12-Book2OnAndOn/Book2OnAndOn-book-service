@@ -12,10 +12,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
-    @Query("SELECT b FROM Book b " +
-            "WHERE b.priceStandard = 0 " +
-            "OR b.description IS NULL OR b.description = '' " +
-            "OR b.bookCategories IS EMPTY")
+    @Query("SELECT b FROM Book b "
+            + "WHERE (b.priceStandard = 0 OR b.description IS NULL OR b.description = '') "
+            + "AND b.status != 'BOOK_DELETED'")
     List<Book> findBooksNeedingEnrichment(Pageable pageable);
 
     List<BookIdAndIsbn> findByIsbnIn(List<String> isbns);
@@ -72,6 +71,9 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     @Query("UPDATE Book b SET b.stockCount = b.stockCount + :quantity " +
             "WHERE b.id = :id")
     int increaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
+
+    //판매 중 이거나 재고 없음인 책만 조회 (삭제된 책 제외)
+    Page<Book> findByStatusNot(BookStatus status, Pageable pageable);
 
     interface BookIdAndIsbn {
         Long getId();

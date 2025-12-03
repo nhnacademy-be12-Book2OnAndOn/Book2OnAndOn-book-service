@@ -10,6 +10,7 @@ public class UserHeaderUtil {
 
     private static final String HEADER_USER_ID = "X-User-Id";
     private static final String HEADER_USER_ROLE = "X-User-Role";
+    private static final String HEADER_GUEST_ID = "X-Guest-Id";
 
     public Long getUserId() {
         HttpServletRequest request = getRequest();
@@ -27,6 +28,19 @@ public class UserHeaderUtil {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    public String getGuestId() {
+        HttpServletRequest request = getRequest();
+        if (request == null) {
+            return null;
+        }
+
+        String guestId = request.getHeader(HEADER_GUEST_ID);
+        if (guestId == null || guestId.isEmpty()) {
+            return null;
+        }
+        return guestId;
     }
 
     private static HttpServletRequest getRequest() {

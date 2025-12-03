@@ -1,5 +1,6 @@
 package org.nhnacademy.book2onandonbookservice.service.review.Impl;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.nhnacademy.book2onandonbookservice.service.review.ReviewService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,14 +42,35 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final UserHeaderUtil util;
 
+    private final StringRedisTemplate redisTemplate;
+
 
     /// 리뷰생성
     @Override
     public Long createReview(Long bookId, ReviewCreateRequest req, List<MultipartFile> image) {
         Book book = bookRepository.findById(bookId).orElseThrow(() -> new NotFoundBookException(bookId));
         Long userId = util.getUserId();
+        String key = "purchase:" + userId + ":" + bookId;
         //order-service에 유저가 해당 도서를 구매하고 배송이 완료된 후 리뷰를 작성하는지 검증
-        boolean isPurchased = orderServiceClient.hasPurchased(userId, bookId);
+        boolean isPurchased = false;
+
+        if (redisTemplate.hasKey(key)) {
+            //1차 점검 (주문쪽에서 정한 캐싱만료일안에 리뷰작성을 한다면 redis에서 꺼내쓸 수 있음)
+            isPurchased = true;
+            log.info("Redis 캐시에서 구매 이력 확인완료: userId={}, bookId={}", userId, bookId);
+        } else {
+            try {
+                //2차 점검 (캐시 만료일이 지나서 redis에 없을때 직접 feign client로 요청을 보내야함)
+                isPurchased = orderServiceClient.hasPurchased(userId, bookId);
+                redisTemplate.opsForValue()
+                        .set(key, "Y", Duration.ofDays(90)); // 혹시 모르니 요청보내서 받아온것도 redis에 캐싱해두기 90일 만료로
+                log.info("Order Service API로 구매 이력 확인완료: result={}", isPurchased);
+            } catch (Exception e) {
+                log.error("주문 서비스 호출 실패 (Redis에도 없음): {}", e.getMessage());
+
+                throw new IllegalArgumentException("현재 시스템 점검 중으로 구매 이력을 확인할 수 없습니다.");
+            }
+        }
         if (!isPurchased) {
             throw new IllegalArgumentException("해당 도서를 구매후 배송이 완료된 회원만 리뷰 작성 가능합니다.");
         }

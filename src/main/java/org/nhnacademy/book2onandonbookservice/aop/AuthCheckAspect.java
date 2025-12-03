@@ -1,6 +1,6 @@
 package org.nhnacademy.book2onandonbookservice.aop;
 
-import java.nio.file.AccessDeniedException;
+
 import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.annotation.Aspect;
@@ -8,6 +8,7 @@ import org.aspectj.lang.annotation.Before;
 import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 @Aspect

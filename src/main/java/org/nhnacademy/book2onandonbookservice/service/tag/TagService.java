@@ -36,9 +36,6 @@ public class TagService {
         // 영속 엔티티 변경 -> DB 반영
         tag.setTagName(newName);
 
-        long total = bookSearchSyncService.reindexByTagId(tagId);
-
-        log.info("태그 변경 사항을 ES에서 재인덱싱 했습니다. total={} ", total);
         log.info("태그 이름 변경 사항이 업데이트 되었습니다. id={}, oldName={}, newName={}", tagId, oldName, newName);
 
         // 변경 감지 이벤트 발생
