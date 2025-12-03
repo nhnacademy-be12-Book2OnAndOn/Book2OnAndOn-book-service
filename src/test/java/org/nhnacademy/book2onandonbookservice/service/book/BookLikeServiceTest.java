@@ -61,7 +61,7 @@ class BookLikeServiceTest {
     void toggleLike_whenNotExists_registerLike() {
         Long bookId = 1L;
         Long userId = 10L;
-        String lockKey = "lock:like:" + userId + ":" + bookId;
+        String lockKey = "book-service:lock:like:" + userId + ":" + bookId;
 
         given(valueOperations.setIfAbsent(eq(lockKey), anyString(), any(Duration.class))).willReturn(true);
 
@@ -91,7 +91,7 @@ class BookLikeServiceTest {
     void toggleLike_whenExists_cancelLike() {
         Long bookId = 1L;
         Long userId = 10L;
-        String lockKey = "lock:like:" + userId + ":" + bookId;
+        String lockKey = "book-service:lock:like:" + userId + ":" + bookId;
 
         given(valueOperations.setIfAbsent(eq(lockKey), anyString(), any(Duration.class))).willReturn(true);
 
@@ -116,7 +116,7 @@ class BookLikeServiceTest {
     void toggleLike_Fail_AlreadyLocked() {
         Long bookId = 1L;
         Long userId = 10L;
-        String lockKey = "lock:like:" + userId + ":" + bookId;
+        String lockKey = "book-service:lock:like:" + userId + ":" + bookId;
 
         given(valueOperations.setIfAbsent(eq(lockKey), anyString(), any(Duration.class))).willReturn(false);
 
@@ -133,7 +133,7 @@ class BookLikeServiceTest {
     void toggleLike_Fail_BookNotFound_EnsureUnlock() {
         Long bookId = 999L;
         Long userId = 10L;
-        String lockKey = "lock:like:" + userId + ":" + bookId;
+        String lockKey = "book-service:lock:like:" + userId + ":" + bookId;
 
         given(valueOperations.setIfAbsent(eq(lockKey), anyString(), any(Duration.class))).willReturn(true);
 

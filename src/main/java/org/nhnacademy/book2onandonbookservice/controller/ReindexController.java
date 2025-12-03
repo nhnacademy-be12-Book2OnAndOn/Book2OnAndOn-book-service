@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
+import org.nhnacademy.book2onandonbookservice.entity.Tag;
 import org.nhnacademy.book2onandonbookservice.service.category.CategoryService;
 import org.nhnacademy.book2onandonbookservice.service.search.BookReindexService;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchSyncService;
@@ -55,21 +57,21 @@ public class ReindexController {
 
     /// 카테고리, 태그 이름 변경
     @PutMapping("/category/{categoryId}")
-    public ResponseEntity<Void> updateCategoryName(
+    public ResponseEntity<Category> updateCategoryName(
             @PathVariable Long categoryId,
             @RequestBody CategoryNameUpdateRequest request
     ) {
-        categoryService.updateCategoryName(categoryId, request.getNewName());
-        return ResponseEntity.noContent().build();
+        Category category = categoryService.updateCategoryName(categoryId, request.getNewName());
+        return ResponseEntity.ok().body(category);
     }
 
     @PutMapping("/tag/{tagId}")
-    public ResponseEntity<Void> updateTagName(
+    public ResponseEntity<Tag> updateTagName(
             @PathVariable Long tagId,
             @RequestBody TagNameUpdateRequest request
     ) {
-        tagService.updateTagName(tagId, request.getNewName());
-        return ResponseEntity.noContent().build();
+        Tag tag = tagService.updateTagName(tagId, request.getNewName());
+        return ResponseEntity.ok().body(tag);
     }
 
     @Getter
