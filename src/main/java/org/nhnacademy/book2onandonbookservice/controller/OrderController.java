@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/internal/books")
-public class InternalBookController {
+public class OrderController {
 
     private final BookService bookService;
     private final UserHeaderUtil util;

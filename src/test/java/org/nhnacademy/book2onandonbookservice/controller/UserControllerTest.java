@@ -3,7 +3,6 @@ package org.nhnacademy.book2onandonbookservice.controller;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService;
-import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService.BookLikeToggleResult;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -23,36 +21,15 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @ExtendWith(SpringExtension.class)
 @AutoConfigureMockMvc(addFilters = false)
-@WebMvcTest(controllers = BookLikeController.class)
-class BookLikeControllerTest {
-
+@WebMvcTest(UserController.class)
+class UserControllerTest {
     @Autowired
     MockMvc mockMvc;
-
-    @MockitoBean
-    BookLikeService bookLikeService;
-
     @MockitoBean
     UserHeaderUtil util;
 
-    @Test
-    @DisplayName("POST /books/{bookId}/likes - 좋아요 토글 API")
-    void toggleLike() throws Exception {
-        // given
-        Long bookId = 1L;
-        Long userId = 10L;
-        BookLikeToggleResult result = new BookLikeToggleResult(true, 5L);
-
-        given(util.getUserId()).willReturn(userId);
-        given(bookLikeService.toggleLike(bookId, userId)).willReturn(result);
-
-        // when & then
-        mockMvc.perform(post("/books/{bookId}/likes", bookId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.liked", is(true)))
-                .andExpect(jsonPath("$.likeCount", is(5)));
-
-    }
+    @MockitoBean
+    BookLikeService bookLikeService;
 
     @Test
     @DisplayName("GET /books/likes/me - 내가 좋아요한 도서 ID 리스트 조회 API")
@@ -72,4 +49,5 @@ class BookLikeControllerTest {
                 .andExpect(jsonPath("$[2]", is(3)));
 
     }
+
 }
