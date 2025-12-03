@@ -54,7 +54,7 @@ public class ReviewServiceImpl implements ReviewService {
         //order-service에 유저가 해당 도서를 구매하고 배송이 완료된 후 리뷰를 작성하는지 검증
         boolean isPurchased = false;
 
-        if (redisTemplate.hasKey(key)) {
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             //1차 점검 (주문쪽에서 정한 캐싱만료일안에 리뷰작성을 한다면 redis에서 꺼내쓸 수 있음)
             isPurchased = true;
             log.info("Redis 캐시에서 구매 이력 확인완료: userId={}, bookId={}", userId, bookId);

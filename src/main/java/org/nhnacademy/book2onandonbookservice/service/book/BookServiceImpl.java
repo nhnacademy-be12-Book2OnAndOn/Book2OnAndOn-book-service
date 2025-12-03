@@ -167,7 +167,7 @@ public class BookServiceImpl implements BookService {
                 .filter(bookMap::containsKey)
                 .map(bookMap::get)
                 .map(BookListResponse::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /// 신간 도서를 출간일 최신순으로 조회하고 캐싱
