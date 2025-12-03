@@ -34,7 +34,7 @@ public class UserController {
         return ResponseEntity.ok(reviewPage);
     }
 
-    /// 사용자 좋아요 목록 조회 GET /books/likes/me User Service에서 호출 후 List<Long> 형태를 받아감
+    /// 사용자 좋아요 목록 조회 GET /internal/users/likes/me User Service에서 호출 후 List<Long> 형태를 받아감
     @GetMapping("/likes/me")
     @AuthCheck(Role.USER)
     public ResponseEntity<List<Long>> getMyLikedBooks() {

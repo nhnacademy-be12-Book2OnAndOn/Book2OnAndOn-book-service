@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,14 +49,22 @@ class BookAdminControllerTest {
 
     @MockitoBean
     UserHeaderUtil util;
+    @Autowired
+    private UserHeaderUtil userHeaderUtil;
+
+    private void mockAdminRole() {
+        given(userHeaderUtil.getUserRole()).willReturn("ROLE_BOOK_ADMIN");
+    }
 
     @Test
     @DisplayName("도서 등록 성공 컨트롤러 - 이미지 포함")
     void createBook() throws Exception {
+        mockAdminRole();
         BookSaveRequest request = BookSaveRequest.builder()
                 .title("Test Book")
                 .isbn("1234567890123")
                 .priceStandard(10000L)
+                .publishDate(LocalDate.now())
                 .build();
 
         String reqJson = objectMapper.writeValueAsString(request);
@@ -65,7 +74,7 @@ class BookAdminControllerTest {
         given(imageUploadService.uploadBookImage(any())).willReturn("http://minio.test.jpg");
         given(bookService.createBook(any(BookSaveRequest.class))).willReturn(1L);
 
-        mockMvc.perform(multipart("/books")
+        mockMvc.perform(multipart("/admin/books")
                         .file(bookPart)
                         .file(imagePart)
                         .contentType(MediaType.MULTIPART_FORM_DATA_VALUE))
@@ -77,6 +86,7 @@ class BookAdminControllerTest {
     @Test
     @DisplayName("도서 등록 성공 컨트롤러 - 이미지 포함X")
     void createBook_NotImage() throws Exception {
+        mockAdminRole();
         BookSaveRequest request = BookSaveRequest.builder()
                 .title("Test Book")
                 .isbn("1234567890123")
@@ -88,7 +98,7 @@ class BookAdminControllerTest {
                 StandardCharsets.UTF_8));
         given(bookService.createBook(any(BookSaveRequest.class))).willReturn(1L);
 
-        mockMvc.perform(multipart("/books")
+        mockMvc.perform(multipart("/admin/books")
                 .file(bookPart)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
         ).andExpect(status().isCreated());
@@ -97,6 +107,7 @@ class BookAdminControllerTest {
     @Test
     @DisplayName("도서 수정 성공 - 이미지포함")
     void updateBook() throws Exception {
+        mockAdminRole();
         Long bookId = 1L;
         BookSaveRequest request = BookSaveRequest.builder().title("수정한 타이틀").build();
         String reqJson = objectMapper.writeValueAsString(request);
@@ -106,7 +117,7 @@ class BookAdminControllerTest {
         MockMultipartFile imagePart = new MockMultipartFile("image", "new.jpg", "image/jpeg", "new-dummy".getBytes());
         given(imageUploadService.uploadBookImage(any())).willReturn("http://minio/new.jpg");
         doNothing().when(bookService).updateBook(eq(bookId), any(BookSaveRequest.class));
-        mockMvc.perform(multipart("/books/{bookId}", bookId)
+        mockMvc.perform(multipart("/admin/books/{bookId}", bookId)
                         .file(bookPart)
                         .file(imagePart)
                         .with(request1 -> {
@@ -119,10 +130,11 @@ class BookAdminControllerTest {
     @Test
     @DisplayName("도서 삭제 성공")
     void deleteBook() throws Exception {
+        mockAdminRole();
         Long bookId = 1L;
         doNothing().when(bookService).deleteBook(bookId);
 
-        mockMvc.perform(delete("/books/{bookId}", bookId))
+        mockMvc.perform(delete("/admin/books/{bookId}", bookId))
                 .andExpect(status().isNoContent());
         verify(bookService).deleteBook(bookId);
     }
@@ -130,11 +142,12 @@ class BookAdminControllerTest {
     @Test
     @DisplayName("도서 상태 변경 성공")
     void updateBookStatus() throws Exception {
+        mockAdminRole();
         Long bookId = 1L;
         BookStatusUpdateRequest request = new BookStatusUpdateRequest(BookStatus.SOLD_OUT);
         doNothing().when(bookService).updateBookStatus(bookId, BookStatus.SOLD_OUT);
 
-        mockMvc.perform(patch("/books/{bookId}/status", bookId)
+        mockMvc.perform(patch("/admin/books/{bookId}/status", bookId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());

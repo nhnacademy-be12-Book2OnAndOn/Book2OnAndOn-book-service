@@ -23,7 +23,7 @@ public class BookLikeService {
     /// 도서 좋아요 토글 기능 -> return 후 좋아요 등록(ture)/취소(false)
     @Transactional
     public BookLikeToggleResult toggleLike(Long bookId, Long userId) {
-        String lockKey = "lock:like:" + userId + ":" + bookId;
+        String lockKey = "book-service:lock:like:" + userId + ":" + bookId;
 
         Boolean isLocked = redisTemplate.opsForValue().setIfAbsent(lockKey, "LOCKED", Duration.ofSeconds(3));
 

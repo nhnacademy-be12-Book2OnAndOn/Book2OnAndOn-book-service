@@ -21,8 +21,8 @@ import org.springframework.util.StringUtils;
 public class BookHistoryService {
     private final StringRedisTemplate redisTemplate;
 
-    private static final String MEMBER_KEY_PREFIX = "history:view:member";
-    private static final String GUEST_KEY_PREFIX = "history:view:guest";
+    private static final String MEMBER_KEY_PREFIX = "book-service:history:view:member";
+    private static final String GUEST_KEY_PREFIX = "book-service:history:view:guest";
     private static final int MAX_HISTORY_SIZE = 50;
 
     /**

@@ -14,6 +14,6 @@ public class SchedulerLockConfig {
 
     @Bean
     public LockProvider lockProvider(RedisConnectionFactory connectionFactory) { //Redis를 락저장소로 쓰겠다는 빈
-        return new RedisLockProvider(connectionFactory, "book-service-lock");
+        return new RedisLockProvider(connectionFactory, "book-service:lock");
     }
 }
