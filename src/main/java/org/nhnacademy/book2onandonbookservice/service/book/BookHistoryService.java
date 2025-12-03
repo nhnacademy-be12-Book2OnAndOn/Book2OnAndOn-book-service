@@ -58,7 +58,7 @@ public class BookHistoryService {
             return Collections.emptyList();
         }
 
-        Set<String> values = redisTemplate.opsForZSet().reverseRange(key, 0, MAX_HISTORY_SIZE - 1);
+        Set<String> values = redisTemplate.opsForZSet().reverseRange(key, 0, MAX_HISTORY_SIZE - 1L);
 
         if (values == null || values.isEmpty()) {
             return Collections.emptyList();

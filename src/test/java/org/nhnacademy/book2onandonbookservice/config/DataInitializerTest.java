@@ -94,11 +94,10 @@ class DataInitializerTest {
     @Test
     @DisplayName("CSV 파일 처리 - 정상 케이스")
     void processCsvFile_Success() throws Exception {
-        String csvContent =
-                "ISBN_THIRTEEN_NO,TITLE_NM,PUBLISHER_NM,AUTHR_NM,PRC_VALUE,TWO_PBLICTE_DE,BOOK_INTRCN_CN,VLM_NM,IMAGE_URL\n"
-                        +
-                        "9788901234567,테스트책,테스트출판사,홍길동(지은이),15000,2024-01-15,책소개,1권,http://image.url\n";
-
+        String csvContent = """
+                ISBN_THIRTEEN_NO,TITLE_NM,PUBLISHER_NM,AUTHR_NM,PRC_VALUE,TWO_PBLICTE_DE,BOOK_INTRCN_CN,VLM_NM,IMAGE_URL
+                9788901234567,테스트책,테스트출판사,홍길동(지은이),15000,2024-01-15,책소개,1권,http://image.url
+                """;
         InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes("UTF-8"));
         when(resource.getInputStream()).thenReturn(inputStream);
         when(resource.getFilename()).thenReturn("test.csv");
@@ -209,43 +208,22 @@ class DataInitializerTest {
         assertThat(book.getBookContributors()).hasSize(expectedSize);
     }
 
-    @Test
-    @DisplayName("extractNameAndRole - 괄호 역할")
-    void extractNameAndRole_ParenthesisRole() throws Exception {
-        String token = "홍길동(지은이)";
-
+    @DisplayName("extractNameAndRole - 다양한 입력 형식 파싱 검증")
+    @ParameterizedTest(name = "[{index}] 입력: \"{0}\" -> 이름: {1}, 역할: {2}")
+    @CsvSource(value = {
+            "홍길동(지은이), 홍길동, 지은이",  // 괄호 역할
+            "홍길동 지음, 홍길동, 지은이",     // 접미사 역할 ('지음' -> '지은이' 정규화됨)
+            "홍길동, 홍길동, 지은이"          // 역할 없음 (기본값 '지은이')
+    })
+    void extractNameAndRole_Parameterized(String token, String expectedName, String expectedRole) throws Exception {
+        // when
         Object result = invokeExtractNameAndRole(token);
         String name = getField(result, "name");
         String role = getField(result, "role");
 
-        assertThat(name).isEqualTo("홍길동");
-        assertThat(role).isEqualTo("지은이");
-    }
-
-    @Test
-    @DisplayName("extractNameAndRole - 접미사 역할")
-    void extractNameAndRole_SuffixRole() throws Exception {
-        String token = "홍길동 지음";
-
-        Object result = invokeExtractNameAndRole(token);
-        String name = getField(result, "name");
-        String role = getField(result, "role");
-
-        assertThat(name).isEqualTo("홍길동");
-        assertThat(role).isEqualTo("지은이");
-    }
-
-    @Test
-    @DisplayName("extractNameAndRole - 역할 없음")
-    void extractNameAndRole_NoRole() throws Exception {
-        String token = "홍길동";
-
-        Object result = invokeExtractNameAndRole(token);
-        String name = getField(result, "name");
-        String role = getField(result, "role");
-
-        assertThat(name).isEqualTo("홍길동");
-        assertThat(role).isEqualTo("지은이"); // 기본값
+        // then (체이닝으로 깔끔하게 검증)
+        assertThat(name).isEqualTo(expectedName);
+        assertThat(role).isEqualTo(expectedRole);
     }
 
     @Test
@@ -388,10 +366,10 @@ class DataInitializerTest {
 
         Map<String, Integer> result = invokeCreateHeaderMap(headers);
 
-        assertThat(result).hasSize(3);
-        assertThat(result).containsEntry("col1", 0);
-        assertThat(result).containsEntry("col2", 1);
-        assertThat(result).containsEntry("col3", 2);
+        assertThat(result).hasSize(3)
+                .containsEntry("col1", 0)
+                .containsEntry("col2", 1)
+                .containsEntry("col3", 2);
 
     }
 
