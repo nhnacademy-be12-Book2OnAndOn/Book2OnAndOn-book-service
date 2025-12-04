@@ -105,7 +105,7 @@ class BookLikeServiceTest {
         BookLikeService.BookLikeToggleResult result = bookLikeService.toggleLike(bookId, userId);
 
         assertThat(result.liked()).isFalse();
-        assertThat(result.likeCount()).isEqualTo(0L);
+        assertThat(result.likeCount()).isZero();
 
         verify(bookLikeRepository).deleteByBookIdAndUserId(bookId, userId);
         verify(redisTemplate).delete(lockKey); // 락 해제 확인

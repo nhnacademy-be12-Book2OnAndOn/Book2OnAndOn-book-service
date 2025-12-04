@@ -75,6 +75,8 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     //판매 중 이거나 재고 없음인 책만 조회 (삭제된 책 제외)
     Page<Book> findByStatusNot(BookStatus status, Pageable pageable);
 
+    List<Book> findAllByIdGreaterThan(Long idIsGreaterThan, Pageable limit);
+
     interface BookIdAndIsbn {
         Long getId();
 

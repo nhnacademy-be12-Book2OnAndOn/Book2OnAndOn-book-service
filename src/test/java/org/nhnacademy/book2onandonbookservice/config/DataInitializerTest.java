@@ -3,14 +3,17 @@ package org.nhnacademy.book2onandonbookservice.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +30,6 @@ import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
-import org.nhnacademy.book2onandonbookservice.repository.BatchInsertRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
@@ -46,9 +48,6 @@ class DataInitializerTest {
 
     @Mock
     private ContributorRepository contributorRepository;
-
-    @Mock
-    private BatchInsertRepository batchInsertRepository;
 
     @Mock
     private BookBatchService bookBatchService;
@@ -121,6 +120,39 @@ class DataInitializerTest {
         dataInitializer.processCsvFile(resource);
 
         verify(bookBatchService, never()).saveBooksInBatch(anyList());
+    }
+
+    @Test
+    @DisplayName("CSV 파일 처리 - IO예외 발생 시 안전하게 처리되는지 확인")
+    void processCsvFile_IOException() throws Exception {
+        when(resource.getInputStream()).thenThrow(new IOException("File read error"));
+        when(resource.getFilename()).thenReturn("error.csv");
+
+        dataInitializer.processCsvFile(resource);
+
+        verify(bookBatchService, never()).saveBooksInBatch(anyList());
+    }
+
+    @Test
+    @DisplayName("CSV 파일 처리 - 일부 행이 유효하지 않을 경우 (필수값 누락) 해당 행만 스킵하고 나머지는 저장")
+    void processCsvFile_MixedValidAndInvalidRows() throws Exception {
+        String csvContent = """
+                ISBN_THIRTEEN_NO,TITLE_NM,PUBLISHER_NM,AUTHR_NM,PRC_VALUE,TWO_PBLICTE_DE,BOOK_INTRCN_CN,VLM_NM,IMAGE_URL
+                9788901234567,정상책,테스트출판사,홍길동,15000,2024-01-15,책소개,1권,http://url
+                9788901234568,,테스트출판사,김철수,10000,2024-01-15,제목없음,,http://url
+                """;
+
+        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8));
+        when(resource.getInputStream()).thenReturn(inputStream);
+        when(resource.getFilename()).thenReturn("mixed.csv");
+
+        when(publisherRepository.save(any(Publisher.class))).thenReturn(testPublisher);
+        when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
+
+        dataInitializer.processCsvFile(resource);
+
+        verify(bookBatchService).saveBooksInBatch(
+                argThat(list -> list.size() == 1 && (list.get(0)).getTitle().equals("정상책")));
     }
 
     @Test
@@ -216,12 +248,10 @@ class DataInitializerTest {
             "홍길동, 홍길동, 지은이"          // 역할 없음 (기본값 '지은이')
     })
     void extractNameAndRole_Parameterized(String token, String expectedName, String expectedRole) throws Exception {
-        // when
         Object result = invokeExtractNameAndRole(token);
         String name = getField(result, "name");
         String role = getField(result, "role");
 
-        // then (체이닝으로 깔끔하게 검증)
         assertThat(name).isEqualTo(expectedName);
         assertThat(role).isEqualTo(expectedRole);
     }
@@ -370,7 +400,6 @@ class DataInitializerTest {
                 .containsEntry("col1", 0)
                 .containsEntry("col2", 1)
                 .containsEntry("col3", 2);
-
     }
 
     // ===== Private Helper Methods =====

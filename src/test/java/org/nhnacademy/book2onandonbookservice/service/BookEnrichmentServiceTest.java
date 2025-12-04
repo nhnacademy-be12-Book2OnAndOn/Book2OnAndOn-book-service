@@ -93,6 +93,7 @@ class BookEnrichmentServiceTest {
 
         CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
 
+        result.join();
         assertThat(result).isCompleted();
         verify(bookRepository, never()).save(any());
     }
@@ -100,7 +101,6 @@ class BookEnrichmentServiceTest {
     @Test
     @DisplayName("ISBN으로 책을 찾을 수 없을 때")
     void enrichBookData_BookForIsbnNotFound() {
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(bookRepository.existsById(1L)).thenReturn(true);
 
         when(bookRepository.findById(1L))
@@ -109,6 +109,7 @@ class BookEnrichmentServiceTest {
 
         CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
 
+        result.join();
         assertThat(result).isCompleted();
     }
 
@@ -136,8 +137,9 @@ class BookEnrichmentServiceTest {
             return null;
         }).when(transactionTemplate).execute(any());
 
-        bookEnrichmentService.enrichBookData(1L);
+        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
 
+        result.join();
         verify(transactionTemplate).execute(any());
         verify(aladinApiClient).searchByIsbn(testBook.getIsbn());
     }
@@ -230,7 +232,6 @@ class BookEnrichmentServiceTest {
         assertThat(testBook.getImages()).hasSize(1);
         verify(bookRepository).save(testBook);
     }
-
 
     @Test
     @DisplayName("Gemini로 생성한 태그 저장")
@@ -395,20 +396,20 @@ class BookEnrichmentServiceTest {
 
     @Test
     @DisplayName("API 호출 중 예외 발생 시 처리")
-    void enrichBookData_ApiException() throws Exception {
+    void enrichBookData_ApiException() {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(bookRepository.existsById(1L)).thenReturn(true);
         when(aladinApiClient.searchByIsbn(anyString())).thenThrow(new RuntimeException("API Error"));
 
         CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
-
+        result.join();
         assertThat(result).isCompleted();
         verify(transactionTemplate, never()).execute(any());
     }
 
     @Test
     @DisplayName("Gemini 태그 생성 실패 시 계속 진행")
-    void enrichBookData_GeminiException() throws Exception {
+    void enrichBookData_GeminiException() {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(bookRepository.existsById(1L)).thenReturn(true);
         when(aladinApiClient.searchByIsbn(anyString())).thenReturn(aladinItem);
@@ -421,14 +422,15 @@ class BookEnrichmentServiceTest {
             return null;
         }).when(transactionTemplate).execute(any());
 
-        bookEnrichmentService.enrichBookData(1L);
+        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
 
+        result.join();
         verify(transactionTemplate).execute(any());
     }
 
     @Test
     @DisplayName("설명이 없을 때 Gemini 태그 생성 안함")
-    void enrichBookData_NoDescriptionNoGemini() throws Exception {
+    void enrichBookData_NoDescriptionNoGemini() {
         testBook.setDescription(null);
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(bookRepository.existsById(1L)).thenReturn(true);
@@ -440,8 +442,9 @@ class BookEnrichmentServiceTest {
             return null;
         }).when(transactionTemplate).execute(any());
 
-        bookEnrichmentService.enrichBookData(1L);
+        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
 
+        result.join();
         verify(geminiApiClient, never()).extractTags(anyString(), anyString());
     }
 
