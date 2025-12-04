@@ -28,7 +28,6 @@ class BookServicePopularUnitTest {
     @Mock
     BookRepository bookRepository;
 
-    // 실제 구현체 테스트 (인터페이스가 있다면 구현체 지정)
     @InjectMocks
     BookServiceImpl bookService;
 
@@ -68,10 +67,8 @@ class BookServicePopularUnitTest {
         given(bookRepository.findByStatusOrderByLikeCountDesc(eq(BookStatus.ON_SALE), any(Pageable.class)))
                 .willReturn(bookPage);
 
-        // when
         Page<BookListResponse> result = bookService.getPopularBooks(pageable);
 
-        // then
         assertThat(result.getContent()).hasSize(3);
         assertThat(result.getContent().get(0).getTitle()).isEqualTo("C");
         assertThat(result.getContent().get(1).getTitle()).isEqualTo("A");

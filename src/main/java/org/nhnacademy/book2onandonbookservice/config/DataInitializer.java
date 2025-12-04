@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,7 +24,6 @@ import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
-import org.nhnacademy.book2onandonbookservice.repository.BatchInsertRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
@@ -43,7 +43,6 @@ public class DataInitializer implements ApplicationRunner {
     private final BookRepository bookRepository;
     private final PublisherRepository publisherRepository;
     private final ContributorRepository contributorRepository;
-    private final BatchInsertRepository batchInsertRepository;
     private final BookBatchService bookBatchService;
     private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
@@ -52,7 +51,7 @@ public class DataInitializer implements ApplicationRunner {
     /*
     캐시를 Redis로 바꾸려 했는데 대량 등록 Batch 작업시엔 로컬 메모리 즉, Map을 쓰는게 압도적으로 빠르다고합니다.
      */
-    private static final Pattern SPLIT_PATTERN = Pattern.compile("[,;/&|]", Pattern.CANON_EQ);
+    private static final Pattern SPLIT_PATTERN = Pattern.compile("[,|/;]"); // 예시 구분자 패턴
 
     // 이름 (비탐욕)
     // 구분: 괄호() 또는 띄어쓰기 후 역할명
@@ -212,55 +211,23 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     /**
-     * 복잡한 작가 문자열을 파싱하여 BookContributor로 연결하는 로직 예: "홍길동(지은이), 김철수(옮긴이); 이영희 그림" -> 각각 분리하여 저장
+     * 저자 문자열을 파싱하여 Book 엔티티에 기여자(Contributor) 정보를 연결합니다.
      */
     private void parseAndAddContributors(Book book, String rawAuthorStr) {
-        // 전처리: "by ", "illustrated by" 등 제거
-        String cleanedStr = rawAuthorStr.replace("(?i)\\s*by\\s*", "")
-                .replace("(?i)\\s*illustrated\\s*", "");
-
-        // 구분자로 토큰 분리
-        String[] tokens = SPLIT_PATTERN.split(cleanedStr);
-        Set<String> addedKeys = new HashSet<>();
-
-        for (String token : tokens) {
-            token = token.trim();
-            if (token.isEmpty() || token.equals("외")) {
-                continue;
-            }
-
-            // "홍길동 외 2명" 처리
-            if (token.contains(" 외")) {
-                int index = token.indexOf(" 외");
-                token = token.substring(0, index).trim();
-            }
-
-            // 이름과 역할 추출
-            ContributorData cData = extractNameAndRole(token);
-            if (!StringUtils.hasText(cData.name)) {
-                continue;
-            }
-
-            // Contributor 가져오기 (캐시 활용)
-            Contributor contributor = contributorCache.computeIfAbsent(cData.name, n ->
-                    contributorRepository.save(Contributor.builder().contributorName(n).build())
-            );
-
-            String uniqueKey = contributor.getId() + "_" + cData.role;
-
-            if (addedKeys.contains(uniqueKey)) {
-                continue;
-            }
-
-            addedKeys.add(uniqueKey);
-
-            // BookContributor 연결
-            book.getBookContributors().add(BookContributor.builder()
-                    .book(book)
-                    .contributor(contributor)
-                    .roleType(cData.role) // 파싱된 역할(지은이, 옮긴이 등) 저장
-                    .build());
+        if (!StringUtils.hasText(rawAuthorStr)) {
+            return;
         }
+
+        String cleanedStr = cleanRawString(rawAuthorStr);
+        Set<String> processedKeys = new HashSet<>(); // 중복 방지용 키 (ContributorId_Role)
+
+        Arrays.stream(SPLIT_PATTERN.split(cleanedStr))
+                .map(String::trim)
+                .filter(this::isValidToken)
+                .map(this::removeEtcSuffix) // "홍길동 외 2명" -> "홍길동"
+                .map(this::extractNameAndRole) // 이름, 역할 추출
+                .filter(cData -> StringUtils.hasText(cData.name))
+                .forEach(cData -> linkContributorToBook(book, cData, processedKeys));
     }
 
     // 내부 헬퍼 클래스
@@ -319,6 +286,46 @@ public class DataInitializer implements ApplicationRunner {
             return rawRole.substring(0, 50);
         }
         return rawRole;
+    }
+
+    private String cleanRawString(String rawAuthorStr) {
+        return rawAuthorStr.replaceAll("(?i)\\s*by\\s*", "")
+                .replaceAll("(?i)\\s*illustrated\\s*", "");
+    }
+
+    private boolean isValidToken(String token) {
+        return StringUtils.hasText(token) && !token.equals("외");
+    }
+
+    private String removeEtcSuffix(String token) {
+        int index = token.indexOf(" 외");
+        if (index != -1) {
+            return token.substring(0, index).trim();
+        }
+        return token;
+    }
+
+    private void linkContributorToBook(Book book, ContributorData cData, Set<String> processedKeys) {
+        // 기여자 조회 또는 생성 (Cache -> DB)
+        Contributor contributor = getOrCreateContributor(cData.name);
+
+        String uniqueKey = contributor.getId() + "_" + cData.role;
+        if (processedKeys.contains(uniqueKey)) {
+            return;
+        }
+        processedKeys.add(uniqueKey);
+
+        book.getBookContributors().add(BookContributor.builder()
+                .book(book)
+                .contributor(contributor)
+                .roleType(cData.role)
+                .build());
+    }
+
+    private Contributor getOrCreateContributor(String name) {
+        return contributorCache.computeIfAbsent(name, n ->
+                contributorRepository.save(Contributor.builder().contributorName(n).build())
+        );
     }
 
     // --- 유틸리티 메서드 ---

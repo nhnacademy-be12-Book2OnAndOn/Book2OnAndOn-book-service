@@ -22,8 +22,8 @@ public class DataParserDto {
     private final String title;
     private final String description;
     private final LocalDate publishedAt;
-    private final long listPrice;
-    private final long salePrice;
+    private final Long standardPrice;
+    private final Long salePrice;
     private final String publisherName;
     private final String volume;
 
@@ -49,8 +49,8 @@ public class DataParserDto {
         this.title = title;
         this.description = description;
         this.publishedAt = parseDate(publishedAtStr);
-        this.listPrice = parsePrice(priceStr);
-        this.salePrice = this.listPrice;
+        this.standardPrice = parsePrice(priceStr);
+        this.salePrice = this.standardPrice;
         this.publisherName = publisherName;
         this.imageUrl = (imageUrl == null || imageUrl.isEmpty()) ? null : imageUrl;
         this.volume = volume;
@@ -63,12 +63,13 @@ public class DataParserDto {
 
             this.authors = participants.stream()
                     .filter(s -> s.contains("(지은이)") || !s.contains(")"))
-                    .map(s -> s.replace("\\s*\\(.*?\\)\\s*", "").trim())
-                    .toList();
+                    .map(s -> s.replaceAll("\\s*\\(.*?\\)\\s*", "").trim())
+                    .toList(); //정규식 적용을 위해 replaceAll 필수임 replaceAll 안하면 "김작가 (지은이)" 이렇게 나오고 하면 "김작가" 이렇게 제대로 파싱됨
+            // 아래도 마찬가지
 
             this.translators = participants.stream()
                     .filter(s -> s.contains("(옮긴이)") || !s.contains(")"))
-                    .map(s -> s.replace("\\s*\\(.*?\\)\\s*", "").trim())
+                    .map(s -> s.replaceAll("\\s*\\(.*?\\)\\s*", "").trim())
                     .toList();
         }
 
