@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -55,14 +54,18 @@ public class BookHistoryService {
     public List<Long> getRecentViews(Long userId, String guestId) {
         String key = getKey(userId, guestId);
 
-        Set<String> values = redisTemplate.opsForZSet().reverseRange(key, 0, MAX_HISTORY_SIZE - 1);
+        if (key == null) {
+            return Collections.emptyList();
+        }
+
+        Set<String> values = redisTemplate.opsForZSet().reverseRange(key, 0, MAX_HISTORY_SIZE - 1L);
 
         if (values == null || values.isEmpty()) {
             return Collections.emptyList();
         }
         return values.stream()
                 .map(Long::valueOf)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

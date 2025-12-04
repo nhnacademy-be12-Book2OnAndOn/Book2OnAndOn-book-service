@@ -57,11 +57,10 @@ public class BookCsvParser implements DataParser {
             String[] values;
             while ((values = csvReader.readNext()) != null) {
                 lineNum++;
-                try {
-                    DataParserDto dto = createDtoFromValues(values, headerMap);
+                DataParserDto dto = processRowAndCreateDto(values, headerMap, lineNum);
+
+                if (dto != null) {
                     dtoList.add(dto);
-                } catch (DataParserException e) {
-                    log.warn("라인 {} 스킵: 데이터 유효성 검사 실패. (이유: {})", lineNum, e.getMessage());
                 }
             }
         } catch (CsvValidationException e) {
@@ -69,6 +68,15 @@ public class BookCsvParser implements DataParser {
         }
 
         return dtoList;
+    }
+
+    private DataParserDto processRowAndCreateDto(String[] values, Map<String, Integer> headerMap, int lineNum) {
+        try {
+            return createDtoFromValues(values, headerMap);
+        } catch (DataParserException e) {
+            log.warn("라인 {} 스킵: 데이터 유효성 검사 실패. (이유: {})", lineNum, e.getMessage());
+            return null;
+        }
     }
 
 

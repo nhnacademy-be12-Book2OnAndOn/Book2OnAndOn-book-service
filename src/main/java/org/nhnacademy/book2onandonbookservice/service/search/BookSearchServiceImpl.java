@@ -1,7 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
@@ -29,81 +29,92 @@ public class BookSearchServiceImpl implements BookSearchService {
     @Override
     public Page<BookListResponse> search(BookSearchCondition condition, Pageable pageable) {
         Pageable sortedPageable = applySort(pageable, condition);
-        // NativeQuery로 쿼리 구성
+
+        // 1. 복잡한 쿼리 빌딩 로직을 configureBoolQuery 메서드로 위임하여 복잡도 감소
         NativeQuery query = NativeQuery.builder()
-                .withQuery(q -> q.bool(b -> {
-
-                    // 키워드: 제목/권/기여자/출판사/카테고리/태그 전체 검색
-                    if (StringUtils.hasText(condition.getKeyword())) {
-                        b.must(m -> m.multiMatch(mm -> mm
-                                .query(condition.getKeyword())
-                                .fields("title", "volume",
-                                        "contributorNames",
-                                        "publisherNames",
-                                        "categoryNames",
-                                        "tagNames")));
-                    }
-
-                    // 기여자 필터
-                    if (StringUtils.hasText(condition.getContributorName())) {
-                        b.filter(f -> f.match(m -> m
-                                .field("contributorNames.keyword")
-                                .query(condition.getContributorName())));
-                    }
-
-                    // 출판사 필터
-                    if (StringUtils.hasText(condition.getPublisherName())) {
-                        b.filter(f -> f.match(m -> m
-                                .field("publisherNames.keyword")
-                                .query(condition.getPublisherName())));
-                    }
-
-                    // 태그 필터
-                    if (StringUtils.hasText(condition.getTagName())) {
-                        b.filter(f -> f.match(m -> m
-                                .field("tagNames.keyword")
-                                .query(condition.getTagName())));
-                    }
-
-                    // 카테고리 필터
-                    if (condition.getCategoryId() != null) {
-
-                        String categoryName = categoryRepository.findById(condition.getCategoryId())
-                                .map(Category::getCategoryName)
-                                .orElse(null);
-
-                        if (categoryName != null) {
-                            b.filter(f -> f.term(t -> t
-                                    .field("categoryNames.keyword")
-                                    .value(categoryName)
-                            ));
-                        }
-                    }
-
-                    return b;
-                }))
+                .withQuery(q -> q.bool(b -> configureBoolQuery(b, condition)))
                 .withPageable(sortedPageable)
                 .build();
 
-        // 검색 실행
+        // 2. 검색 실행
         SearchHits<BookSearchDocument> hits =
                 elasticsearchOperations.search(query, BookSearchDocument.class);
 
+        // 3. 결과 매핑 (.collect(Collectors.toList()) -> .toList() 로 변경하여 간결화)
         List<BookListResponse> content = hits.getSearchHits().stream()
                 .map(SearchHit::getContent)
                 .map(this::toBookListResponse)
-                .collect(Collectors.toList());
+                .toList();
 
-        long totalHits = hits.getTotalHits();
+        return new PageImpl<>(content, sortedPageable, hits.getTotalHits());
+    }
 
-        return new PageImpl<>(content, sortedPageable, totalHits);
+    /**
+     * 검색 조건(BoolQuery)을 구성하는 헬퍼 메서드 - if문 분기를 이곳으로 이동시켜 search 메서드의 인지적 복잡도를 낮춤
+     */
+    private BoolQuery.Builder configureBoolQuery(BoolQuery.Builder b, BookSearchCondition condition) {
+        // 키워드: 제목/권/기여자/출판사/카테고리/태그 전체 검색
+        if (StringUtils.hasText(condition.getKeyword())) {
+            b.must(m -> m.multiMatch(mm -> mm
+                    .query(condition.getKeyword())
+                    .fields("title", "volume",
+                            "contributorNames",
+                            "publisherNames",
+                            "categoryNames",
+                            "tagNames")));
+        }
+
+        // 단순 필터 적용 (기여자, 출판사, 태그)
+        addSimpleFilters(b, condition);
+
+        // 카테고리 필터 적용
+        addCategoryFilter(b, condition);
+
+        return b;
+    }
+
+    // 반복되는 단순 필터 로직 분리
+    private void addSimpleFilters(BoolQuery.Builder b, BookSearchCondition condition) {
+        if (StringUtils.hasText(condition.getContributorName())) {
+            b.filter(f -> f.match(m -> m
+                    .field("contributorNames.keyword")
+                    .query(condition.getContributorName())));
+        }
+
+        if (StringUtils.hasText(condition.getPublisherName())) {
+            b.filter(f -> f.match(m -> m
+                    .field("publisherNames.keyword")
+                    .query(condition.getPublisherName())));
+        }
+
+        if (StringUtils.hasText(condition.getTagName())) {
+            b.filter(f -> f.match(m -> m
+                    .field("tagNames.keyword")
+                    .query(condition.getTagName())));
+        }
+    }
+
+    // 카테고리 로직 분리 (DB 조회 포함)
+    private void addCategoryFilter(BoolQuery.Builder b, BookSearchCondition condition) {
+        if (condition.getCategoryId() != null) {
+            String categoryName = categoryRepository.findById(condition.getCategoryId())
+                    .map(Category::getCategoryName)
+                    .orElse(null);
+
+            if (categoryName != null) {
+                b.filter(f -> f.term(t -> t
+                        .field("categoryNames.keyword")
+                        .value(categoryName)
+                ));
+            }
+        }
     }
 
     // 정렬 조건을 빌더에 적용
     private Pageable applySort(Pageable pageable, BookSearchCondition condition) {
         String sort = condition.getSort();
         if (!StringUtils.hasText(sort)) {
-            return pageable; // 정렬 조건이 없으면 그대로 사용
+            return pageable;
         }
 
         Sort springSort = switch (sort) {

@@ -1,6 +1,5 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -88,7 +87,7 @@ class ReindexControllerTest {
                 .id(categoryId)
                 .categoryName("새로운 카테고리")
                 .build();
-        given(categoryService.updateCategoryName(eq(categoryId), eq("새로운 카테고리"))).willReturn(mockCategory);
+        given(categoryService.updateCategoryName(categoryId, "새로운 카테고리")).willReturn(mockCategory);
 
         mockMvc.perform(put("/admin/category/{categoryId}", categoryId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -107,7 +106,7 @@ class ReindexControllerTest {
                 .id(tagId)
                 .tagName("새로운 태그")
                 .build();
-        given(tagService.updateTagName(eq(tagId), eq("새로운 태그"))).willReturn(mockTag);
+        given(tagService.updateTagName(tagId, "새로운 태그")).willReturn(mockTag);
 
         mockMvc.perform(put("/admin/tag/{tagId}", tagId)
                         .contentType(MediaType.APPLICATION_JSON)
