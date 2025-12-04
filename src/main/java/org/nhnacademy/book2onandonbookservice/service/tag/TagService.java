@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.entity.Tag;
 import org.nhnacademy.book2onandonbookservice.event.TagUpdatedEvent;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
-import org.nhnacademy.book2onandonbookservice.service.search.BookSearchSyncService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TagService {
     private final TagRepository tagRepository;
-    private final BookSearchSyncService bookSearchSyncService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional

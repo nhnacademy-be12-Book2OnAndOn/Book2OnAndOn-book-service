@@ -30,6 +30,8 @@ import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
+import org.nhnacademy.book2onandonbookservice.entity.ReviewImage;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundReviewException;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ReviewRepository;
@@ -221,6 +223,17 @@ class ReviewServiceImplTest {
         Page<ReviewDto> result = reviewService.getReviewListByUserId(userId, pageable);
 
         assertThat(result).hasSize(1);
+        assertThat(result.getContent().get(0).getTitle()).isEqualTo("R1");
+    }
+
+    @Test
+    @DisplayName("책이 없을 때 NotFoundBookException이 발생하는지")
+    void notFoundBookExceptionTest() {
+        given(bookRepository.findById(bookId)).willReturn(Optional.empty());
+
+        Pageable pageable = Pageable.unpaged();
+        assertThatThrownBy(() -> reviewService.getReviewListByBookId(bookId, pageable))
+                .isInstanceOf(NotFoundBookException.class);
     }
 
 
@@ -235,8 +248,6 @@ class ReviewServiceImplTest {
         // 기존 이미지 Mocking
         Review review = Review.builder().id(reviewId).userId(userId).book(book).title("원래").score(5)
                 .images(new ArrayList<>()).build();
-        // 삭제될 이미지 객체 생성 및 리스트에 추가 필요 (테스트 정교화)
-        // 여기서는 간단히 리스트가 비어있지 않다고 가정하고 removeIf 로직 탄다고 검증
 
         given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
         given(util.getUserId()).willReturn(userId);
@@ -251,6 +262,37 @@ class ReviewServiceImplTest {
         assertThat(review.getScore()).isEqualTo(3);
         verify(imageUploadService, times(1)).uploadReviewImage(newImage);
     }
+
+    @Test
+    @DisplayName("리뷰 수정 성공 - 이미지 삭제 로직 검증")
+    void updateReview_ImageDeletion() {
+        Long reviewId = 10L;
+        Long imageIdToDelete = 55L;
+        List<Long> deleteIds = List.of(imageIdToDelete);
+
+        ReviewUpdateRequest reviewUpdateRequest = ReviewUpdateRequest.builder()
+                .title("수정")
+                .content("수정됨")
+                .score(3)
+                .deleteImageIds(deleteIds).build();
+
+        ReviewImage reviewImage = ReviewImage.builder()
+                .id(imageIdToDelete)
+                .imagePath("path/to/delete.jpg")
+                .build();
+
+        List<ReviewImage> images = new ArrayList<>();
+        images.add(reviewImage);
+
+        Review review = Review.builder().id(reviewId).userId(userId).book(book).images(images).build();
+        given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+        given(util.getUserId()).willReturn(userId);
+
+        reviewService.updateReview(reviewId, reviewUpdateRequest, null);
+        verify(imageUploadService).remove("path/to/delete.jpg");
+        assertThat(review.getImages()).isEmpty();
+    }
+
 
     @Test
     @DisplayName("리뷰 수정 실패 - 작성자 불일치")
@@ -308,4 +350,25 @@ class ReviewServiceImplTest {
         assertThatThrownBy(() -> reviewService.deleteReview(reviewId))
                 .isInstanceOf(AccessDeniedException.class);
     }
+
+    @Test
+    @DisplayName("리뷰 삭제하고 평점 업데이트 만약 남은 리뷰가 없을때 평균이 null, 그럼 0.0으로 초기화 되는지")
+    void deleteReview_UpdateRating() {
+        Long reviewId = 10L;
+        book.updateRating(4.5);
+
+        Review review = Review.builder().id(reviewId).userId(userId).book(book).build();
+
+        given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+        given(util.getUserId()).willReturn(userId);
+
+        given(reviewRepository.getAverageScoreByBook(book)).willReturn(null);
+
+        reviewService.deleteReview(reviewId);
+
+        verify(reviewRepository).delete(review);
+        assertThat(book.getRating()).isEqualTo(0.0);
+    }
+
+
 }

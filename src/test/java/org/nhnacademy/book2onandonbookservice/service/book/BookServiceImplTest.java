@@ -115,7 +115,7 @@ class BookServiceImplTest {
         BookCategory mockBookCategory = mock(BookCategory.class);
         lenient().when(mockBookCategory.getCategory()).thenReturn(mockCategoryEntity);
 
-        BookImage mockBookImage = mock(BookImage.class);
+        mockBookImage = mock(BookImage.class);
         lenient().when(mockBookImage.getImagePath()).thenReturn("/path/to/image.jpg");
 
         bookA = Book.builder()

@@ -1,10 +1,11 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
+import jakarta.persistence.EntityManager;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,39 +18,41 @@ public class BookReindexService {
 
     private final BookRepository bookRepository;
     private final BookSearchIndexService bookSearchIndexService;
+    private final EntityManager entityManager;
 
     /**
      * DB에 있는 모든 Book 을 ES 인덱스에 다시 색인
      */
     @Transactional(readOnly = true)
     public void reindexAll() {
-        int pageSize = 1000;   // 여유 있게 페이지 크기 조절
-        Pageable pageable = PageRequest.of(0, pageSize);
-
+        long lastId = 0L;
+        int pageSize = 1000;
+        log.info("=== Book reindex 시작 ===");
         while (true) {
-            Page<Book> page = bookRepository.findAll(pageable);
+            Pageable limit = PageRequest.of(0, pageSize);
 
-            if (page.isEmpty()) {
+            List<Book> books = bookRepository.findAllByIdGreaterThan(lastId, limit);
+
+            if (books.isEmpty()) {
                 break;
             }
 
-            log.info("Reindexing books page={} size={} totalElements={}",
-                    page.getNumber(), page.getSize(), page.getTotalElements());
+            books.forEach(this::safeIndex);
 
-            page.forEach(book -> {
-                try {
-                    bookSearchIndexService.index(book);
-                } catch (Exception e) {
-                    log.error("ES 인덱싱 실패 - bookId={}", book.getId(), e);
-                }
-            });
+            Book lastBook = books.get(books.size() - 1);
+            lastId = lastBook.getId();
 
-            if (!page.hasNext()) {
-                break;
-            }
-            pageable = pageable.next();
+            log.info("리인덱싱 배치 사이즈={}, 마지막 책 아이디={}", books.size(), lastId);
+
+            entityManager.clear();
         }
+    }
 
-        log.info("=== Book reindex 완료 ===");
+    private void safeIndex(Book book) {
+        try {
+            bookSearchIndexService.index(book);
+        } catch (Exception e) {
+            log.error("ES 인덱싱 실패 - bookId={}", book.getId(), e);
+        }
     }
 }

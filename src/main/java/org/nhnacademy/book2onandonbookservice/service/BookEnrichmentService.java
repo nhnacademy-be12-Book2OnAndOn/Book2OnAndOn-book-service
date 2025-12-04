@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -54,9 +55,9 @@ public class BookEnrichmentService {
 
     @Async("apiExecutor")
     public CompletableFuture<Void> enrichBookData(Long bookId) {
-
         try {
-            TimeUnit.MILLISECONDS.sleep(500 + (long) (Math.random() * 1000));
+            long jitter = 500L + ThreadLocalRandom.current().nextInt(1000);
+            TimeUnit.MILLISECONDS.sleep(jitter);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.event.CategoryUpdatedEvent;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
-import org.nhnacademy.book2onandonbookservice.service.search.BookSearchSyncService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CategoryService {
     private final CategoryRepository categoryRepository;
-    private final BookSearchSyncService bookSearchSyncService;
     private final ApplicationEventPublisher eventPublisher;
 
     @CacheEvict(value = "categories", allEntries = true, cacheManager = "RedisCacheManager")
