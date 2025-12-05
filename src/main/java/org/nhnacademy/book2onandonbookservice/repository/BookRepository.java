@@ -32,7 +32,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     Optional<Book> findByIdWithRelations(Long bookId);
 
     /// 신간 도서 조회용 (정렬 O)
-    @Query("SELECT DISTINCT b FROM Book b JOIN b.bookCategories bc WHERE bc.category.id IN :categoryIds ORDER BY b.publishDate DESC")
+    @Query("SELECT DISTINCT b FROM Book b JOIN b.bookCategories bc WHERE b.status='ON_SALE' AND bc.category.id IN :categoryIds ORDER BY b.publishDate DESC")
     Page<Book> findBooksByCategoryIdsSorted(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
     /// 검색 동기화용 (정렬 X)

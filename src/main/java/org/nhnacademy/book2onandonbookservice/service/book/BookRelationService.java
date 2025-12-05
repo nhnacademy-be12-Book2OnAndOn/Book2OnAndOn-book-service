@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
@@ -173,7 +174,7 @@ public class BookRelationService {
     }
 
     /// 도서 수정 시 연관관계
-    public void applyRelationsForUpdate(Book book, BookSaveRequest request) {
+    public void applyRelationsForUpdate(Book book, BookUpdateRequest request) {
         // 카테고리: null 이 아니면 전체 교체
         if (request.getCategoryIds() != null) {
             setCategories(book, request.getCategoryIds());

@@ -3,14 +3,18 @@ package org.nhnacademy.book2onandonbookservice.dto.book;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 
 // 도서 검색 시 여러 권을 리스트로 보여주는(조회하는) DTO
 @Getter
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class BookListResponse {
     private Long id;    // book_id
     private String title; // 도서 제목
@@ -20,6 +24,7 @@ public class BookListResponse {
     private Long priceSales; // 도서 판매가
     private Double rating; //평점
     private String imagePath;   // 도서 이미지
+
     private LocalDate publisherDate;
 
     private List<String> contributorNames;  // 기여자 정보

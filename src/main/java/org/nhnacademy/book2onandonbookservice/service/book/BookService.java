@@ -7,17 +7,19 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface BookService {
     // 도서 등록
-    Long createBook(BookSaveRequest request);
+    Long createBook(BookSaveRequest request, List<MultipartFile> images);
 
     // 도서 수정
-    void updateBook(Long bookId, BookSaveRequest request);
+    void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> images);
 
     // 도서 삭제
     void deleteBook(Long bookId);

@@ -2,12 +2,14 @@ package org.nhnacademy.book2onandonbookservice.controller;
 
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookStatusUpdateRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
@@ -39,16 +41,10 @@ public class BookAdminController {
     @AuthCheck(Role.BOOK_ADMIN)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> createBook(@RequestPart("book") BookSaveRequest request,
-                                           @RequestPart(value = "image", required = false) MultipartFile image) {
+                                           @RequestPart(value = "image", required = false) List<MultipartFile> images) {
         log.info("도서 등록 요청: {}", request.getTitle());
 
-        // 이미지 처리 로직 참고 (minio url 을 만들어서 db에 저장해야됨)
-        if (image != null && !image.isEmpty()) {
-            String minioUrl = imageUploadService.uploadBookImage(image);
-            request.setImagePath(minioUrl);
-        }
-
-        Long bookId = bookService.createBook(request);
+        Long bookId = bookService.createBook(request, images);
         return ResponseEntity.created(URI.create("/books/" + bookId)).build();
     }
 
@@ -57,18 +53,12 @@ public class BookAdminController {
     @AuthCheck(Role.BOOK_ADMIN)
     public ResponseEntity<Void> updateBook(
             @PathVariable Long bookId,
-            @RequestPart("book") BookSaveRequest request,
-            @RequestPart(value = "image", required = false) MultipartFile image
+            @RequestPart("book") BookUpdateRequest request,
+            @RequestPart(value = "image", required = false) List<MultipartFile> images
     ) {
         log.info("도서 수정 요청: {}", request.getTitle());
 
-        // 새 이미지 업로드가 있는 경우
-        if (image != null && !image.isEmpty()) {
-            String minioUrl = imageUploadService.uploadBookImage(image);
-            request.setImagePath(minioUrl);
-        }
-
-        bookService.updateBook(bookId, request);
+        bookService.updateBook(bookId, request, images);
 
         return ResponseEntity.noContent().build();  // 204
     }

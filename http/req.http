@@ -9,12 +9,14 @@
 #############################################
 
 ### 1) 도서 등록 (이미지 없이)
-POST http://localhost:8089/books
+POST http://localhost:8089/admin/books
 Content-Type: multipart/form-data; boundary=----FormBoundary
+X-User-Role: ROLE_BOOK_ADMIN
 
 ------FormBoundary
 Content-Disposition: form-data; name="book"
 Content-Type: application/json
+
 
 {
   "isbn": "9999999999",
@@ -58,8 +60,9 @@ GET http://localhost:8089/books/1
 
 
 ### 2) 도서 수정 (일부 필드만 변경)
-PUT http://localhost:8089/books/1
+PUT http://localhost:8089/admin/books/1
 Content-Type: multipart/form-data; boundary=WebAppBoundary
+X-User-Role: ROLE_BOOK_ADMIN
 
 --WebAppBoundary
 Content-Disposition: form-data; name="book"
