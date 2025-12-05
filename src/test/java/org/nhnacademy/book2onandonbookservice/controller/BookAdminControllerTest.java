@@ -1,6 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookStatusUpdateRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
@@ -57,9 +59,10 @@ class BookAdminControllerTest {
     }
 
     @Test
-    @DisplayName("도서 등록 성공 컨트롤러 - 이미지 포함")
+    @DisplayName("도서 등록 성공 컨트롤러 - 이미지 리스트 포함")
     void createBook() throws Exception {
         mockAdminRole();
+
         BookSaveRequest request = BookSaveRequest.builder()
                 .title("Test Book")
                 .isbn("1234567890123")
@@ -68,19 +71,38 @@ class BookAdminControllerTest {
                 .build();
 
         String reqJson = objectMapper.writeValueAsString(request);
-        MockMultipartFile bookPart = new MockMultipartFile("book", "", "application/json", reqJson.getBytes(
-                StandardCharsets.UTF_8));
-        MockMultipartFile imagePart = new MockMultipartFile("image", "test.jpg", "image/jpeg", "dummy".getBytes());
-        given(imageUploadService.uploadBookImage(any())).willReturn("http://minio.test.jpg");
-        given(bookService.createBook(any(BookSaveRequest.class))).willReturn(1L);
+
+        MockMultipartFile bookPart = new MockMultipartFile(
+                "book",
+                "",
+                "application/json",
+                reqJson.getBytes(StandardCharsets.UTF_8)
+        );
+
+        MockMultipartFile image1 = new MockMultipartFile(
+                "images",
+                "test1.jpg",
+                "image/jpeg",
+                "dummy1".getBytes()
+        );
+        MockMultipartFile image2 = new MockMultipartFile(
+                "images",
+                "test2.jpg",
+                "image/jpeg",
+                "dummy2".getBytes()
+        );
+
+        given(bookService.createBook(any(BookSaveRequest.class), anyList()))
+                .willReturn(1L);
 
         mockMvc.perform(multipart("/admin/books")
                         .file(bookPart)
-                        .file(imagePart)
+                        .file(image1)
+                        .file(image2)
                         .contentType(MediaType.MULTIPART_FORM_DATA_VALUE))
                 .andExpect(status().isCreated());
-        verify(bookService).createBook(any(BookSaveRequest.class));
 
+        verify(bookService).createBook(any(BookSaveRequest.class), any());
     }
 
     @Test
@@ -96,7 +118,7 @@ class BookAdminControllerTest {
         String reqJson = objectMapper.writeValueAsString(request);
         MockMultipartFile bookPart = new MockMultipartFile("book", "", "application/json", reqJson.getBytes(
                 StandardCharsets.UTF_8));
-        given(bookService.createBook(any(BookSaveRequest.class))).willReturn(1L);
+        given(bookService.createBook(any(BookSaveRequest.class), any())).willReturn(1L);
 
         mockMvc.perform(multipart("/admin/books")
                 .file(bookPart)
@@ -116,7 +138,7 @@ class BookAdminControllerTest {
                 StandardCharsets.UTF_8));
         MockMultipartFile imagePart = new MockMultipartFile("image", "new.jpg", "image/jpeg", "new-dummy".getBytes());
         given(imageUploadService.uploadBookImage(any())).willReturn("http://minio/new.jpg");
-        doNothing().when(bookService).updateBook(eq(bookId), any(BookSaveRequest.class));
+        doNothing().when(bookService).updateBook(eq(bookId), any(BookUpdateRequest.class), anyList());
         mockMvc.perform(multipart("/admin/books/{bookId}", bookId)
                         .file(bookPart)
                         .file(imagePart)

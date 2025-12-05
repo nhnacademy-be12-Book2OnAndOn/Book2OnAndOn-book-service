@@ -21,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookTag;
@@ -112,7 +113,7 @@ class BookRelationServiceTest {
         book.getBookCategories().add(bc1);
         book.getBookCategories().add(bc2);
 
-        BookSaveRequest request = BookSaveRequest.builder()
+        BookUpdateRequest request = BookUpdateRequest.builder()
                 .categoryIds(List.of(2L, 3L))
                 .build();
 
@@ -127,7 +128,7 @@ class BookRelationServiceTest {
         List<Long> currentIds = result.stream()
                 .map(bc -> bc.getCategory().getId())
                 .toList();
-        
+
         assertThat(currentIds).contains(2L, 3L).doesNotContain(1L);
     }
 
@@ -136,7 +137,7 @@ class BookRelationServiceTest {
     void applyRelationsForUpdate_NullFields() {
         book.getBookTags().add(mock(BookTag.class));
 
-        BookSaveRequest req = BookSaveRequest.builder()
+        BookUpdateRequest req = BookUpdateRequest.builder()
                 .categoryIds(null)
                 .tagNames(null)
                 .publisherIds(null)

@@ -10,12 +10,23 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 
 class BookValidatorTest {
     private final BookValidator validator = new BookValidator();
 
     private BookSaveRequest.BookSaveRequestBuilder createValidRequest() {
         return BookSaveRequest.builder()
+                .title("정상 제목")
+                .isbn("1234567890123")
+                .publishDate(LocalDate.now())
+                .priceStandard(10000L)
+                .priceSales(9000L)
+                .categoryIds(List.of(1L));
+    }
+
+    private BookUpdateRequest.BookUpdateRequestBuilder updateValidRequest() {
+        return BookUpdateRequest.builder()
                 .title("정상 제목")
                 .isbn("1234567890123")
                 .publishDate(LocalDate.now())
@@ -119,7 +130,7 @@ class BookValidatorTest {
     @Test
     @DisplayName("수정 성공: 값이 없거나 정상 범위 일때")
     void validateForUpdate_Success() {
-        BookSaveRequest request = BookSaveRequest.builder().build();
+        BookUpdateRequest request = BookUpdateRequest.builder().build();
 
         assertThatCode(() -> validator.validateForUpdate(request))
                 .doesNotThrowAnyException();
@@ -128,12 +139,12 @@ class BookValidatorTest {
     @Test
     @DisplayName("수정 실패: 정가,판매가가 음수인경우")
     void validateForCreate_InvalidPrice_Modify() {
-        BookSaveRequest request = createValidRequest().priceStandard(-1L).build();
+        BookUpdateRequest request = updateValidRequest().priceStandard(-1L).build();
         assertThatThrownBy(() -> validator.validateForUpdate(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("정가는 0원 이상");
 
-        BookSaveRequest request2 = createValidRequest().priceSales(-1L).build();
+        BookUpdateRequest request2 = updateValidRequest().priceSales(-1L).build();
         assertThatThrownBy(() -> validator.validateForUpdate(request2))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("판매가는 0원 이상");
@@ -142,7 +153,7 @@ class BookValidatorTest {
     @Test
     @DisplayName("수정 실패: 카테고리 리스트가 넘어왔는데 개수가 부적절한 경우")
     void validateForUpdate_InvalidCategory() {
-        BookSaveRequest request = BookSaveRequest.builder()
+        BookUpdateRequest request = BookUpdateRequest.builder()
                 .categoryIds(Collections.emptyList())
                 .build();
 
@@ -152,7 +163,7 @@ class BookValidatorTest {
 
         List<Long> manyCategories = IntStream.range(0, 11).mapToObj(Long::valueOf).toList();
 
-        BookSaveRequest req = BookSaveRequest.builder().categoryIds(manyCategories).build();
+        BookUpdateRequest req = BookUpdateRequest.builder().categoryIds(manyCategories).build();
 
         assertThatThrownBy(() -> validator.validateForUpdate(req)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("최대 10개");

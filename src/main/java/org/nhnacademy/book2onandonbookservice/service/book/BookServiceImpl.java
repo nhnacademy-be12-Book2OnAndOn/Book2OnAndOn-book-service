@@ -12,20 +12,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
+import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
+import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
 import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
+import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMapper;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
 import org.springframework.cache.annotation.Cacheable;
@@ -33,6 +37,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 // 등록/수정 담당
 @Slf4j
@@ -51,14 +56,29 @@ public class BookServiceImpl implements BookService {
     private final BookListResponseMapper bookListResponseMapper;
     private final OrderServiceClient orderServiceClient;
     private final BookHistoryService bookHistoryService;
+    private final ImageUploadService imageUploadService;
 
     // 도서 등록
     @Override
-    public Long createBook(BookSaveRequest request) {
+    public Long createBook(BookSaveRequest request, List<MultipartFile> images) {
         bookValidator.validateForCreate(request);
         Book book = bookFactory.createFrom(request);
 
         Book saved = bookRepository.save(book);
+
+        if (images != null && !images.isEmpty()) {
+            for (MultipartFile file : images) {
+                if (!file.isEmpty()) {
+                    String minioUrl = imageUploadService.uploadBookImage(file);
+
+                    BookImage bookImage = BookImage.builder()
+                            .book(saved)
+                            .imagePath(minioUrl)
+                            .build();
+                    saved.getImages().add(bookImage);
+                }
+            }
+        }
 
         bookRelationService.applyRelationsForCreate(saved, request);
 
@@ -73,14 +93,37 @@ public class BookServiceImpl implements BookService {
 
     // 도서 수정
     @Override
-    public void updateBook(Long bookId, BookSaveRequest request) {
+    public void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> newImages) {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
-
-        bookValidator.validateForUpdate(request);   // 수정값 검증
         bookFactory.updateFields(book, request);    // 단일 필드 업데이트
-        bookRelationService.applyRelationsForUpdate(book, request); // 연관관계
-        bookSearchIndexService.index(book); // 수정 후 인덱스 갱신
+
+        if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()) {
+            book.getImages().removeIf(image -> {
+                if (request.getDeleteImageIds().contains(image.getId())) {
+                    imageUploadService.remove(image.getImagePath());
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        if (newImages != null && !newImages.isEmpty()) {
+            for (MultipartFile file : newImages) {
+                if (!file.isEmpty()) {
+                    String minioUrl = imageUploadService.uploadBookImage(file);
+
+                    BookImage newImage = BookImage.builder()
+                            .book(book)
+                            .imagePath(minioUrl)
+                            .build();
+
+                    book.getImages().add(newImage);
+                }
+            }
+        }
+        bookRelationService.applyRelationsForUpdate(book, request);
+        bookSearchIndexService.index(book);
     }
 
     // 도서 삭제
@@ -182,7 +225,7 @@ public class BookServiceImpl implements BookService {
         } else {
             bookPage = bookRepository.findAllByOrderByPublishDateDesc(pageable);
         }
-        return bookPage.map(BookListResponse::from);
+        return new RestPage<>(bookPage.map(BookListResponse::from));
     }
 
     /// 내부 통신용 주문서 생성 및 결제 검증을 위한 도서 정보 다건 조회
@@ -326,4 +369,5 @@ public class BookServiceImpl implements BookService {
             collectChildIds(child, ids);
         }
     }
+
 }

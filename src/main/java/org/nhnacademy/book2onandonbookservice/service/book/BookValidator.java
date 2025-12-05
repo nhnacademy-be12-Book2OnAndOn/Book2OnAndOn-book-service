@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.util.List;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -13,7 +14,7 @@ public class BookValidator {
     }
 
     // 도서 수정 검증 로직
-    public void validateForUpdate(BookSaveRequest request) {
+    public void validateForUpdate(BookUpdateRequest request) {
         validatePriceRangeIfPresent(request);
         validateCategoryCountIfPresent(request.getCategoryIds());
     }
@@ -64,7 +65,7 @@ public class BookValidator {
         }
     }
 
-    private void validatePriceRangeIfPresent(BookSaveRequest request) {
+    private void validatePriceRangeIfPresent(BookUpdateRequest request) {
         if (request.getPriceStandard() != null && request.getPriceStandard() < 0) {
             throw new IllegalArgumentException("정가는 0원 이상이어야 합니다.");
         }

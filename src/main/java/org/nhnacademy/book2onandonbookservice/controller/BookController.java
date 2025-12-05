@@ -79,6 +79,7 @@ public class BookController {
     public ResponseEntity<Page<BookListResponse>> getNewArrivals(
             @RequestParam(value = "categoryId", required = false) Long categoryId,
             @PageableDefault(sort = "publishDate", direction = Direction.DESC) Pageable pageable) {
+        log.info("신간도서 요청 들어옴");
         Page<BookListResponse> newArrivals = bookService.getNewArrivals(categoryId, pageable);
         return ResponseEntity.ok(newArrivals);
     }

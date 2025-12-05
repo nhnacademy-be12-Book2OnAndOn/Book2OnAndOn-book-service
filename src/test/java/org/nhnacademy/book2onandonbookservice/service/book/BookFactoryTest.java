@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 
 class BookFactoryTest {
@@ -76,7 +77,7 @@ class BookFactoryTest {
                 .status(BookStatus.ON_SALE)
                 .build();
 
-        BookSaveRequest newBook = BookSaveRequest.builder()
+        BookUpdateRequest newBook = BookUpdateRequest.builder()
                 .title("신제목")
                 .priceStandard(2000L)
                 .status(BookStatus.ON_SALE)
@@ -100,7 +101,7 @@ class BookFactoryTest {
                 .isWrapped(true)
                 .build();
 
-        BookSaveRequest emptyRequest = BookSaveRequest.builder().build();
+        BookUpdateRequest emptyRequest = BookUpdateRequest.builder().build();
 
         bookFactory.updateFields(book, emptyRequest);
 
@@ -115,7 +116,7 @@ class BookFactoryTest {
     @DisplayName("updateFields: 모든 필드 업데이트 테스트")
     void updateFields_AllFields() {
         Book book = Book.builder().build();
-        BookSaveRequest request = BookSaveRequest.builder()
+        BookUpdateRequest request = BookUpdateRequest.builder()
                 .title("타타이이틀틀")
                 .volume("볼륨볼륨")
                 .chapter("채채텁텁텁!")
