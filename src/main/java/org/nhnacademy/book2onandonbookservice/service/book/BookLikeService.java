@@ -4,10 +4,14 @@ import java.time.Duration;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookLike;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,10 +68,11 @@ public class BookLikeService {
 
     /// 내가 좋아요한 책 ID 목록
     @Transactional(readOnly = true)
-    public List<Long> getMyLikedBookIds(Long userId) {
-        List<Long> ids = bookLikeRepository.findBookIdsByUserId(userId);
-        log.info("사용자의 도서 좋아요 리스트를 조회합니다. ids={}, userId={}", ids.size(), userId);
-        return ids;
+    public RestPage<BookListResponse> getMyLikedBookIds(Long userId, Pageable pageable) {
+        Page<BookLike> likePage = bookLikeRepository.findAllByUserId(userId, pageable);
+
+        Page<BookListResponse> dtoPage = likePage.map(bookLike -> BookListResponse.from(bookLike.getBook()))
+        return new RestPage<>(dtoPage);
     }
 
     public record BookLikeToggleResult(boolean liked, Long likeCount) {

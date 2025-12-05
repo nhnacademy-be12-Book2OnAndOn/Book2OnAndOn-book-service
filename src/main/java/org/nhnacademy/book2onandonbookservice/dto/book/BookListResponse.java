@@ -35,9 +35,13 @@ public class BookListResponse {
 
     public static BookListResponse from(Book book) {
         String mainImagePath = book.getImages().stream()
+                .filter(BookImage::isThumbnail)
                 .findFirst()
                 .map(BookImage::getImagePath)
-                .orElse(null);
+                .orElseGet(() -> book.getImages().stream()
+                        .findFirst()
+                        .map(BookImage::getImagePath)
+                        .orElse("/images/no-image.png"));
 
         return BookListResponse.builder()
                 .id(book.getId())

@@ -41,7 +41,7 @@ public class BookAdminController {
     @AuthCheck(Role.BOOK_ADMIN)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> createBook(@RequestPart("book") BookSaveRequest request,
-                                           @RequestPart(value = "image", required = false) List<MultipartFile> images) {
+                                           @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         log.info("도서 등록 요청: {}", request.getTitle());
 
         Long bookId = bookService.createBook(request, images);
@@ -54,7 +54,7 @@ public class BookAdminController {
     public ResponseEntity<Void> updateBook(
             @PathVariable Long bookId,
             @RequestPart("book") BookUpdateRequest request,
-            @RequestPart(value = "image", required = false) List<MultipartFile> images
+            @RequestPart(value = "images", required = false) List<MultipartFile> images
     ) {
         log.info("도서 수정 요청: {}", request.getTitle());
 

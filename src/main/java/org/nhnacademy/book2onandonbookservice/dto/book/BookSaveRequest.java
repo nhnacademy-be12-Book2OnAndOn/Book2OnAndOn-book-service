@@ -55,4 +55,7 @@ public class BookSaveRequest {
 
     // -- 설명 - WYSIWYG 편집 후 결과 HTML -> Book.book_description에 그대로 저장
     private String descriptionHtml;
+
+    //몇 번째 파일이 썸네일인지 (0부터 시작)
+    private int thumbnailIndex = 0;
 }
