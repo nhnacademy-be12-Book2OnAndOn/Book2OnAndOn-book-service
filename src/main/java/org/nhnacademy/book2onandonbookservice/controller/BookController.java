@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
+import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -105,12 +107,11 @@ public class BookController {
     }
 
     /**
-     * 로그인 직후 비회원 기록 병합 API POST /books/recent-views/merge Header: X-User-ID, X-Guest-Id
+     * 로그인 직후 비회원 기록 병합 API POST /books/recent-views/merge Header: X-User-Id, X-Guest-Id
      */
     @PostMapping("/recent-views/merge")
-    public ResponseEntity<Void> mergeRecentViews() {
-        Long userId = util.getUserId();
-        String guestId = util.getGuestId();
+    public ResponseEntity<Void> mergeRecentViews(@RequestHeader("X-User-Id") Long userId,
+                                                 @RequestHeader("X-Guest-Id") String guestId) {
 
         bookService.mergeRecentViews(guestId, userId);
         return ResponseEntity.ok().build();
@@ -128,6 +129,15 @@ public class BookController {
         );
 
         return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/my-likes")
+    @AuthCheck(Role.USER)
+    public ResponseEntity<RestPage<BookListResponse>> getMyLikedBooks(@PageableDefault(size = 12) Pageable pageable) {
+        Long userId = util.getUserId();
+
+        RestPage<BookListResponse> responses = bookLikeService.getMyLikedBookIds(userId, pageable);
+        return ResponseEntity.ok(responses);
     }
 
     public record BookLikeToggleResponse(boolean liked, Long likeCount) {

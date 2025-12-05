@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -67,14 +68,20 @@ public class BookServiceImpl implements BookService {
         Book saved = bookRepository.save(book);
 
         if (images != null && !images.isEmpty()) {
-            for (MultipartFile file : images) {
+            for (int i = 0; i < images.size(); i++) {
+                MultipartFile file = images.get(i);
+
                 if (!file.isEmpty()) {
                     String minioUrl = imageUploadService.uploadBookImage(file);
+
+                    boolean isThumbnail = (i == request.getThumbnailIndex());
 
                     BookImage bookImage = BookImage.builder()
                             .book(saved)
                             .imagePath(minioUrl)
+                            .isThumbnail(isThumbnail) // DB에 저장
                             .build();
+
                     saved.getImages().add(bookImage);
                 }
             }
@@ -128,15 +135,38 @@ public class BookServiceImpl implements BookService {
 
     // 도서 삭제
     @Override
+    @Transactional
     public void deleteBook(Long bookId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
+        Set<BookImage> images = book.getImages();
+        List<String> imagePaths = new ArrayList<>();
 
+        if (images != null) {
+            imagePaths = images.stream()
+                    .map(BookImage::getImagePath)
+                    .toList();
+        }
         // DB에서 삭제
         bookRepository.delete(book);
 
         // ES 인덱스에서도 삭제
-        bookSearchIndexService.deleteIndex(bookId);
+        try {
+            bookSearchIndexService.deleteIndex(bookId);
+
+        } catch (Exception e) {
+            log.error("ES 인덱스 삭제 실패: bookId={}", bookId, e);
+        }
+
+        for (String imagePath : imagePaths) {
+            try {
+                imageUploadService.remove(imagePath);
+            } catch (Exception e) {
+                log.error("이미지 삭제 실패: path={}", imagePath, e);
+            }
+        }
+
+
     }
 
     // 공통 mapper 사용 -> 리스트용 DTO 매핑
