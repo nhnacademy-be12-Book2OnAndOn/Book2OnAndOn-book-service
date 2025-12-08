@@ -42,7 +42,7 @@ public class BookDetailResponse {
     private List<TagDto> tags;  // 태그
     private Boolean isWrapped;  // 포장 여부
 
-    private String imagePath;   // 도서 이미지
+    private List<BookImageDto> images;   // 도서 이미지
 
     private String chapter; // 도서 목차
 
@@ -55,6 +55,8 @@ public class BookDetailResponse {
     private Double rating;       // 평균 평점
     private Long reviewCount;          // 전체 리뷰 개수
 
+    private boolean isThumbnail; //프론트에서 별 표시 할 때 필요함
+
 
     /// 헬퍼 메서드
     public static BookDetailResponse from(Book book, Long likeCount, Boolean likedByCurrentUser) {
@@ -63,11 +65,11 @@ public class BookDetailResponse {
                 .map(bc -> bc.getContributor().getContributorName())
                 .collect(Collectors.joining(", "));
 
-        //대표이미지 추출
-        String thumbnail = book.getImages().stream()
-                .findFirst()
-                .map(BookImage::getImagePath)
-                .orElse("/images/no-image.png");
+        List<BookImageDto> imageDtos = book.getImages().stream()
+                .sorted(Comparator.comparing(BookImage::isThumbnail).reversed()
+                        .thenComparing(BookImage::getId))
+                .map(BookImageDto::from)
+                .toList();
 
         List<CategoryDto> categoryDtos = book.getBookCategories().stream()
                 .map(bc -> CategoryDto.builder()
@@ -111,7 +113,7 @@ public class BookDetailResponse {
                 .categories(categoryDtos)
                 .tags(tagDtos)
                 .isWrapped(book.getIsWrapped())
-                .imagePath(thumbnail)
+                .images(imageDtos)
                 .chapter(book.getChapter())
                 .descriptionHtml(book.getDescription())
                 .likeCount(likeCount)

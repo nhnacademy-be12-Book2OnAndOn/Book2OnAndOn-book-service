@@ -56,4 +56,6 @@ public class BookUpdateRequest {
     private String descriptionHtml;
 
     private List<Long> deleteImageIds;
+
+    private int thumbnailIndex = 0;
 }

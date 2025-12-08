@@ -8,9 +8,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService;
 import org.nhnacademy.book2onandonbookservice.service.review.ReviewService;
@@ -21,6 +25,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -67,17 +72,35 @@ class UserControllerTest {
     void getMyLikedBooks() throws Exception {
         // given
         Long userId = 10L;
-        List<Long> ids = List.of(1L, 2L, 3L);
+
+        BookListResponse bookInfo = BookListResponse.builder()
+                .id(1L)
+                .title("테스트 도서")
+                .priceSales(10000L)
+                .build();
+
+        MyLikedBookResponse responseDto = MyLikedBookResponse.builder()
+                .bookLikeId(100L)
+                .createdAt(LocalDateTime.now())
+                .bookInfo(bookInfo)
+                .build();
+
+        List<MyLikedBookResponse> content = List.of(responseDto);
+        PageImpl<MyLikedBookResponse> page = new PageImpl<>(content, PageRequest.of(0, 10), 1);
+        RestPage<MyLikedBookResponse> responsePage = new RestPage<>(page);
 
         given(util.getUserId()).willReturn(userId);
-        given(bookLikeService.getMyLikedBookIds(userId)).willReturn(ids);
+        given(bookLikeService.getMyLikedBookIds(eq(userId), any(Pageable.class)))
+                .willReturn(responsePage);
 
-        // when & then
-        mockMvc.perform(get("/internal/users/likes/me"))
+        mockMvc.perform(get("/internal/users/likes/me")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .param("sort", "createdAt,desc")) // 정렬 조건 테스트
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0]", is(1)))
-                .andExpect(jsonPath("$[1]", is(2)))
-                .andExpect(jsonPath("$[2]", is(3)));
+                .andExpect(jsonPath("$.content[0].bookLikeId").value(100L))
+                .andExpect(jsonPath("$.content[0].book.id").value(1L))
+                .andExpect(jsonPath("$.content[0].book.title").value("테스트 도서"));
 
     }
 
