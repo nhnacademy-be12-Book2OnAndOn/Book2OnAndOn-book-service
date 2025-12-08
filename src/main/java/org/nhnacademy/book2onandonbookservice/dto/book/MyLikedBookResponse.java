@@ -11,14 +11,16 @@ import org.nhnacademy.book2onandonbookservice.entity.BookLike;
 @Builder
 public class MyLikedBookResponse {
     private Long bookLikeId;
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt; //좋아요 누른 시간
     private BookListResponse bookInfo;
+    private boolean isLiked;
 
     public static MyLikedBookResponse from(BookLike bookLike) {
         return MyLikedBookResponse.builder()
                 .bookLikeId(bookLike.getId())
                 .createdAt(bookLike.getCreatedAt())
                 .bookInfo(BookListResponse.from(bookLike.getBook()))
+                .isLiked(true)
                 .build();
     }
 }

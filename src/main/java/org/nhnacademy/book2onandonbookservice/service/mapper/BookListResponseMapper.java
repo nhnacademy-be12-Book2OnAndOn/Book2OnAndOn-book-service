@@ -45,7 +45,7 @@ public class BookListResponseMapper {
                 .imagePath(imagePath)
                 .contributorNames(contributorNames)
                 .publisherNames(publisherNames)
-                .categoryIds(categoryIds)
+                .categoryNames(categoryIds)
                 .tagNames(tagNames)
                 .build();
     }
@@ -61,7 +61,7 @@ public class BookListResponseMapper {
                 .imagePath(null)  // ES에 이미지 안 넣었으면 null
                 .contributorNames(doc.getContributorNames())
                 .publisherNames(doc.getPublisherNames())
-                .categoryIds(doc.getCategoryNames())
+                .categoryNames(doc.getCategoryNames())
                 .tagNames(doc.getTagNames())
                 .build();
     }

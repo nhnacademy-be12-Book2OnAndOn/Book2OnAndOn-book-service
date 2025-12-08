@@ -146,7 +146,7 @@ public class BookSearchServiceImpl implements BookSearchService {
                 .priceSales(doc.getPriceSales())
                 .contributorNames(doc.getContributorNames())
                 .publisherNames(doc.getPublisherNames())
-                .categoryIds(doc.getCategoryNames())
+                .categoryNames(doc.getCategoryNames())
                 .tagNames(doc.getTagNames())
                 .build();
     }
