@@ -1,11 +1,10 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.time.Duration;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
-import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookLike;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
@@ -68,10 +67,10 @@ public class BookLikeService {
 
     /// 내가 좋아요한 책 ID 목록
     @Transactional(readOnly = true)
-    public RestPage<BookListResponse> getMyLikedBookIds(Long userId, Pageable pageable) {
+    public RestPage<MyLikedBookResponse> getMyLikedBookIds(Long userId, Pageable pageable) {
         Page<BookLike> likePage = bookLikeRepository.findAllByUserId(userId, pageable);
 
-        Page<BookListResponse> dtoPage = likePage.map(bookLike -> BookListResponse.from(bookLike.getBook()))
+        Page<MyLikedBookResponse> dtoPage = likePage.map(MyLikedBookResponse::from);
         return new RestPage<>(dtoPage);
     }
 

@@ -15,6 +15,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,10 +26,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
+import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookLike;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -147,20 +155,43 @@ class BookLikeServiceTest {
     }
 
     @Test
-    @DisplayName("내가 좋아요한 책 ID 리스트 조회 (Redis 사용 안 함)")
-    void getMyLikedBookIds() {
+    @DisplayName("내가 좋아요한 책 리스트 조회 (Redis 사용 안 함)")
+    void getMyLikedBooks() {
         Long userId = 10L;
-        List<Long> ids = List.of(1L, 2L, 3L);
+        Pageable pageable = PageRequest.of(0, 10);
 
-        // 이 메서드는 Redis를 안 쓰지만, setUp()에서 redisTemplate.opsForValue()가 호출되므로
-        // strict stubbing 에러를 방지하기 위해 lenient() 설정이 있거나,
-        // 아예 호출되지 않음을 확인하면 됨. (setUp의 given은 호출되어도 상관없음)
+        Book book = Book.builder()
+                .id(1L)
+                .title("테스트 책")
+                .priceSales(15000L)
+                .images(new HashSet<>())
+                .bookContributors(new HashSet<>())
+                .bookPublishers(new HashSet<>())
+                .bookCategories(new HashSet<>())
+                .bookTags(new HashSet<>())
+                .build();
 
-        when(bookLikeRepository.findBookIdsByUserId(userId)).thenReturn(ids);
+        BookLike bookLike = BookLike.builder()
+                .id(100L)
+                .userId(userId)
+                .book(book)
+                .createdAt(LocalDateTime.now()) //좋아요 생성시간
+                .build();
 
-        List<Long> result = bookLikeService.getMyLikedBookIds(userId);
+        List<BookLike> likeList = List.of(bookLike);
+        Page<BookLike> likePage = new PageImpl<>(likeList, pageable, likeList.size());
 
-        assertThat(result).containsExactly(1L, 2L, 3L);
-        verify(bookLikeRepository).findBookIdsByUserId(userId);
+        when(bookLikeRepository.findAllByUserId(userId, pageable)).thenReturn(likePage);
+
+        RestPage<MyLikedBookResponse> result = bookLikeService.getMyLikedBookIds(userId, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+
+        MyLikedBookResponse response = result.getContent().get(0);
+        assertThat(response.getBookLikeId()).isEqualTo(100L);
+        assertThat(response.getBookInfo().getId()).isEqualTo(1L);
+        assertThat(response.getBookInfo().getTitle()).isEqualTo("테스트 책");
+
+        verify(bookLikeRepository).findAllByUserId(userId, pageable);
     }
 }

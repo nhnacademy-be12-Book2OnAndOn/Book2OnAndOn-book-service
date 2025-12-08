@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
-import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
@@ -129,15 +128,6 @@ public class BookController {
         );
 
         return ResponseEntity.ok(body);
-    }
-
-    @GetMapping("/my-likes")
-    @AuthCheck(Role.USER)
-    public ResponseEntity<RestPage<BookListResponse>> getMyLikedBooks(@PageableDefault(size = 12) Pageable pageable) {
-        Long userId = util.getUserId();
-
-        RestPage<BookListResponse> responses = bookLikeService.getMyLikedBookIds(userId, pageable);
-        return ResponseEntity.ok(responses);
     }
 
     public record BookLikeToggleResponse(boolean liked, Long likeCount) {
