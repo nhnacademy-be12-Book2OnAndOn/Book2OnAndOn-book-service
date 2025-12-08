@@ -17,13 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/search")
+@RequestMapping("/books")
 public class BookSearchController {
 
     private final BookSearchService bookSearchService;
 
     // ES 기반 도서 검색
-    @GetMapping("/books")
+    @GetMapping("/search")
     public ResponseEntity<Page<BookListResponse>> searchBooks(
             @ModelAttribute BookSearchCondition condition,
             @PageableDefault(size = 20) Pageable pageable
