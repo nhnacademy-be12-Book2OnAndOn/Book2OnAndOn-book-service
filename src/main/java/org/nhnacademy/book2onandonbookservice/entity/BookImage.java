@@ -40,5 +40,5 @@ public class BookImage {
     private Book book;
 
     @Column(name = "is_thumbnail", nullable = false)
-    private boolean isThumbnail = false;
+    private boolean isThumbnail;
 }

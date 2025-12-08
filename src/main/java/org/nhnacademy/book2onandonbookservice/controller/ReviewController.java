@@ -5,18 +5,12 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewCreateRequest;
-import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.service.review.ReviewService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort.Direction;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -41,13 +35,6 @@ public class ReviewController {
         return ResponseEntity.status(HttpStatus.CREATED).body(reviewId);
     }
 
-    //특정 도서에 대한 리뷰목록
-    @GetMapping(value = "/{bookId}/reviews")
-    public ResponseEntity<Page<ReviewDto>> getReviewList(@PathVariable Long bookId,
-                                                         @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Direction.DESC) Pageable pageable) {
-        Page<ReviewDto> reviewPage = reviewService.getReviewListByBookId(bookId, pageable);
-        return ResponseEntity.ok(reviewPage);
-    }
 
     //리뷰수정
     @PutMapping(value = "/reviews/{reviewId}")

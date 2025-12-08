@@ -26,10 +26,9 @@ public class BookListResponse {
     private String imagePath;   // 도서 이미지
 
     private LocalDate publisherDate;
-
     private List<String> contributorNames;  // 기여자 정보
     private List<String> publisherNames;    // 출판사
-    private List<String> categoryIds;   // 카테고리
+    private List<String> categoryNames;   // 카테고리
     private List<String> tagNames;  // 태그
 
 
@@ -60,7 +59,7 @@ public class BookListResponse {
                         .map(bp -> bp.getPublisher().getPublisherName())
                         .collect(Collectors.toList())
                 )
-                .categoryIds(book.getBookCategories().stream()
+                .categoryNames(book.getBookCategories().stream()
                         .map(bc -> bc.getCategory().getCategoryName())
                         .collect(Collectors.toList())
                 )
@@ -69,5 +68,9 @@ public class BookListResponse {
                         .collect(Collectors.toList())
                 ).build();
     }
+    /*
+    BookListResponse 로직수정 (카테고리 관련/ 북 상태 관련)
+    like쪽 user랑 맞추기
+     */
 
 }
