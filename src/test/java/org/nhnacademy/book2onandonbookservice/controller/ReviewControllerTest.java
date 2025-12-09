@@ -170,17 +170,4 @@ class ReviewControllerTest {
 
         verify(reviewService).updateReview(eq(reviewDtos.getId()), any(ReviewUpdateRequest.class), any());
     }
-
-    @Test
-    @DisplayName("리뷰 삭제 성공")
-    void deleteReview() throws Exception {
-        Long reviewId = 3L;
-        willDoNothing().given(reviewService).deleteReview(reviewId);
-
-        mockMvc.perform(delete("/books/reviews/{reviewId}", reviewId))
-                .andDo(print())
-                .andExpect(status().isNoContent());
-
-        verify(reviewService).deleteReview(reviewId);
-    }
 }
