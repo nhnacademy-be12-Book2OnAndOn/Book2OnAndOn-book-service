@@ -12,6 +12,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,7 +24,13 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "Review")
+@Table(name = "Review",
+uniqueConstraints = {
+        @UniqueConstraint(
+                name="uk_review_book_user",
+                columnNames = {"book_id","user_id"}
+        )
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

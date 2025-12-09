@@ -45,11 +45,4 @@ public class ReviewController {
         return ResponseEntity.ok().build();
     }
 
-    //리뷰삭제
-    @DeleteMapping("/reviews/{reviewId}")
-    public ResponseEntity<Void> deleteReview(@PathVariable Long reviewId) {
-        reviewService.deleteReview(reviewId);
-        return ResponseEntity.noContent().build();
-    }
-
 }

@@ -18,6 +18,4 @@ public interface ReviewService {
     Page<ReviewDto> getReviewListByUserId(Long userId, Pageable pageable);
 
     void updateReview(Long reviewId, ReviewUpdateRequest request, List<MultipartFile> images);
-
-    void deleteReview(Long reviewId);
 }
