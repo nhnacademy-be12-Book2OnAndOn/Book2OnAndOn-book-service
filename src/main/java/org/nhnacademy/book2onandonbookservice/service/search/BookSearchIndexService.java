@@ -26,11 +26,18 @@ public class BookSearchIndexService {
     }
 
     private BookSearchDocument toDocument(Book book) {
+        String thumbnail = book.getThumbnail();
+
+        if (thumbnail == null && book.getImages() != null && !book.getImages().isEmpty()) {
+            thumbnail = book.getImages().iterator().next().getImagePath();
+        }
+
         return BookSearchDocument.builder()
                 .id(book.getId())
                 .isbn(book.getIsbn())
                 .title(book.getTitle())
                 .volume(book.getVolume())
+                .imagePath(thumbnail)
                 .contributorNames(
                         book.getBookContributors().stream()
                                 .map(bc -> bc.getContributor().getContributorName())

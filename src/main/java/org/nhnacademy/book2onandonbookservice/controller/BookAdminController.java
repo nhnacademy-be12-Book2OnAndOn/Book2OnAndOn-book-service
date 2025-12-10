@@ -62,6 +62,13 @@ public class BookAdminController {
         return ResponseEntity.noContent().build();  // 204
     }
 
+    /// 도서 이미지 썸네일 설정
+    @PutMapping("/{bookId}/images/{imageId}/thumbnail")
+    public ResponseEntity<Void> updateThumbnail(@PathVariable Long bookId, @PathVariable Long imageId){
+        bookService.updateThumbnail(bookId,imageId);
+        return ResponseEntity.ok().build();
+    }
+
     ///  도서 삭제
     @DeleteMapping("/{bookId}")
     @AuthCheck(Role.BOOK_ADMIN)

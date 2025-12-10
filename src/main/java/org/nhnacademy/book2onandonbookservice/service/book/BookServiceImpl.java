@@ -68,7 +68,7 @@ public class BookServiceImpl implements BookService {
         Book book = bookFactory.createFrom(request);
 
         Book saved = bookRepository.save(book);
-
+        boolean hasThumbnail = book.getImages().stream().anyMatch(BookImage::isThumbnail);
         if (images != null && !images.isEmpty()) {
             for (int i = 0; i < images.size(); i++) {
                 MultipartFile file = images.get(i);
@@ -76,11 +76,16 @@ public class BookServiceImpl implements BookService {
                 if (!file.isEmpty()) {
                     String minioUrl = imageUploadService.uploadBookImage(file);
 
+                    boolean isThisThumbnail = !hasThumbnail;
                     BookImage bookImage = BookImage.builder()
                             .book(saved)
                             .imagePath(minioUrl)
+                            .isThumbnail(isThisThumbnail)
                             .build();
 
+                    if(isThisThumbnail){
+                        hasThumbnail=true;
+                    }
                     saved.getImages().add(bookImage);
                 }
             }
@@ -116,20 +121,54 @@ public class BookServiceImpl implements BookService {
         }
 
         if (newImages != null && !newImages.isEmpty()) {
+            boolean hasThumbnail = book.getImages().stream().anyMatch(BookImage::isThumbnail);
             for (MultipartFile file : newImages) {
                 if (!file.isEmpty()) {
                     String minioUrl = imageUploadService.uploadBookImage(file);
 
+                    boolean isThisThumbnail = !hasThumbnail;
+
                     BookImage newImage = BookImage.builder()
                             .book(book)
                             .imagePath(minioUrl)
+                            .isThumbnail(isThisThumbnail)
                             .build();
+
+                    if(isThisThumbnail){
+                        hasThumbnail=true;
+                    }
 
                     book.getImages().add(newImage);
                 }
             }
         }
         bookRelationService.applyRelationsForUpdate(book, request);
+        bookSearchIndexService.index(book);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
+    public void updateThumbnail(Long bookId, Long bookImageId) {
+        Book book = bookRepository.findByIdWithRelations(bookId)
+                .orElseThrow(()-> new NotFoundBookException(bookId));
+
+        Set<BookImage> images = book.getImages();
+
+        boolean exists = images.stream().anyMatch(img -> img.getId().equals(bookImageId));
+
+        if(!exists){
+            throw new IllegalArgumentException("해당 책에 존재하지 않는 이미지 입니다.");
+        }
+
+        for(BookImage image: images){
+            if(image.getId().equals(bookImageId)){
+                image.setThumbnail(true);
+            }else{
+                image.setThumbnail(false);
+            }
+        }
+
         bookSearchIndexService.index(book);
     }
 

@@ -106,6 +106,9 @@ public class Book {
     @Column(name = "book_status", length = 30, nullable = false)
     private BookStatus status;
 
+    @Column(name="thumbnail")
+    private String thumbnail;
+
     /// 연관 관계 설정
     // 도서 이미지 매핑
     @Setter

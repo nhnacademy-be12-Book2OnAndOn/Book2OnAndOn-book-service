@@ -33,6 +33,10 @@ public class BookImage {
     @Column(name = "book_image_path", columnDefinition = "TEXT", nullable = false)
     private String imagePath;
 
+    @Setter
+    @Column(name = "is_thumbnail", nullable = false)
+    private boolean isThumbnail;
+
     // 도서 아이디
     @Setter
     @ManyToOne(fetch = FetchType.LAZY)

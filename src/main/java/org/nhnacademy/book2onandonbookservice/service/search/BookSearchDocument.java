@@ -90,4 +90,8 @@ public class BookSearchDocument {
     // 도서 판매가
     @Field(type = FieldType.Long)
     private Long priceSales;
+
+    //썸네일 이미지 경로 (검색에는 사용 X, 저장만함)
+    @Field(type = FieldType.Keyword, index = false, docValues = false)
+    private String imagePath;
 }
