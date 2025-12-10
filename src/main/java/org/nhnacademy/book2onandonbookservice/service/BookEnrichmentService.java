@@ -1,14 +1,12 @@
 package org.nhnacademy.book2onandonbookservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,22 +14,13 @@ import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
 import org.nhnacademy.book2onandonbookservice.client.GeminiApiClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
-import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
-import org.nhnacademy.book2onandonbookservice.entity.BookImage;
-import org.nhnacademy.book2onandonbookservice.entity.BookTag;
-import org.nhnacademy.book2onandonbookservice.entity.BookTagPK;
-import org.nhnacademy.book2onandonbookservice.entity.Category;
-import org.nhnacademy.book2onandonbookservice.entity.Tag;
-import org.nhnacademy.book2onandonbookservice.repository.BookCategoryRepository;
-import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
-import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
-import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
-import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
+import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
+import org.nhnacademy.book2onandonbookservice.entity.*;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.repository.*;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Slf4j
@@ -48,103 +37,86 @@ public class BookEnrichmentService {
 
     private final GeminiApiClient geminiApiClient;
     private final AladinApiClient aladinApiClient;
-    private final TransactionTemplate transactionTemplate;
-    private final Map<String, Long> categoryIdCache = new ConcurrentHashMap<>();
 
+    private final Map<String, Long> categoryIdCache = new ConcurrentHashMap<>();
     private static final Pattern CATEGORY_SPLIT_PATTERN = Pattern.compile("\\s*>\\s*");
 
-    @Async("apiExecutor")
-    public CompletableFuture<Void> enrichBookData(Long bookId) {
-        try {
-            long jitter = 500L + ThreadLocalRandom.current().nextInt(1000);
-            TimeUnit.MILLISECONDS.sleep(jitter);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        Book book = bookRepository.findById(bookId).orElse(null);
-        if (!bookRepository.existsById(bookId)) {
-            return CompletableFuture.completedFuture(null);
-        }
+    //  동기 방식, 트랜잭션 처리
+    @Transactional
+    public void enrichBookData(Long bookId) throws JsonProcessingException {
 
-        Book bookForIsbn = bookRepository.findById(bookId).orElse(null);
-        if (bookForIsbn == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Book book = bookRepository.findById(bookId).orElseThrow(()-> new NotFoundBookException(bookId));
 
-        String title = bookForIsbn.getTitle();
-        String description = bookForIsbn.getDescription();
+        if(book.getStatus() == BookStatus.BOOK_DELETED) return;
 
         log.info("[보강 시작] 책 ID: {}, ISBN: {}", bookId, book.getIsbn());
 
         AladinApiResponse.Item aladinData = null;
-
         try {
             aladinData = fetchAladinData(book.getIsbn());
         } catch (Exception e) {
-            log.error("API 호출 중 오류 발생: {}", e.getMessage());
+            log.error("알라딘 API 통신 오류 발생 (ID: {})", bookId);
+            throw e; // 예외를 던져서 스케줄러가 'FAILED'로 기록하고 나중에 재시도하게 함
         }
 
-        List<String> generatedTags = null;
-        if (StringUtils.hasText(description)) {
+        String descriptionForGemini = book.getDescription();
+        if(!StringUtils.hasText(descriptionForGemini) && aladinData != null && StringUtils.hasText(aladinData.getDescription())){
+            descriptionForGemini = aladinData.getDescription();
+        }
+
+        BookContentDto geminiContent = null;
+        if (StringUtils.hasText(descriptionForGemini)) {
             try {
-                Thread.sleep(3000);
-                generatedTags = geminiApiClient.extractTags(title, description);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.warn("Gemini 태그 생성 대기 중 인터럽트 발생");
+                geminiContent = geminiApiClient
+                        .extractContent(book.getTitle(), descriptionForGemini, book.getIsbn());
+                log.info("[Gemini 추출 완료] 책 ID: {}",bookId);
             } catch (Exception e) {
-                log.warn("Gemini 태그 생성 실패: {}", e.getMessage());
+                String msg = e.getMessage();
+                if (msg != null && (msg.contains("Limit") || msg.contains("Quota") || msg.contains("429"))) {
+                    log.warn("Gemini API 제한 감지! 작업을 실패 처리하고 나중에 재시도합니다. (ID: {})", bookId);
+                    throw e;
+                }
+                log.warn("Gemini 호출 실패 (ID: {}): {}", bookId, e.getMessage());
             }
         }
 
-        if (aladinData != null || (generatedTags != null && !generatedTags.isEmpty())) {
-            AladinApiResponse.Item finalAladinData = aladinData;
-            List<String> finalTags = generatedTags;
-
-            // transactionTemplate.execute()를 쓰면 내부 호출 문제 없이 트랜잭션 적용됨
-            transactionTemplate.execute(status -> {
-                updateBookInTransaction(bookId, finalAladinData, finalTags);
-                return null;
-            });
-        }
-
-        return CompletableFuture.completedFuture(null);
-
+        // 데이터 업데이트
+        updateBookInTransaction(book, aladinData, geminiContent);
     }
 
-    protected void updateBookInTransaction(Long bookId, AladinApiResponse.Item aladinData,
-                                           List<String> finalTags) {
+    private void updateBookInTransaction(Book book, AladinApiResponse.Item aladinData, BookContentDto geminiContent) {
 
-        Book book = bookRepository.findById(bookId).orElseThrow();
+        boolean hasGeminiData = geminiContent != null && !geminiContent.hasNoTags();
 
-        // 1. 외부 데이터가 아예 없는 경우 삭제 처리 (처리했다면 종료)
-        if (processDeleteIfNoExternalData(book, bookId, aladinData)) {
-            return;
+        if(aladinData==null && !hasGeminiData){
+            if(book.getPriceStandard() > 0){
+                return;
+            }
+            boolean isDeleted = processDeleteIfNoExternalData(book, book.getId(), aladinData);
+            if(isDeleted){
+                log.info("[보강 실패 -> 도서 상태 삭제로 변경] 책 ID: {}, 이유: 외부데이터 없음", book.getId());
+                return;
+            }
         }
 
-        // 2. 데이터 업데이트 진행 (Aladin)
         boolean isUpdated = false;
+
         isUpdated |= updateFromAladin(book, aladinData);
 
-        // 3. 태그 저장 (태그 저장은 isUpdated 플래그와 별개로 동작하던 기존 로직 유지)
-        updateTags(book, finalTags);
+        if(geminiContent != null){
+            isUpdated |= updateFromGemini(book, geminiContent);
+        }
 
-        // 4. 변경사항이 있으면 저장 및 인덱싱
-        if (isUpdated) {
+        if(isUpdated || hasGeminiData){
             bookRepository.save(book);
-            log.info("[보강 완료] 책 ID: {}", bookId);
             bookSearchIndexService.index(book);
+            log.info("[보강완료] 책 ID: {}", book.getId());
         }
     }
 
-// --- 아래는 추출한 헬퍼 메서드들입니다 ---
-
-    // 외부 데이터가 없으면 책을 삭제 처리하고 true 반환, 데이터가 있으면 false 반환
-    private boolean processDeleteIfNoExternalData(Book book, Long bookId,
-                                                  AladinApiResponse.Item aladinData
-    ) {
+    // --- 아래는 헬퍼 메서드  ---
+    private boolean processDeleteIfNoExternalData(Book book, Long bookId, AladinApiResponse.Item aladinData) {
         boolean hasExternalData = (aladinData != null);
-
         if (!hasExternalData) {
             book.setStatus(BookStatus.BOOK_DELETED);
             bookRepository.save(book);
@@ -154,75 +126,61 @@ public class BookEnrichmentService {
         return false;
     }
 
-    // 알라딘 데이터로 책 정보 업데이트
-    private boolean updateFromAladin(Book book, AladinApiResponse.Item aladinData) {
-        if (aladinData == null) {
-            return false;
-        }
-
+    private boolean updateFromGemini(Book book, BookContentDto geminiContent){
         boolean updated = false;
 
-        // 카테고리
-        if (book.getBookCategories().isEmpty() && StringUtils.hasText(aladinData.getCategoryName())) {
-            log.info("카테고리 발견: {}", aladinData.getCategoryName());
-            saveCategories(book, aladinData.getCategoryName());
+        if(!geminiContent.hasNoTags() && book.getBookTags().isEmpty()){
+            saveTags(book,geminiContent.getTags());
+            updated=true;
         }
 
-        // 가격
-        if ((book.getPriceStandard() == null || book.getPriceStandard() == 0) && aladinData.getPriceStandard() > 0) {
-            long newStandardPrice = aladinData.getPriceStandard();
-            book.setPriceStandard(newStandardPrice);
-            if (book.getPriceSales() == null || book.getPriceSales() == 0) {
-                book.setPriceSales(newStandardPrice);
-            }
-            updated = true;
-        }
-
-        // 출판일
-        if (book.getPublishDate() == null && StringUtils.hasText(aladinData.getPubDate())) {
-            book.setPublishDate(parseDate(aladinData.getPubDate()));
-            updated = true;
-        }
-
-        // 설명
-        if (!StringUtils.hasText(book.getDescription()) && StringUtils.hasText(aladinData.getDescription())) {
-            book.setDescription(aladinData.getDescription());
-            updated = true;
-        }
-
-        // 이미지
-        if (book.getImages().isEmpty() && StringUtils.hasText(aladinData.getCover())) {
-            BookImage newImage = BookImage.builder()
-                    .book(book)
-                    .imagePath(aladinData.getCover())
-                    .build();
-            book.getImages().add(newImage);
-            updated = true;
+        if(!geminiContent.hasNoChapter() && !StringUtils.hasText(book.getChapter())){
+            book.setChapter(truncate(geminiContent.getChapter(), 5000));
+            updated=true;
+            log.info("[목차 추가] 책 ID: {}", book.getId());
         }
 
         return updated;
     }
 
+    private boolean updateFromAladin(Book book, AladinApiResponse.Item aladinData) {
+        if (aladinData == null) return false;
+        boolean updated = false;
 
-    private void updateTags(Book book, List<String> finalTags) {
-        if (finalTags != null && !finalTags.isEmpty() && book.getBookTags().isEmpty()) {
-
-            saveTags(book, finalTags);
-            log.info("태그 저장 완료 ({}개)", finalTags.size());
-
+        if (book.getBookCategories().isEmpty() && StringUtils.hasText(aladinData.getCategoryName())) {
+            saveCategories(book, aladinData.getCategoryName());
         }
+        if ((book.getPriceStandard() == null || book.getPriceStandard() == 0) && aladinData.getPriceStandard() > 0) {
+            long newStandardPrice = aladinData.getPriceStandard();
+            book.setPriceStandard(newStandardPrice);
+            if (book.getPriceSales() == null || book.getPriceSales() == 0) {
+                long defaultDiscountPrice = (long) (newStandardPrice * 0.9);
+                book.setPriceSales(defaultDiscountPrice);
+            }
+            updated = true;
+        }
+        if (book.getPublishDate() == null && StringUtils.hasText(aladinData.getPubDate())) {
+            book.setPublishDate(parseDate(aladinData.getPubDate()));
+            updated = true;
+        }
+        if (!StringUtils.hasText(book.getDescription()) && StringUtils.hasText(aladinData.getDescription())) {
+            book.setDescription(aladinData.getDescription());
+            updated = true;
+        }
+        if (book.getImages().isEmpty() && StringUtils.hasText(aladinData.getCover())) {
+            BookImage newImage = BookImage.builder().book(book).imagePath(aladinData.getCover()).build();
+            book.getImages().add(newImage);
+            updated = true;
+        }
+        return updated;
     }
+
 
     private void saveTags(Book book, List<String> tagNames) {
         for (String tagName : tagNames) {
-            if (!StringUtils.hasText(tagName)) {
-                continue;
-            }
-
+            if (!StringUtils.hasText(tagName)) continue;
             String safeTagName = truncate(tagName.trim(), 50);
-
             try {
-
                 Tag tag = tagRepository.findByTagName(safeTagName)
                         .orElseGet(() -> {
                             try {
@@ -231,16 +189,9 @@ public class BookEnrichmentService {
                                 return tagRepository.findByTagName(safeTagName).orElseThrow();
                             }
                         });
-
                 if (!bookTagRepository.existsByBookAndTag(book, tag)) {
                     BookTagPK pk = new BookTagPK(book.getId(), tag.getId());
-                    bookTagRepository.save(BookTag.builder()
-                            .pk(pk)
-                            .book(book)
-                            .tag(tag)
-                            .build());
-
-
+                    bookTagRepository.save(BookTag.builder().pk(pk).book(book).tag(tag).build());
                 }
             } catch (Exception e) {
                 log.error("태그 저장 실패 (Book: {}. Tag:{}): {}", book.getId(), safeTagName, e.getMessage());
@@ -248,14 +199,12 @@ public class BookEnrichmentService {
         }
     }
 
-    private AladinApiResponse.Item fetchAladinData(String isbn) {
-        try {
-            return aladinApiClient.searchByIsbn(isbn);
-        } catch (Exception e) {
-            return null;
-        }
+    private AladinApiResponse.Item fetchAladinData(String isbn) throws JsonProcessingException {
+        log.info("알라딘 API 호출시작, ISBN={}", isbn);
+        //어차피 AladingApiClient에서 로그찍고 예외 던지도록 만들어서 여기서 굳이 try-catch로 감쌀필요 없을거 같아서 try-catch문 지움
+        //service단에서는 그냥 그걸 받아서 스케줄러로 던지기만 하면됨
+        return aladinApiClient.searchByIsbn(isbn);
     }
-
 
     private LocalDate parseDate(String dateStr) {
         try {
@@ -266,26 +215,17 @@ public class BookEnrichmentService {
     }
 
     private void saveCategories(Book book, String categoryPath) {
-        if (!StringUtils.hasText(categoryPath)) {
-            return;
-        }
-
+        if (!StringUtils.hasText(categoryPath)) return;
         String[] parts = CATEGORY_SPLIT_PATTERN.split(categoryPath);
         Category parent = null;
         Category currentCategory = null;
-
         for (String part : parts) {
             String categoryName = part.trim();
-            if (categoryName.isEmpty()) {
-                continue;
-            }
+            if (categoryName.isEmpty()) continue;
             categoryName = truncate(categoryName, 100);
-
             currentCategory = findOrCreateCategory(categoryName, parent);
-
             parent = currentCategory;
         }
-
         if (currentCategory != null) {
             linkBookToCategory(book, currentCategory);
         }
@@ -294,7 +234,6 @@ public class BookEnrichmentService {
     private Category findOrCreateCategory(String name, Category parent) {
         String parentKey = (parent == null) ? "root" : String.valueOf(parent.getId());
         String cacheKey = parentKey + ":" + name;
-
         if (categoryIdCache.containsKey(cacheKey)) {
             Long cachedId = categoryIdCache.get(cacheKey);
             return categoryRepository.findById(cachedId).orElseGet(() -> {
@@ -302,14 +241,12 @@ public class BookEnrichmentService {
                 return createCategorySafely(name, parent, cacheKey);
             });
         }
-
         Optional<Category> existing;
         if (parent == null) {
             existing = categoryRepository.findByCategoryNameAndParentIsNull(name);
         } else {
             existing = categoryRepository.findByCategoryNameAndParent(name, parent);
         }
-
         return existing.map(category -> {
             categoryIdCache.put(cacheKey, category.getId());
             return category;
@@ -320,55 +257,41 @@ public class BookEnrichmentService {
         if (categoryIdCache.containsKey(cacheKey)) {
             return categoryRepository.findById(categoryIdCache.get(cacheKey)).orElseThrow();
         }
-
         Optional<Category> doubleCheck;
         if (parent == null) {
             doubleCheck = categoryRepository.findByCategoryNameAndParentIsNull(name);
         } else {
             doubleCheck = categoryRepository.findByCategoryNameAndParent(name, parent);
         }
-
         if (doubleCheck.isPresent()) {
             Category found = doubleCheck.get();
             categoryIdCache.put(cacheKey, found.getId());
             return found;
         }
-
         try {
-            Category newCategory = Category.builder()
-                    .categoryName(name)
-                    .parent(parent)
-                    .build();
+            Category newCategory = Category.builder().categoryName(name).parent(parent).build();
             Category saved = categoryRepository.save(newCategory);
             categoryIdCache.put(cacheKey, saved.getId());
             return saved;
         } catch (Exception e) {
-            log.warn("카테고리 동시 생성 충돌 발생, 재조회 시도: {}", name);
-            if (parent == null) {
-                return categoryRepository.findByCategoryNameAndParentIsNull(name).orElseThrow();
-            } else {
-                return categoryRepository.findByCategoryNameAndParent(name, parent).orElseThrow();
-            }
+            log.warn("카테고리 동시 생성 충돌, 재조회: {}", name);
+            if (parent == null) return categoryRepository.findByCategoryNameAndParentIsNull(name).orElseThrow();
+            else return categoryRepository.findByCategoryNameAndParent(name, parent).orElseThrow();
         }
     }
 
     private void linkBookToCategory(Book book, Category category) {
         try {
             if (!bookCategoryRepository.existsByBookAndCategory(book, category)) {
-                bookCategoryRepository.save(BookCategory.builder()
-                        .book(book)
-                        .category(category)
-                        .build());
+                bookCategoryRepository.save(BookCategory.builder().book(book).category(category).build());
             }
         } catch (Exception e) {
-            log.warn("이미 연결된 카테고리 입니다: BookID={}, CategoryId={}", book.getId(), category.getId());
+            log.warn("이미 연결된 카테고리: BookID={}, CategoryId={}", book.getId(), category.getId());
         }
     }
 
     private String truncate(String str, int len) {
-        if (str == null) {
-            return null;
-        }
+        if (str == null) return null;
         return str.length() > len ? str.substring(0, len) : str;
     }
 }

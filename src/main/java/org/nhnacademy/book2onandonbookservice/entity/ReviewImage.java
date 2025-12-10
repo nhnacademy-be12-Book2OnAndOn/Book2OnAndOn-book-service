@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "ReviewImage")
+@Table(name = "review_image")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor

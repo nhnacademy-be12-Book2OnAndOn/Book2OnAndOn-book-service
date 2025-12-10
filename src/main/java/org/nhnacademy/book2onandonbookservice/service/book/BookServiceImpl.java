@@ -76,12 +76,9 @@ public class BookServiceImpl implements BookService {
                 if (!file.isEmpty()) {
                     String minioUrl = imageUploadService.uploadBookImage(file);
 
-                    boolean isThumbnail = (i == request.getThumbnailIndex());
-
                     BookImage bookImage = BookImage.builder()
                             .book(saved)
                             .imagePath(minioUrl)
-                            .isThumbnail(isThumbnail) // DB에 저장
                             .build();
 
                     saved.getImages().add(bookImage);

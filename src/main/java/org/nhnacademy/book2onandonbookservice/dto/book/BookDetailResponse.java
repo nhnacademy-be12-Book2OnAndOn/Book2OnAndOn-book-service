@@ -55,8 +55,6 @@ public class BookDetailResponse {
     private Double rating;       // 평균 평점
     private Long reviewCount;          // 전체 리뷰 개수
 
-    private boolean isThumbnail; //프론트에서 별 표시 할 때 필요함
-
 
     /// 헬퍼 메서드
     public static BookDetailResponse from(Book book, Long likeCount, Boolean likedByCurrentUser) {
@@ -66,8 +64,6 @@ public class BookDetailResponse {
                 .collect(Collectors.joining(", "));
 
         List<BookImageDto> imageDtos = book.getImages().stream()
-                .sorted(Comparator.comparing(BookImage::isThumbnail).reversed()
-                        .thenComparing(BookImage::getId))
                 .map(BookImageDto::from)
                 .toList();
 

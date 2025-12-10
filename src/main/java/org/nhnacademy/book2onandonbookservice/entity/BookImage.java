@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "BookImage")
+@Table(name = "book_image")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
@@ -39,6 +39,4 @@ public class BookImage {
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
-    @Column(name = "is_thumbnail", nullable = false)
-    private boolean isThumbnail;
 }

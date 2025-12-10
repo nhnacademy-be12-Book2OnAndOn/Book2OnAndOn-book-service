@@ -10,6 +10,7 @@ import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookStatusUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
+import org.nhnacademy.book2onandonbookservice.service.book.BookPriceService;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
@@ -32,8 +33,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class BookAdminController {
     private final BookService bookService;
-    private final ImageUploadService imageUploadService;
-    private final UserHeaderUtil util;
 
     /**
      * 도서 등록 (관리자용) - 방식: multipart/form-data -"book": Json 데이터 (BookSaveRequest) - "image" : 파일 데이터
@@ -82,4 +81,5 @@ public class BookAdminController {
         bookService.updateBookStatus(bookId, request.getStatus());
         return ResponseEntity.ok().build();
     }
+
 }
