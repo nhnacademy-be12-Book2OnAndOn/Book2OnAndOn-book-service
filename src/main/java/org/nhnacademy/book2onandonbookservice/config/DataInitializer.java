@@ -179,6 +179,7 @@ public class DataInitializer implements ApplicationRunner {
 
         long price = parsePrice(safeGet(row, h, "PRC_VALUE"));
         long defaultDiscountedPrice = (long) (price * 0.9);
+        String imageUrl = safeGet(row, h, "IMAGE_URL");
 
         // Book Entity 생성
         Book book = Book.builder()
@@ -193,6 +194,7 @@ public class DataInitializer implements ApplicationRunner {
                 .isWrapped(true) // 포장 가능 여부
                 .status(BookStatus.ON_SALE)
                 .volume(safeGet(row, h, "VLM_NM")) //volume
+                .thumbnail(StringUtils.hasText(imageUrl)? imageUrl : null)
                 .build();
 
         //연관관계 설정: 출판사
@@ -206,7 +208,6 @@ public class DataInitializer implements ApplicationRunner {
         if (StringUtils.hasText(rawAuthorStr)) {
             parseAndAddContributors(book, rawAuthorStr);
         }
-        String imageUrl = safeGet(row, h, "IMAGE_URL");
         if (StringUtils.hasText(imageUrl)) {
             book.getImages().add(BookImage.builder()
                     .book(book)

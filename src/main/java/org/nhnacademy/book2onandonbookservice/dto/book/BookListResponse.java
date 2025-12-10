@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
+import org.springframework.util.StringUtils;
 
 // 도서 검색 시 여러 권을 리스트로 보여주는(조회하는) DTO
 @Getter
@@ -30,16 +31,18 @@ public class BookListResponse {
     private List<String> publisherNames;    // 출판사
     private List<String> categoryNames;   // 카테고리
     private List<String> tagNames;  // 태그
-
+    private String thumbnail;
 
     public static BookListResponse from(Book book) {
-        String mainImagePath = book.getImages().stream()
-                .findFirst()
-                .map(BookImage::getImagePath)
-                .orElseGet(() -> book.getImages().stream()
-                        .findFirst()
-                        .map(BookImage::getImagePath)
-                        .orElse("/images/no-image.png"));
+        String resolvedImage = book.getThumbnail();
+
+        if (!StringUtils.hasText(resolvedImage)) {
+            // 썸네일 컬럼이 비어있다면, 기존처럼 이미지 리스트에서 찾음
+            resolvedImage = book.getImages().stream()
+                    .findFirst()
+                    .map(BookImage::getImagePath)
+                    .orElse("/images/no-image.png");
+        }
 
         return BookListResponse.builder()
                 .id(book.getId())
@@ -49,7 +52,8 @@ public class BookListResponse {
                 .priceSales(book.getPriceSales())
                 .rating(book.getRating())
                 .publisherDate(book.getPublishDate())
-                .imagePath(mainImagePath)
+                .imagePath(resolvedImage)
+                .thumbnail(resolvedImage)
                 .contributorNames(book.getBookContributors().stream()
                         .map(bc -> bc.getContributor().getContributorName())
                         .collect(Collectors.toList())

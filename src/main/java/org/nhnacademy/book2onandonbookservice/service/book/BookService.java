@@ -21,6 +21,8 @@ public interface BookService {
     // 도서 수정
     void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> images);
 
+    void updateThumbnail(Long bookId, Long bookImageId);
+
     // 도서 삭제
     void deleteBook(Long bookId);
 
