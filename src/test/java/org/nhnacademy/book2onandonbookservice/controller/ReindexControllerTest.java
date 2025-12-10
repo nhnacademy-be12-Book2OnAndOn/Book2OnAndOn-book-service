@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,6 +46,9 @@ class ReindexControllerTest {
 
     @MockitoBean
     UserHeaderUtil util;
+
+    @MockitoBean
+    JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @DisplayName("전체 재색인 (관리자)")

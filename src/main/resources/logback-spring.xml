@@ -48,6 +48,9 @@
     <logger name="org.nhnacademy.book2onandonbookservice.client.GeminiApiClient" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
     </logger>
+    <logger name="org.nhnacademy.book2onandonbookservice.client.GroqApiClient" level="INFO" additivity="false">
+        <appender-ref ref="API_FILE"/>
+    </logger>
     <logger name="org.nhnacademy.book2onandonbookservice.scheduler.BookEnrichmentScheduler" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
     </logger>

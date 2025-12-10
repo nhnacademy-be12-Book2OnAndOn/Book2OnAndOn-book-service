@@ -19,6 +19,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,6 +33,8 @@ class BookSearchControllerTest {
 
     @MockitoBean
     BookSearchService bookSearchService;
+    @MockitoBean
+    JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @DisplayName("도서 검색 성공")
@@ -42,7 +45,7 @@ class BookSearchControllerTest {
 
         given(bookSearchService.search(any(BookSearchCondition.class), any(Pageable.class))).willReturn(responsePage);
 
-        mockMvc.perform(get("/search/books")
+        mockMvc.perform(get("/books/search")
                         .param("keyword", "test")
                         .param("page", "0")
                         .param("size", "10"))

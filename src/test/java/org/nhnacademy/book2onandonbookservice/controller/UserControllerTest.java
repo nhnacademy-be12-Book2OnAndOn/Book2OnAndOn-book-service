@@ -27,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -44,6 +45,9 @@ class UserControllerTest {
 
     @MockitoBean
     ReviewService reviewService;
+
+    @MockitoBean
+    JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @DisplayName("특정 유저 리뷰 목록 조회")
@@ -99,8 +103,8 @@ class UserControllerTest {
                         .param("sort", "createdAt,desc")) // 정렬 조건 테스트
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].bookLikeId").value(100L))
-                .andExpect(jsonPath("$.content[0].book.id").value(1L))
-                .andExpect(jsonPath("$.content[0].book.title").value("테스트 도서"));
+                .andExpect(jsonPath("$.content[0].bookInfo.id").value(1L))
+                .andExpect(jsonPath("$.content[0].bookInfo.title").value("테스트 도서"));
 
     }
 

@@ -2,8 +2,6 @@ package org.nhnacademy.book2onandonbookservice.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
@@ -29,38 +27,16 @@ public class GeminiApiClient {
 
     @Value("${gemini.api.base-url}")
     private String baseUrl;
-    @Value("${gemini.api-key}")
-    private String rawApikey;
 
-    private String[] apiKeys;
-    private final AtomicInteger keyIndex = new AtomicInteger(0);
+    @Value("${gemini.api.api-key}")
+    private String apiKey;
+
     private static final String STANDARD_TAGS = """
             출근길, 퇴근길, 잠들기전, 주말순삭, 새벽감성, 여행갈때, 카페에서, 비오는날, 겨울감성, 여름휴가,
             위로, 힐링, 스트레스해소, 기분전환, 눈물버튼, 동기부여, 자존감, 용기, 행복, 설렘, 자기계발, 습관형성,
             갓생살기, 인사이트, 지식확장, 실무역량, 일잘러, 부자되는법, 트렌드, 인간관계, 몰입감, 순삭, 흥미진진, 잔잔한,
             깊은여운, 가볍게읽기좋은, 생각할거리, 선물하기좋은, 방송에나온, 만화, 웹툰
             """;
-
-    @PostConstruct
-    public void init() {
-        if (rawApikey != null) {
-            this.apiKeys = rawApikey.replace(" ", "").split(",");
-            log.info("Gemini API 키 {}개  로드 함", apiKeys.length);
-        }
-    }
-
-    private String getNextKey() {
-        if (apiKeys == null || apiKeys.length == 0) {
-            return "";
-        }
-
-        int index = keyIndex.getAndIncrement() % apiKeys.length;
-
-        if (index < 0) {
-            index = Math.abs(index);
-        }
-        return apiKeys[index];
-    }
 
 
     @Cacheable(value = "geminiContent", key = "#isbn", unless = "#result == null", cacheManager = "RedisCacheManager")
@@ -84,23 +60,20 @@ public class GeminiApiClient {
                     - 나머지 1개는 책의, 특성을 잘 나타내는 구체적인 키워드를 생성해라.
                 2. chapter: 책의 목차 (없으면 5~10줄 생성)
                 3. [중요] 만약 '설명'란이 비어있다면, 제공된 ISBN과 제목을 바탕으로 네가 가진 지식을 활용해 내용을 추론하여 태그와 목차를 반드시 생성해라. 절대 빈 값을 반환하지 마라.
-                4. 무조건 한국어로 반환할 것
                 
                 형식:
                 {
                     "tags": ["표준태그1", "표준태그2", "생성된태그"],
                     "chapter": "..."
                 }
-          
-                """.formatted(STANDARD_TAGS, isbn ,title, description);
+                """.formatted(STANDARD_TAGS, isbn, title, safeDescription);
 
         String rawText = callGeminiApi(prompt);
         return parseContentFromJson(rawText);
     }
 
     private String callGeminiApi(String prompt){
-        String currentKey = getNextKey();
-        String url = String.format("%s/%s:generateContent?key=%s", baseUrl,MODEL_NAME,currentKey);
+        String url = String.format("%s/%s:generateContent?key=%s", baseUrl, MODEL_NAME, apiKey);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -108,22 +81,22 @@ public class GeminiApiClient {
         HttpEntity<GeminiApiRequest> entity = new HttpEntity<>(rBody, headers);
 
         try{
-            GeminiApiResponse response =  restTemplate.postForObject(url, entity, GeminiApiResponse.class);
+            GeminiApiResponse response = restTemplate.postForObject(url, entity, GeminiApiResponse.class);
             if(response != null){
                 return response.getFirstCandidateText();
             }
-        }catch (HttpClientErrorException e) {
+        }
+        catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 429) {
-                log.warn("Gemini API Quota/Rate Limit 발생 (Key: {}): {}",
-                        currentKey.length()>=4 ? currentKey.substring(currentKey.length()-4): "****", e.getMessage());
-
+                // 키 노출 방지 처리
+                log.warn("Gemini API Quota/Rate Limit 발생: {}", e.getMessage());
                 throw new RuntimeException("Gemini API Rate Limit Exceeded", e);
             }
-            log.error("Gemini API HTTP 오류 (Key: {}): {}", currentKey, e.getMessage());
-        }catch (Exception e){
-            log.error("Gemini API 호출 실패 (Key: {}): {}",
-                    currentKey.length()>=4 ? currentKey.substring(currentKey.length()-4): "****", e.getMessage());
-
+            log.error("Gemini API HTTP 오류: {}", e.getMessage());
+        }
+        catch (Exception e){
+            log.error("Gemini API 호출 실패: {}", e.getMessage());
+            throw e;
         }
 
         return null;

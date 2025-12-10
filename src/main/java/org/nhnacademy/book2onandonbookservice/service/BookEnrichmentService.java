@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
 import org.nhnacademy.book2onandonbookservice.client.GeminiApiClient;
+import org.nhnacademy.book2onandonbookservice.client.GroqApiClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
 import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
@@ -37,6 +38,7 @@ public class BookEnrichmentService {
 
     private final GeminiApiClient geminiApiClient;
     private final AladinApiClient aladinApiClient;
+    private final GroqApiClient groqApiClient;
 
     private final Map<String, Long> categoryIdCache = new ConcurrentHashMap<>();
     private static final Pattern CATEGORY_SPLIT_PATTERN = Pattern.compile("\\s*>\\s*");
@@ -59,29 +61,41 @@ public class BookEnrichmentService {
             throw e; // 예외를 던져서 스케줄러가 'FAILED'로 기록하고 나중에 재시도하게 함
         }
 
-        String descriptionForGemini = book.getDescription();
-        if(!StringUtils.hasText(descriptionForGemini) && aladinData != null && StringUtils.hasText(aladinData.getDescription())){
+        String descriptionForGemini = book.getDescription(); //우선 db에서 설명을 가져옴
+        if(!StringUtils.hasText(descriptionForGemini) && aladinData != null && StringUtils.hasText(aladinData.getDescription())){ // db에서 설명이 없고 알라딘에 메모리 상으로 설명이 있다면 그거 가져다가 쓰는거임
             descriptionForGemini = aladinData.getDescription();
         }
 
-        BookContentDto geminiContent = null;
-        if (StringUtils.hasText(descriptionForGemini)) {
+        BookContentDto aiContent = null;
+        try {
+            aiContent = groqApiClient.extractContent(book.getTitle(), descriptionForGemini, book.getIsbn());
+            log.info("[Groq 성공] 책 ID: {}", bookId);
+
+        } catch (Exception e) {
+            log.warn("Groq 호출 실패 (ID: {}) -> Gemini로 전환 시도. 이유: {}", bookId, e.getMessage());
+
             try {
-                geminiContent = geminiApiClient
-                        .extractContent(book.getTitle(), descriptionForGemini, book.getIsbn());
-                log.info("[Gemini 추출 완료] 책 ID: {}",bookId);
-            } catch (Exception e) {
-                String msg = e.getMessage();
+                aiContent = geminiApiClient.extractContent(book.getTitle(), descriptionForGemini, book.getIsbn());
+                log.info("[Gemini 성공(Backup)] 책 ID: {}", bookId);
+
+            } catch (Exception geminiEx) {
+                // Gemini까지 실패하면 진짜 실패 상황
+
+                // 1. Gemini Limit 에러인지 확인 (자정 부활 로직용)
+                String msg = geminiEx.getMessage();
                 if (msg != null && (msg.contains("Limit") || msg.contains("Quota") || msg.contains("429"))) {
-                    log.warn("Gemini API 제한 감지! 작업을 실패 처리하고 나중에 재시도합니다. (ID: {})", bookId);
-                    throw e;
+                    log.warn("Gemini API 제한 감지! (ID: {})", bookId);
+                    throw geminiEx; // 상위로 던져서 스케줄러가 FAILED 처리 + 자정 부활
                 }
-                log.warn("Gemini 호출 실패 (ID: {}): {}", bookId, e.getMessage());
+
+                // 2. 그 외 일반 에러
+                log.error("AI 보강 최종 실패 (Groq & Gemini) ID: {}", bookId);
+                throw geminiEx; // 예외를 던져야 스케줄러가 retryCount를 증가시킴
             }
         }
 
         // 데이터 업데이트
-        updateBookInTransaction(book, aladinData, geminiContent);
+        updateBookInTransaction(book, aladinData, aiContent);
     }
 
     private void updateBookInTransaction(Book book, AladinApiResponse.Item aladinData, BookContentDto geminiContent) {
