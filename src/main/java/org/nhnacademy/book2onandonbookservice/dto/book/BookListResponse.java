@@ -24,7 +24,6 @@ public class BookListResponse {
     private Long priceStandard; // 도서 정가
     private Long priceSales; // 도서 판매가
     private Double rating; //평점
-    private String imagePath;   // 도서 이미지
 
     private LocalDate publisherDate;
     private List<String> contributorNames;  // 기여자 정보
@@ -52,7 +51,6 @@ public class BookListResponse {
                 .priceSales(book.getPriceSales())
                 .rating(book.getRating())
                 .publisherDate(book.getPublishDate())
-                .imagePath(resolvedImage)
                 .thumbnail(resolvedImage)
                 .contributorNames(book.getBookContributors().stream()
                         .map(bc -> bc.getContributor().getContributorName())
