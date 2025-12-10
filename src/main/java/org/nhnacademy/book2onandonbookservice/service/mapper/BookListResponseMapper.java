@@ -28,8 +28,8 @@ public class BookListResponseMapper {
                 .map(bp -> bp.getPublisher().getPublisherName())
                 .toList();
 
-        List<String> categoryIds = book.getBookCategories().stream()
-                .map(bc -> String.valueOf(bc.getCategory().getId()))
+        List<String> categoryNames = book.getBookCategories().stream()
+                .map(bc -> String.valueOf(bc.getCategory().getCategoryName()))
                 .toList();
 
         List<String> tagNames = book.getBookTags().stream()
@@ -45,7 +45,7 @@ public class BookListResponseMapper {
                 .imagePath(imagePath)
                 .contributorNames(contributorNames)
                 .publisherNames(publisherNames)
-                .categoryNames(categoryIds)
+                .categoryNames(categoryNames)
                 .tagNames(tagNames)
                 .build();
     }

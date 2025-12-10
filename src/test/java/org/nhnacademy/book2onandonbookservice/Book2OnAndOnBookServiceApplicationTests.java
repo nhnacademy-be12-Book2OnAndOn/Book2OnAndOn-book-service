@@ -50,7 +50,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         "aladin.api.base-url=http://localhost/dummy-aladin",
         "aladin.api-ttb-key=dummy-ttb-key",
         "gemini.api.base-url=http://localhost/dummy-gemini",
-        "gemini.api-key=dummy-gemini-key",
+        "gemini.api.api-key=dummy-gemini-key",
+        "groq.api.base-url=http://localhost/dummy-groq",
+        "groq.api.api-key=dummy-groq-key",
 
         // 7. 스케줄러 비활성화 (테스트 중에 스케줄러 돌면 로그 지저분해지고 에러 가능성 있음)
         "spring.task.scheduling.enabled=false",

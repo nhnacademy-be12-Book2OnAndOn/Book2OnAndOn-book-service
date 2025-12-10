@@ -24,7 +24,7 @@ import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 
 @Entity
-@Table(name = "Book", indexes = {
+@Table(name = "book", indexes = {
         @Index(name = "idx_book_isbn", columnList = "ISBN"),
         @Index(name = "idx_book_publish_date", columnList = "book_publish_date")
 })

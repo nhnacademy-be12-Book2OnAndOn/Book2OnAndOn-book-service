@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,7 +15,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
@@ -30,11 +30,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
-@ExtendWith(SpringExtension.class)
 @AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(BookController.class)
 class BookControllerTest {
@@ -53,6 +53,9 @@ class BookControllerTest {
     @MockitoBean
     BookLikeService bookLikeService;
 
+    @MockitoBean
+    JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
 
     @Test
     @DisplayName("카테고리 목록 조회")
@@ -62,7 +65,8 @@ class BookControllerTest {
 
         mockMvc.perform(get("/books/categories"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("DDDD"));
+                .andExpect(jsonPath("$[0].name").value("DDDD"))
+                .andDo(print());
     }
 
     @Test
@@ -77,7 +81,8 @@ class BookControllerTest {
                         .param("page", "0")
                         .param("size", "20"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].title").value("Book"));
+                .andExpect(jsonPath("$.content[0].title").value("Book"))
+                .andDo(print());
     }
 
     @Test
@@ -90,11 +95,13 @@ class BookControllerTest {
 
         given(util.getUserId()).willReturn(userId);
         given(util.getGuestId()).willReturn(guestId);
+
         given(bookService.getBookDetail(bookId, userId, guestId)).willReturn(response);
 
         mockMvc.perform(get("/books/" + bookId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("디테일한 Book"));
+                .andExpect(jsonPath("$.title").value("디테일한 Book"))
+                .andDo(print());
     }
 
     @Test
@@ -106,7 +113,8 @@ class BookControllerTest {
 
         mockMvc.perform(get("/books/bestsellers").param("period", period))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("베스트 셀러를 조회해보자!"));
+                .andExpect(jsonPath("$[0].title").value("베스트 셀러를 조회해보자!"))
+                .andDo(print());
     }
 
     @Test
@@ -118,7 +126,8 @@ class BookControllerTest {
 
         mockMvc.perform(get("/books/new-arrivals"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].title").value("신간 조회를 해부자!"));
+                .andExpect(jsonPath("$.content[0].title").value("신간 조회를 해부자!"))
+                .andDo(print());
     }
 
     @Test
@@ -130,7 +139,8 @@ class BookControllerTest {
 
         mockMvc.perform(get("/books/popular"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].title").value("인기도서를 조회 해보자!"));
+                .andExpect(jsonPath("$.content[0].title").value("인기도서를 조회 해보자!"))
+                .andDo(print());
     }
 
     @Test
@@ -145,7 +155,8 @@ class BookControllerTest {
 
         mockMvc.perform(get("/books/recent-views"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("최근 본 유저"));
+                .andExpect(jsonPath("$[0].title").value("최근 본 유저"))
+                .andDo(print());
     }
 
     @Test
@@ -156,7 +167,8 @@ class BookControllerTest {
 
         mockMvc.perform(get("/books/recent-views"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]"));
+                .andExpect(content().json("[]"))
+                .andDo(print());
     }
 
     @Test
@@ -168,9 +180,11 @@ class BookControllerTest {
 
         List<BookListResponse> responses = List.of(BookListResponse.builder().id(5L).title("guest").build());
         given(bookService.getRecentViews(null, guestId)).willReturn(responses);
-        mockMvc.perform(get("/books/recent-views").header("X-Guest-Id", guestId))
+
+        mockMvc.perform(get("/books/recent-views"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("guest"));
+                .andExpect(jsonPath("$[0].title").value("guest"))
+                .andDo(print());
     }
 
     @Test
@@ -178,32 +192,34 @@ class BookControllerTest {
     void mergeRecentViews() throws Exception {
         Long userId = 1L;
         String guestId = "guest_uuid";
-        given(util.getGuestId()).willReturn(guestId);
-        given(util.getUserId()).willReturn(userId);
 
         doNothing().when(bookService).mergeRecentViews(guestId, userId);
 
-        mockMvc.perform(post("/books/recent-views/merge"))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/books/recent-views/merge")
+                        .header("X-User-Id", userId)
+                        .header("X-Guest-Id", guestId))
+                .andExpect(status().isOk())
+                .andDo(print());
+
         verify(bookService).mergeRecentViews(guestId, userId);
     }
 
     @Test
     @DisplayName("POST /books/{bookId}/likes - 좋아요 토글 API")
     void toggleLike() throws Exception {
-        // given
         Long bookId = 1L;
         Long userId = 10L;
         BookLikeToggleResult result = new BookLikeToggleResult(true, 5L);
 
         given(util.getUserId()).willReturn(userId);
+
         given(bookLikeService.toggleLike(bookId, userId)).willReturn(result);
 
-        // when & then
-        mockMvc.perform(post("/books/{bookId}/likes", bookId))
+        mockMvc.perform(post("/books/{bookId}/likes", bookId)
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.liked", is(true)))
-                .andExpect(jsonPath("$.likeCount", is(5)));
-
+                .andExpect(jsonPath("$.likeCount", is(5)))
+                .andDo(print());
     }
 }

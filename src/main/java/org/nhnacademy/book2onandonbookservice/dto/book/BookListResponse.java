@@ -34,7 +34,6 @@ public class BookListResponse {
 
     public static BookListResponse from(Book book) {
         String mainImagePath = book.getImages().stream()
-                .filter(BookImage::isThumbnail)
                 .findFirst()
                 .map(BookImage::getImagePath)
                 .orElseGet(() -> book.getImages().stream()
@@ -68,9 +67,5 @@ public class BookListResponse {
                         .collect(Collectors.toList())
                 ).build();
     }
-    /*
-    BookListResponse 로직수정 (카테고리 관련/ 북 상태 관련)
-    like쪽 user랑 맞추기
-     */
 
 }

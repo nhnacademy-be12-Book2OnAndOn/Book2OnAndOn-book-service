@@ -21,7 +21,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
-@Table(name = "BookLike",
+@Table(name = "book_like",
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_book_user",

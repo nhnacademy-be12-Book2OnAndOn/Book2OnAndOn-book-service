@@ -30,6 +30,7 @@ import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
+import org.nhnacademy.book2onandonbookservice.repository.BookEnrichmentTaskRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
@@ -42,6 +43,9 @@ class DataInitializerTest {
 
     @Mock
     private BookRepository bookRepository;
+
+    @Mock
+    private BookEnrichmentTaskRepository taskRepository;
 
     @Mock
     private PublisherRepository publisherRepository;
@@ -85,6 +89,8 @@ class DataInitializerTest {
         dataInitializer.run(applicationArguments);
 
         verify(bookRepository).count();
+        verify(taskRepository).initTasksFromBook();
+
         verify(publisherRepository, never()).findAll();
         verify(contributorRepository, never()).findAll();
     }

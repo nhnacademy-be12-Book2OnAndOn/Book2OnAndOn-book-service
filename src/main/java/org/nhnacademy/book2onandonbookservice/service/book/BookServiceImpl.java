@@ -33,6 +33,7 @@ import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMapper;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,6 +62,7 @@ public class BookServiceImpl implements BookService {
 
     // 도서 등록
     @Override
+    @CacheEvict(value={"newArrivals","bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public Long createBook(BookSaveRequest request, List<MultipartFile> images) {
         bookValidator.validateForCreate(request);
         Book book = bookFactory.createFrom(request);
@@ -74,12 +76,9 @@ public class BookServiceImpl implements BookService {
                 if (!file.isEmpty()) {
                     String minioUrl = imageUploadService.uploadBookImage(file);
 
-                    boolean isThumbnail = (i == request.getThumbnailIndex());
-
                     BookImage bookImage = BookImage.builder()
                             .book(saved)
                             .imagePath(minioUrl)
-                            .isThumbnail(isThumbnail) // DB에 저장
                             .build();
 
                     saved.getImages().add(bookImage);
@@ -100,6 +99,7 @@ public class BookServiceImpl implements BookService {
 
     // 도서 수정
     @Override
+    @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> newImages) {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
@@ -136,6 +136,7 @@ public class BookServiceImpl implements BookService {
     // 도서 삭제
     @Override
     @Transactional
+    @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public void deleteBook(Long bookId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
@@ -201,7 +202,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     @Transactional(readOnly = true)
-    //@Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
+    @Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
     public List<CategoryDto> getCategories() {
         List<Category> entities = categoryRepository.findAll();
         List<CategoryDto> allDtos = entities.stream().map(this::CategoryToDto).toList();
@@ -244,7 +245,7 @@ public class BookServiceImpl implements BookService {
     }
 
     /// 신간 도서를 출간일 최신순으로 조회하고 캐싱
-    @Cacheable(value = "newArrivals", key = "#categoryId + '_' + #pageable.pageNumber", cacheManager = "RedisCacheManager")
+    @Cacheable(value = "newArrivals", key = "#categoryId + '_' + #pageable.pageNumber+ '_' + #pageable.pageSize", cacheManager = "RedisCacheManager")
     @Override
     public Page<BookListResponse> getNewArrivals(Long categoryId, Pageable pageable) {
         Page<Book> bookPage;
@@ -323,6 +324,7 @@ public class BookServiceImpl implements BookService {
 
     /// 도서 상태변경
     @Override
+    @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public void updateBookStatus(Long bookId, BookStatus status) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));

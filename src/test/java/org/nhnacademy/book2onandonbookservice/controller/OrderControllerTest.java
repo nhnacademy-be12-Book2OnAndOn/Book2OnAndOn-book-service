@@ -27,6 +27,7 @@ import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,6 +46,9 @@ class OrderControllerTest {
 
     @MockitoBean
     UserHeaderUtil util;
+
+    @MockitoBean
+    JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @DisplayName("주문용 도서 정보 조회 성공")

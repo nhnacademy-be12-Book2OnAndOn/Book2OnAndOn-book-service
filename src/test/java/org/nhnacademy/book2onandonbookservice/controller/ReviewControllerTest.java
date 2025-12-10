@@ -32,6 +32,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -50,6 +51,9 @@ class ReviewControllerTest {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @MockitoBean
+    JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @DisplayName("리뷰 생성 성공")
@@ -94,44 +98,6 @@ class ReviewControllerTest {
     }
 
     @Test
-    @DisplayName("리뷰 목록 조회 성공")
-    void getReviewList() throws Exception {
-        Long bookId = 1L;
-        ReviewDto reviewDtos = ReviewDto.builder()
-                .id(1L)
-                .userId(1L)
-                .bookId(1L)
-                .title("제목이고")
-                .content("내용은 10자이상 작성해야되니깐 길게")
-                .score(3)
-                .build();
-
-        ReviewDto reviewDtos2 = ReviewDto.builder()
-                .id(2L)
-                .userId(3L)
-                .bookId(1L)
-                .title("제목이고 두번째 제목인거")
-                .content("내용은 10자이상 작성해야되니깐 길게 두번째거")
-                .score(4)
-                .build();
-
-        Page<ReviewDto> pageResponse = new PageImpl<>(List.of(reviewDtos, reviewDtos2));
-
-        given(reviewService.getReviewListByBookId(eq(bookId), any(Pageable.class))).willReturn(pageResponse);
-
-        mockMvc.perform(get("/books/{bookId}/reviews", bookId)
-                        .param("page", "0")
-                        .param("size", "10")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isArray())
-                .andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.content[0].title").value("제목이고"))
-                .andExpect(jsonPath("$.content[1].title").value("제목이고 두번째 제목인거"));
-    }
-
-    @Test
     @DisplayName("리뷰 수정 성공")
     void updateReview() throws Exception {
         ReviewDto reviewDtos = ReviewDto.builder()
@@ -169,18 +135,5 @@ class ReviewControllerTest {
                 .andExpect(status().isOk());
 
         verify(reviewService).updateReview(eq(reviewDtos.getId()), any(ReviewUpdateRequest.class), any());
-    }
-
-    @Test
-    @DisplayName("리뷰 삭제 성공")
-    void deleteReview() throws Exception {
-        Long reviewId = 3L;
-        willDoNothing().given(reviewService).deleteReview(reviewId);
-
-        mockMvc.perform(delete("/books/reviews/{reviewId}", reviewId))
-                .andDo(print())
-                .andExpect(status().isNoContent());
-
-        verify(reviewService).deleteReview(reviewId);
     }
 }

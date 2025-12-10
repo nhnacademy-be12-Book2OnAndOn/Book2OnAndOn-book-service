@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "Contributor")
+@Table(name = "contributor")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
@@ -37,15 +37,6 @@ public class Contributor {
     @Size(min = 1, max = 50)
     private String contributorName;
 
-    // 부가 정보
-    @Setter
-    @Column(name = "contributor_description")
-    private String contributorDescription;
-
-    // 출생 연도
-    @Setter
-    @Column(name = "birth_year")
-    private Date birthYear;
 
     @Setter
     @OneToMany(mappedBy = "contributor", cascade = CascadeType.ALL, orphanRemoval = true)

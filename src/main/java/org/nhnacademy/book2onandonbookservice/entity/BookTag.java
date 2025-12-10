@@ -14,7 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "BookTag", uniqueConstraints = {
+@Table(name = "book_tag", uniqueConstraints = {
         @UniqueConstraint(
                 name = "uk_book_tag_id", // 제약조건 이름 (에러 로그 볼 때 편함)
                 columnNames = {"tag_id", "book_id"} // 실제 DB의 컬럼명 입력

@@ -6,8 +6,10 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
+import org.nhnacademy.book2onandonbookservice.client.UserServiceClient;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewCreateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
+import org.nhnacademy.book2onandonbookservice.dto.review.ReviewEventRequest;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
@@ -43,6 +45,8 @@ public class ReviewServiceImpl implements ReviewService {
     private final UserHeaderUtil util;
 
     private final StringRedisTemplate redisTemplate;
+
+    private final UserServiceClient userServiceClient;
 
 
     /// 리뷰생성
@@ -88,6 +92,8 @@ public class ReviewServiceImpl implements ReviewService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
+        boolean hasImage = false;
+
         if (image != null && !image.isEmpty()) {
             for (MultipartFile file : image) {
                 if (!file.isEmpty()) {
@@ -100,6 +106,7 @@ public class ReviewServiceImpl implements ReviewService {
                             .build();
 
                     review.getImages().add(reviewImage);
+                    hasImage=true;
                 }
             }
         }
@@ -107,6 +114,15 @@ public class ReviewServiceImpl implements ReviewService {
         reviewRepository.save(review);
 
         updateBookRating(book);
+
+        try{
+            ReviewEventRequest eventRequest = new ReviewEventRequest(userId, review.getId(), hasImage);
+            userServiceClient.notifyReviewCreated(eventRequest);
+            log.info("User Service에 리뷰 등록 알림 전송 완료됨: userId:{}, hasImage={}", userId, hasImage);
+        } catch (Exception e) {
+            // userService가 죽어있을때 리뷰 등록 자체를 롤백 시키지 않고 로그만 찍을지, 아니면 리뷰 등록도 취소될지
+            log.error("User Service 리뷰 알림 전송 실패 (포인트 적립 누락 가능성): {}", e.getMessage());
+        }
 
         return review.getId();
     }
@@ -181,21 +197,7 @@ public class ReviewServiceImpl implements ReviewService {
         //3. 트랜잭션 종료 - JPA는 최초 상태와 현재 객체 상태를 비교해서 수정이 일어난게 보이면 바꼈다고 생각하고 자동반영
     }
 
-    /// 특정 리뷰 삭제
-    @Override
-    public void deleteReview(Long reviewId) {
-        Review review = reviewRepository.findById(reviewId).orElseThrow(() -> new NotFoundReviewException(reviewId));
 
-        Long currentId = util.getUserId();
-        if (!review.getUserId().equals(currentId)) {
-            throw new AccessDeniedException("본인의 리뷰만 삭제할 수 있습니다.");
-        }
-
-        Book book = review.getBook();
-        reviewRepository.delete(review); // entityManager.remove(review)가 실행됨
-        updateBookRating(book);
-        //트랜잭션이 끝날때 진짜 DELETE가 DB로 날아감
-    }
 
     /// 내부 로직 메서드
     //평점 업데이트 로직
