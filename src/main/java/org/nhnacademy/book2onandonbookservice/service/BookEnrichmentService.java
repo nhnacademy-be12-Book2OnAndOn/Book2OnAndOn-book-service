@@ -31,7 +31,6 @@ public class BookEnrichmentService {
 
     private final BookRepository bookRepository;
     private final CategoryRepository categoryRepository;
-    private final BookCategoryRepository bookCategoryRepository;
     private final TagRepository tagRepository;
     private final BookTagRepository bookTagRepository;
     private final BookSearchIndexService bookSearchIndexService;
@@ -161,7 +160,7 @@ public class BookEnrichmentService {
         if (aladinData == null) return false;
         boolean updated = false;
 
-        if (book.getBookCategories().isEmpty() && StringUtils.hasText(aladinData.getCategoryName())) {
+        if (book.getCategory() == null && StringUtils.hasText(aladinData.getCategoryName())) {
             saveCategories(book, aladinData.getCategoryName());
         }
         if ((book.getPriceStandard() == null || book.getPriceStandard() == 0) && aladinData.getPriceStandard() > 0) {
@@ -295,14 +294,12 @@ public class BookEnrichmentService {
     }
 
     private void linkBookToCategory(Book book, Category category) {
-        try {
-            if (!bookCategoryRepository.existsByBookAndCategory(book, category)) {
-                bookCategoryRepository.save(BookCategory.builder().book(book).category(category).build());
-            }
-        } catch (Exception e) {
-            log.warn("이미 연결된 카테고리: BookID={}, CategoryId={}", book.getId(), category.getId());
+        if (category != null && book.getCategory() == null) {
+            book.setCategory(category);
+            log.info("[카테고리 연결] 책 ID: {}, 카테고리: {}", book.getId(), category.getCategoryName());
         }
     }
+
 
     private String truncate(String str, int len) {
         if (str == null) return null;

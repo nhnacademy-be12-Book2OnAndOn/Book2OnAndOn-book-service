@@ -167,7 +167,6 @@ class BookLikeServiceTest {
                 .images(new HashSet<>())
                 .bookContributors(new HashSet<>())
                 .bookPublishers(new HashSet<>())
-                .bookCategories(new HashSet<>())
                 .bookTags(new HashSet<>())
                 .build();
 

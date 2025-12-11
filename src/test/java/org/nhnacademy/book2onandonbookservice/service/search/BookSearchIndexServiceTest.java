@@ -13,7 +13,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.nhnacademy.book2onandonbookservice.entity.BookTag;
@@ -48,13 +47,12 @@ class BookSearchIndexServiceTest {
                 .publishDate(LocalDate.now())
                 .priceStandard(10000L)
                 .priceSales(9000L)
-                .bookCategories(new HashSet<>())
+                .category(category)
                 .bookTags(new HashSet<>())
                 .bookPublishers(new HashSet<>())
                 .bookContributors(new HashSet<>())
                 .build();
 
-        book.getBookCategories().add(BookCategory.builder().book(book).category(category).build());
         book.getBookTags().add(BookTag.builder().book(book).tag(tag).build());
         book.getBookPublishers().add(BookPublisher.builder().book(book).publisher(publisher).build());
         book.getBookContributors().add(BookContributor.builder().book(book).contributor(contributor).build());
@@ -87,7 +85,6 @@ class BookSearchIndexServiceTest {
         Book book = Book.builder()
                 .id(1L)
                 .title("테스트 책")
-                .bookCategories(new HashSet<>())
                 .bookTags(new HashSet<>())
                 .bookPublishers(new HashSet<>())
                 .bookContributors(new HashSet<>())

@@ -4,9 +4,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDate;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
@@ -22,7 +19,7 @@ class BookValidatorTest {
                 .publishDate(LocalDate.now())
                 .priceStandard(10000L)
                 .priceSales(9000L)
-                .categoryIds(List.of(1L));
+                .categoryId(1L);
     }
 
     private BookUpdateRequest.BookUpdateRequestBuilder updateValidRequest() {
@@ -32,11 +29,11 @@ class BookValidatorTest {
                 .publishDate(LocalDate.now())
                 .priceStandard(10000L)
                 .priceSales(9000L)
-                .categoryIds(List.of(1L));
+                .categoryId(1L);
     }
 
     @Test
-    @DisplayName("등록 검증 성공: 모든 필수 값이 정상")
+    @DisplayName("등록 검증 성공")
     void validateForCreate_Success() {
         BookSaveRequest req = createValidRequest().build();
 
@@ -44,7 +41,7 @@ class BookValidatorTest {
     }
 
     @Test
-    @DisplayName("등록 실패: 제목이 없음")
+    @DisplayName("등록 실패: 제목 없음")
     void validateForCreate_NoTitle() {
         BookSaveRequest request = createValidRequest().title("").build();
         assertThatThrownBy(() -> validator.validateForCreate(request))
@@ -58,7 +55,7 @@ class BookValidatorTest {
     }
 
     @Test
-    @DisplayName("등록 실패: ISBN이 없음")
+    @DisplayName("등록 실패: ISBN 없음")
     void validateForCreate_NoISBN() {
         BookSaveRequest request = createValidRequest().isbn("").build();
         assertThatThrownBy(() -> validator.validateForCreate(request))
@@ -72,18 +69,16 @@ class BookValidatorTest {
     }
 
     @Test
-    @DisplayName("등록 실패: 출판일이 없음")
+    @DisplayName("등록 실패: 출판일 없음")
     void validateForCreate_NoPublishDate() {
         BookSaveRequest request = createValidRequest().publishDate(null).build();
         assertThatThrownBy(() -> validator.validateForCreate(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("출판일");
-
-
     }
 
     @Test
-    @DisplayName("등록 실패: 정가가 없음")
+    @DisplayName("등록 실패: 정가 없음")
     void validateForCreate_NoPriceStandard() {
         BookSaveRequest request = createValidRequest().priceStandard(null).build();
         assertThatThrownBy(() -> validator.validateForCreate(request))
@@ -94,50 +89,39 @@ class BookValidatorTest {
         assertThatThrownBy(() -> validator.validateForCreate(minusPrice))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("정가는");
-
     }
 
     @Test
-    @DisplayName("등록 실패: 판매가가 0이하")
+    @DisplayName("등록 실패: 판매가 음수")
     void validateForCreate_minusPriceSale() {
         BookSaveRequest request = createValidRequest().priceSales(-4L).build();
         assertThatThrownBy(() -> validator.validateForCreate(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("판매가");
-
     }
 
     @Test
-    @DisplayName("등록 실패: 카테고리가 없거나 너무 많을때 ")
+    @DisplayName("등록 실패: 카테고리 없음")
     void validateForCreate_InvalidCategoryCount() {
-        BookSaveRequest request = createValidRequest().categoryIds(Collections.emptyList()).build();
+        BookSaveRequest request = createValidRequest().categoryId(null).build();
         assertThatThrownBy(() -> validator.validateForCreate(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("최소 1개");
-
-        BookSaveRequest request1 = createValidRequest().categoryIds(null).build();
-        assertThatThrownBy(() -> validator.validateForCreate(request1))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("최소 1개");
-
-        List<Long> manyCategories = IntStream.range(0, 11).mapToObj(Long::valueOf).toList();
-        BookSaveRequest request2 = createValidRequest().categoryIds(manyCategories).build();
-        assertThatThrownBy(() -> validator.validateForCreate(request2))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("최대 10개");
+                .hasMessageContaining("카테고리는 필수");
     }
 
     @Test
-    @DisplayName("수정 성공: 값이 없거나 정상 범위 일때")
+    @DisplayName("수정 성공: 카테고리 포함")
     void validateForUpdate_Success() {
-        BookUpdateRequest request = BookUpdateRequest.builder().build();
+        BookUpdateRequest request = BookUpdateRequest.builder()
+                .categoryId(1L)
+                .build();
 
         assertThatCode(() -> validator.validateForUpdate(request))
                 .doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("수정 실패: 정가,판매가가 음수인경우")
+    @DisplayName("수정 실패: 정가 판매가 음수")
     void validateForCreate_InvalidPrice_Modify() {
         BookUpdateRequest request = updateValidRequest().priceStandard(-1L).build();
         assertThatThrownBy(() -> validator.validateForUpdate(request))
@@ -151,22 +135,14 @@ class BookValidatorTest {
     }
 
     @Test
-    @DisplayName("수정 실패: 카테고리 리스트가 넘어왔는데 개수가 부적절한 경우")
+    @DisplayName("수정 실패: 카테고리 null")
     void validateForUpdate_InvalidCategory() {
         BookUpdateRequest request = BookUpdateRequest.builder()
-                .categoryIds(Collections.emptyList())
+                .categoryId(null)
                 .build();
 
         assertThatThrownBy(() -> validator.validateForUpdate(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("최소 1개");
-
-        List<Long> manyCategories = IntStream.range(0, 11).mapToObj(Long::valueOf).toList();
-
-        BookUpdateRequest req = BookUpdateRequest.builder().categoryIds(manyCategories).build();
-
-        assertThatThrownBy(() -> validator.validateForUpdate(req)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("최대 10개");
-
+                .hasMessageContaining("카테고리는 필수");
     }
 }

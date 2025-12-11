@@ -23,24 +23,23 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     List<Book> findBooksNeedingTags(Pageable pageable);
 
     // Book 수정 시 연관관계를 한 번에 가져오기 위한 전용 쿼리
-    @Query("""
-            SELECT DISTINCT b FROM Book b
-            LEFT JOIN FETCH b.bookCategories bc
-            LEFT JOIN FETCH b.bookContributors bct
-            WHERE b.id = :bookId
-            """)
+     @Query("""
+                SELECT DISTINCT b FROM Book b
+                LEFT JOIN FETCH b.category c
+                LEFT JOIN FETCH b.bookContributors bct
+                WHERE b.id = :bookId
+                """)
     Optional<Book> findByIdWithRelations(Long bookId);
 
     /// 신간 도서 조회용 (정렬 O)
-    @Query("SELECT DISTINCT b FROM Book b JOIN b.bookCategories bc WHERE b.status='ON_SALE' AND bc.category.id IN :categoryIds ORDER BY b.publishDate DESC")
+    @Query("SELECT b FROM Book b WHERE b.status='ON_SALE' AND b.category.id IN :categoryIds ORDER BY b.publishDate DESC")
     Page<Book> findBooksByCategoryIdsSorted(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
     /// 검색 동기화용 (정렬 X)
     @Query("""
-            SELECT DISTINCT b
+            SELECT b
             FROM Book b
-            JOIN b.bookCategories bc
-            WHERE bc.category.id IN :categoryIds
+            WHERE b.category.id IN :categoryIds
             """)
     Page<Book> findBooksByCategoryIds(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
@@ -52,7 +51,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             """)
     Page<Book> findByTagId(Long tagId, Pageable pageable);
 
-    @Query("SELECT b FROM Book b JOIN b.bookCategories bc WHERE bc.category.id = :categoryId ORDER BY b.publishDate DESC")
+    @Query("SELECT b FROM Book b WHERE b.category.id = :categoryId ORDER BY b.publishDate DESC")
     Page<Book> findNewArrivalsByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
 
     Page<Book> findAllByOrderByPublishDateDesc(Pageable pageable);

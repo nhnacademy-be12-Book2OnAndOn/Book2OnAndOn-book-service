@@ -35,8 +35,6 @@ class BookEnrichmentServiceTest {
     @Mock
     private CategoryRepository categoryRepository;
     @Mock
-    private BookCategoryRepository bookCategoryRepository;
-    @Mock
     private TagRepository tagRepository;
     @Mock
     private BookTagRepository bookTagRepository;
@@ -63,7 +61,6 @@ class BookEnrichmentServiceTest {
                 .isbn("9788901234567")
                 .title("테스트 책")
                 .description("테스트 설명")
-                .bookCategories(new HashSet<>())
                 .bookTags(new HashSet<>())
                 .images(new HashSet<>())
                 .status(BookStatus.ON_SALE)
