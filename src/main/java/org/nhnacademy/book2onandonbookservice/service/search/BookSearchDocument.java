@@ -39,6 +39,8 @@ public class BookSearchDocument {
     @Field(type = FieldType.Text, analyzer = "korean_nori_analyzer")
     private String volume;
 
+
+
     // 기여자 이름
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "korean_nori_analyzer"),
@@ -57,6 +59,11 @@ public class BookSearchDocument {
     )
     private List<String> publisherNames;
 
+
+
+    // 카테고리 id 인덱싱
+    @Field(type = FieldType.Keyword)
+    private List<String> categoryIds;
     // 카테고리명
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "korean_nori_analyzer"),
@@ -65,10 +72,6 @@ public class BookSearchDocument {
             }
     )
     private List<String> categoryNames;
-
-    // 카테고리 id 인덱싱
-    @Field(type = FieldType.Keyword)
-    private List<String> categoryIds;
 
     // 태그
     @MultiField(

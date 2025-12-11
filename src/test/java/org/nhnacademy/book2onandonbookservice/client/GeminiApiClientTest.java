@@ -133,17 +133,14 @@ class GeminiApiClientTest {
     }
 
     @Test
-    @DisplayName("API 호출 실패 (일반 오류): 429가 아닌 오류는 로그를 찍고 빈 DTO 반환")
+    @DisplayName("API 호출 실패 (일반 오류): 예외 발생")
     void extractContent_GeneralError() {
-        // 500 에러 시뮬레이션
         when(restTemplate.postForObject(anyString(), any(), any()))
                 .thenThrow(new RestClientException("Internal Server Error"));
 
-        BookContentDto result = geminiApiClient.extractContent("T", "D", "I");
-
-        // 예외를 던지지 않고 빈 객체 반환 (실패 처리 -> 3회 재시도 로직으로 이어짐)
-        assertThat(result.hasNoTags()).isTrue();
-        assertThat(result.hasNoChapter()).isTrue();
+        assertThatThrownBy(() -> geminiApiClient.extractContent("T", "D", "I"))
+                .isInstanceOf(RestClientException.class)
+                .hasMessageContaining("Internal Server Error");
     }
 
     @Test

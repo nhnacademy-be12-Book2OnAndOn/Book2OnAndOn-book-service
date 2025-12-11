@@ -370,6 +370,7 @@ public class DataInitializer implements ApplicationRunner {
         }
     }
 
+
     private String truncate(String val, int len) {
         if (val == null) {
             return null;

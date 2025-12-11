@@ -39,7 +39,6 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
@@ -117,9 +116,6 @@ class BookServiceImplTest {
         lenient().when(mockCategoryEntity.getId()).thenReturn(70L);
         lenient().when(mockCategoryEntity.getCategoryName()).thenReturn("Test Category");
 
-        BookCategory mockBookCategory = mock(BookCategory.class);
-        lenient().when(mockBookCategory.getCategory()).thenReturn(mockCategoryEntity);
-
         mockBookImage = mock(BookImage.class);
         lenient().when(mockBookImage.getImagePath()).thenReturn("/path/to/image.jpg");
 
@@ -135,7 +131,6 @@ class BookServiceImplTest {
                 .stockCount(100)
                 .priceSales(9000L)
                 .images(new HashSet<>(List.of(mockBookImage)))
-                .bookCategories(new HashSet<>(List.of(mockBookCategory)))
                 .bookContributors(new HashSet<>(List.of(mockBookContributor)))
                 .bookPublishers(new HashSet<>(List.of(mockBookPublisher)))
                 .bookTags(new HashSet<>())
@@ -297,7 +292,7 @@ class BookServiceImplTest {
     }
 
     @Test
-    @DisplayName("도서 상세 조회 성공 - 로그인 유저, 좋아요 상태 포함")
+    @DisplayName("도서 상세 조회 성공")
     void getBookDetail_Success() {
         Long bookId = 1L;
         Long userId = 100L;
@@ -305,22 +300,37 @@ class BookServiceImplTest {
 
         long mockLikeCount = 5L;
 
+        // bookA에 카테고리 설정 (카테고리 계층 구조)
+        Category parentCategory = Category.builder()
+                .id(1L)
+                .categoryName("국내도서")
+                .build();
+
+        Category childCategory = Category.builder()
+                .id(2L)
+                .categoryName("Test Category")
+                .parent(parentCategory)
+                .build();
+
+        bookA.setCategory(childCategory);
+
         given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
         given(bookLikeRepository.countByBookId(bookId)).willReturn(mockLikeCount);
         given(bookLikeRepository.existsByBookIdAndUserId(bookId, userId)).willReturn(true);
 
         BookDetailResponse result = bookService.getBookDetail(bookId, userId, guestId);
 
-        assertThat(result.getLikedByCurrentUser()).isTrue();
-
         assertThat(result).isNotNull();
-
+        assertThat(result.getLikedByCurrentUser()).isTrue();
         assertThat(result.getLikeCount()).isEqualTo(mockLikeCount);
         assertThat(result.getRating()).isEqualTo(5.0);
         assertThat(result.getTitle()).isEqualTo("Book A");
-
-        assertThat(result.getCategories().get(0).getName()).isEqualTo("Test Category");
         assertThat(result.getPriceStandard()).isEqualTo(10000L);
+
+        // 카테고리 경로 검증 (루트 -> 리프)
+        assertThat(result.getCategories()).hasSize(2);
+        assertThat(result.getCategories().get(0).getName()).isEqualTo("국내도서");
+        assertThat(result.getCategories().get(1).getName()).isEqualTo("Test Category");
 
         verify(bookRepository, times(1)).findByIdWithRelations(bookId);
         verify(bookLikeRepository, times(1)).existsByBookIdAndUserId(bookId, userId);

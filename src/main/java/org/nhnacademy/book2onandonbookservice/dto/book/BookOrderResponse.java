@@ -41,7 +41,7 @@ public class BookOrderResponse {
                 .isWrapped(book.getIsWrapped())
                 .stockCount(book.getStockCount())
                 .status(book.getStatus())
-
+                .categoryId(book.getCategory().getId())
                 .build();
     }
 }

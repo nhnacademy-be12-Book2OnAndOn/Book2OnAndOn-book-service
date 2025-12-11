@@ -1,10 +1,12 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.nhnacademy.book2onandonbookservice.entity.BookTag;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.repository.BookSearchRepository;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +34,17 @@ public class BookSearchIndexService {
             thumbnail = book.getImages().iterator().next().getImagePath();
         }
 
+        List<String> categoryNames = new ArrayList<>();
+        List<String> categoryIds = new ArrayList<>();
+
+        Category category = book.getCategory();
+
+        while (category != null) {
+            categoryNames.add(0, category.getCategoryName()); // 앞에 추가 (루트가 먼저 오도록)
+            categoryIds.add(0, String.valueOf(category.getId()));
+            category = category.getParent();
+        }
+
         return BookSearchDocument.builder()
                 .id(book.getId())
                 .isbn(book.getIsbn())
@@ -49,17 +62,8 @@ public class BookSearchIndexService {
                                 .map(p -> p.getPublisherName())
                                 .toList()
                 )
-                .categoryNames(
-                        book.getBookCategories().stream()
-                                .map(BookCategory::getCategory)
-                                .map(c -> c.getCategoryName())
-                                .toList()
-                )
-                .categoryIds(
-                        book.getBookCategories().stream()
-                                .map(bc -> String.valueOf(bc.getCategory().getId()))
-                                .toList()
-                )
+                .categoryNames(categoryNames)
+                .categoryIds(categoryIds)
                 .tagNames(
                         book.getBookTags().stream()
                                 .map(BookTag::getTag)

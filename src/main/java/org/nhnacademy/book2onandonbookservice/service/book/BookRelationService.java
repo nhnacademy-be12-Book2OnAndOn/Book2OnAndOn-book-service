@@ -11,7 +11,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookTag;
@@ -20,11 +19,14 @@ import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
 import org.nhnacademy.book2onandonbookservice.entity.Tag;
+import org.nhnacademy.book2onandonbookservice.exception.ImageUploadException;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
+import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 @Component
 @RequiredArgsConstructor
@@ -35,10 +37,11 @@ public class BookRelationService {
     private final TagRepository tagRepository;
     private final PublisherRepository publisherRepository;
     private final ContributorRepository contributorRepository;
+    private final ImageUploadService imageUploadService;
 
     /// 도서 등록 시 연관관계
     public void applyRelationsForCreate(Book book, BookSaveRequest request) {
-        setCategories(book, request.getCategoryIds());
+        setCategory(book, request.getCategoryId());
         setTags(book, request.getTagNames());
         setPublishers(book, request.getPublisherIds(), request.getPublisherName());
         setContributors(book, request.getContributorName());
@@ -126,58 +129,52 @@ public class BookRelationService {
         }
     }
 
-    /// 카테고리 설정: diff 적용
-    private void setCategories(Book book, List<Long> newCategoryIds) {
-        if (newCategoryIds == null) {
-            newCategoryIds = List.of();
+    /// 카테고리 설정: 단일 적용
+    private void setCategory(Book book, Long categoryId) {
+        if (categoryId == null) {
+            book.setCategory(null);
+            return;
         }
 
-        // 현재 매핑되어 있는 categoryId 목록
-        Set<Long> currentCategoryIds = book.getBookCategories().stream()
-                .map(bc -> bc.getCategory().getId())
-                .collect(Collectors.toSet());
+        Category category = categoryRepository.findById(categoryId)
+                .orElse(null);
 
-        Set<Long> newIdSet = new HashSet<>(newCategoryIds);
+        if (category != null) {
+            book.setCategory(category);
+        } else {
+            log.warn("존재하지 않는 카테고리 ID 무시됨: {}", categoryId);
+        }
+    }
 
-        // 1) 제거해야 할 것: 현재는 있지만, 요청에는 없는 것
-        book.getBookCategories().removeIf(bc -> !newIdSet.contains(bc.getCategory().getId()));
+    /// 이미지 설정: MultipartFile 업로드 후 저장
+    private void setImages(Book book, List<MultipartFile> imageFiles) {
+        if (imageFiles == null || imageFiles.isEmpty()) {
+            return;
+        }
 
-        // 2) 추가해야 할 것: 요청에는 있지만, 현재는 없는 것
-        for (Long categoryId : newIdSet) {
-            if (!currentCategoryIds.contains(categoryId)) {
-                Category category = categoryRepository.findById(categoryId)
-                        .orElse(null);
-                if (category != null) {
-                    BookCategory bookCategory = BookCategory.builder()
+        for (MultipartFile imageFile : imageFiles) {
+            if (imageFile != null && !imageFile.isEmpty()) {
+                try {
+                    // MinIO에 이미지 업로드하고 URL 받기
+                    String uploadedImageUrl = imageUploadService.uploadBookImage(imageFile);
+
+                    BookImage image = BookImage.builder()
                             .book(book)
-                            .category(category)
+                            .imagePath(uploadedImageUrl)
                             .build();
-                    book.getBookCategories().add(bookCategory);
-                } else {
-                    log.warn("존재하지 않는 카테고리 ID 무시됨:{}", categoryId);
+                    book.getImages().add(image);
+                } catch (Exception e) {
+                    log.error("이미지 업로드 실패: {}", e.getMessage());
                 }
             }
         }
     }
 
-    /// 이미지 설정: 이미지 1장 기준
-    private void setImages(Book book, String imagePath) {
-        if (!notBlank(imagePath)) {
-            return;
-        }
-
-        BookImage image = BookImage.builder()
-                .book(book)
-                .imagePath(imagePath)
-                .build();
-        book.getImages().add(image);
-    }
-
     /// 도서 수정 시 연관관계
     public void applyRelationsForUpdate(Book book, BookUpdateRequest request) {
         // 카테고리: null 이 아니면 전체 교체
-        if (request.getCategoryIds() != null) {
-            setCategories(book, request.getCategoryIds());
+        if (request.getCategoryId() != null) {
+            setCategory(book, request.getCategoryId());
         }
 
         // 태그: null 이 아니면 전체 교체

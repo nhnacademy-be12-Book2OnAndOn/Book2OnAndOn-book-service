@@ -1,6 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.dto.book;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -13,6 +14,7 @@ import org.nhnacademy.book2onandonbookservice.dto.common.TagDto;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
 
 // 도서 상세 페이지 출력
@@ -67,12 +69,17 @@ public class BookDetailResponse {
                 .map(BookImageDto::from)
                 .toList();
 
-        List<CategoryDto> categoryDtos = book.getBookCategories().stream()
-                .map(bc -> CategoryDto.builder()
-                        .id(bc.getCategory().getId())
-                        .name(bc.getCategory().getCategoryName())
-                        .build())
-                .toList();
+        List<CategoryDto> categoryPath = new ArrayList<>();
+        Category category= book.getCategory();
+        while (category != null) {
+            CategoryDto dto = CategoryDto.builder()
+                    .id(category.getId())
+                    .name(category.getCategoryName())
+                    .parentId(category.getParent() != null ? category.getParent().getId() : null)
+                    .build();
+            categoryPath.add(0, dto); // 앞에 추가 (루트가 먼저)
+            category = category.getParent();
+        }
 
         List<TagDto> tagDtos = book.getBookTags().stream()
                 .map(bt -> TagDto.builder()
@@ -106,7 +113,7 @@ public class BookDetailResponse {
                 .priceSales(book.getPriceSales())
                 .status(book.getStatus())
                 .stockCount(book.getStockCount())
-                .categories(categoryDtos)
+                .categories(categoryPath) //[{id:1, name:"국내도서"}, {id:2, name:"소설"}, {id:3, name:"판타지"}] 이런식으로 저장됨
                 .tags(tagDtos)
                 .isWrapped(book.getIsWrapped())
                 .images(imageDtos)

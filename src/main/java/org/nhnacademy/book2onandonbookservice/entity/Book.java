@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
@@ -21,6 +22,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 
 @Entity
@@ -116,11 +119,10 @@ public class Book {
     @Builder.Default
     private Set<BookImage> images = new HashSet<>();
 
-    // 도서 카테고리 매핑
     @Setter
-    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<BookCategory> bookCategories = new HashSet<>();
+    @ManyToOne
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    private Category category;
 
     // 태그 매핑
     @Setter
