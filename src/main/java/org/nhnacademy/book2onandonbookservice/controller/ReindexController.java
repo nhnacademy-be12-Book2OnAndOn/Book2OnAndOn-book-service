@@ -4,12 +4,16 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
+import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage;
+import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage.SyncType;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Tag;
 import org.nhnacademy.book2onandonbookservice.service.category.CategoryService;
 import org.nhnacademy.book2onandonbookservice.service.search.BookReindexService;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchSyncService;
 import org.nhnacademy.book2onandonbookservice.service.tag.TagService;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +31,8 @@ public class ReindexController {
     private final BookSearchSyncService bookSearchSyncService;
     private final CategoryService categoryService;
     private final TagService tagService;
+    private final RabbitTemplate rabbitTemplate;
+
 
     /**
      * 전체 도서 재인덱싱
@@ -42,17 +48,29 @@ public class ReindexController {
      */
     @PostMapping("/reindex/category/{categoryId}")
     public ResponseEntity<String> reindexByCategory(@PathVariable Long categoryId) {
-        long count = bookSearchSyncService.reindexByCategoryId(categoryId);
-        return ResponseEntity.ok("Reindexed " + count + " books for categoryId=" + categoryId);
-    }
+
+        SearchSyncMessage message = new SearchSyncMessage(categoryId, SyncType.CATEGORY);
+
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.SEARCH_SYNC_EXCHANGE,
+                RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY,
+                message
+        );
+        return ResponseEntity.ok("카테고리(ID:" + categoryId + ") 리인덱싱 작업이 백그라운드에서 시작되었습니다.");    }
 
     /**
      * 특정 태그를 가진 도서만 재인덱싱
      */
     @PostMapping("/reindex/tag/{tagId}")
     public ResponseEntity<String> reindexByTag(@PathVariable Long tagId) {
-        long count = bookSearchSyncService.reindexByTagId(tagId);
-        return ResponseEntity.ok("Reindexed " + count + " books for tagId=" + tagId);
+        SearchSyncMessage message = new SearchSyncMessage(tagId, SyncType.TAG);
+
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.SEARCH_SYNC_EXCHANGE,
+                RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY,
+                message
+        );
+        return ResponseEntity.ok("태그(ID:" + tagId + ") 리인덱싱 작업이 백그라운드에서 시작되었습니다.");
     }
 
     /// 카테고리, 태그 이름 변경

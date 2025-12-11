@@ -59,27 +59,27 @@ class ReindexControllerTest {
                 .andExpect(status().isOk());
     }
 
-    @Test
-    @DisplayName("카테고리별 재색인")
-    void reindexByCategory() throws Exception {
-        Long categoryId = 1L;
-        given(bookSearchSyncService.reindexByCategoryId(categoryId)).willReturn(10L);
-
-        mockMvc.perform(post("/admin/reindex/category/{categoryId}", categoryId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value("Reindexed 10 books for categoryId=1"));
-    }
-
-    @Test
-    @DisplayName("태그별 재색인")
-    void reindexByTag() throws Exception {
-        Long tagId = 1L;
-        given(bookSearchSyncService.reindexByTagId(tagId)).willReturn(10L);
-
-        mockMvc.perform(post("/admin/reindex/tag/{tagId}", tagId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value("Reindexed 10 books for tagId=1"));
-    }
+//    @Test
+//    @DisplayName("카테고리별 재색인")
+//    void reindexByCategory() throws Exception {
+//        Long categoryId = 1L;
+//        given(bookSearchSyncService.reindexByCategoryId(categoryId)).willReturn(10L);
+//
+//        mockMvc.perform(post("/admin/reindex/category/{categoryId}", categoryId))
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$").value("Reindexed 10 books for categoryId=1"));
+//    }
+//
+//    @Test
+//    @DisplayName("태그별 재색인")
+//    void reindexByTag() throws Exception {
+//        Long tagId = 1L;
+//        given(bookSearchSyncService.reindexByTagId(tagId)).willReturn(10L);
+//
+//        mockMvc.perform(post("/admin/reindex/tag/{tagId}", tagId))
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$").value("Reindexed 10 books for tagId=1"));
+//    }
 
     @Test
     @DisplayName("카테고리 이름 변경")

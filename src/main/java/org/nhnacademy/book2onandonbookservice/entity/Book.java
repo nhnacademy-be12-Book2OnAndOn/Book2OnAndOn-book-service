@@ -154,7 +154,7 @@ public class Book {
     @Builder.Default
     private Set<BookLike> likes = new HashSet<>();
 
-    // 도서 like count 필드 추가
+    // 도서 like count 필드 추가 (성능개선을 위한 반정규화) BookLike와 필드 갯수가 맞지않을 수 있는 위험 있어서 조심해야함! 트랜잭션 처리 필수
     @Builder.Default
     @Column(name = "like_count", nullable = false)
     private Long likeCount = 0L;

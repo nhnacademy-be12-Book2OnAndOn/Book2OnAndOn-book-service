@@ -82,8 +82,27 @@
         "analyzer": "korean_search",
         "search_analyzer": "korean_search"
       },
-      "categoryIds": {
-        "type": "long"
+      "categoryNames": {
+        "type": "text",
+        "analyzer": "korean_search",
+        "search_analyzer": "korean_search"
+      },
+
+      "categoryIds": { "type": "keyword" },
+      "publishDate": { "type": "date" },
+      "priceStandard": { "type": "long" },
+      "priceSales": { "type": "long" },
+      "imagePath": { "type": "keyword", "index": false, "doc_values": false },
+
+      "popularity": { "type": "long" },
+      "reviewCount": { "type": "long" },
+      "reviewRating": { "type": "double" },
+
+      "embedding": {
+        "type": "dense_vector",
+        "dims": 1024,
+        "index": true,
+        "similarity": "cosine"
       }
     }
   }

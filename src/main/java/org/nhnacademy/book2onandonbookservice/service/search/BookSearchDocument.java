@@ -1,5 +1,10 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import jakarta.persistence.Id;
 import java.time.LocalDate;
 import java.util.List;
@@ -21,6 +26,7 @@ import org.springframework.data.elasticsearch.annotations.Setting;
         createIndex = false)    // 인덱스 이름
 // nori 분석기 설정 (한글 분석기)
 @Setting(settingPath = "static/elastic-settings.json")
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Builder
 @AllArgsConstructor
 public class BookSearchDocument {
@@ -39,6 +45,9 @@ public class BookSearchDocument {
     @Field(type = FieldType.Text, analyzer = "korean_nori_analyzer")
     private String volume;
 
+    //설명
+    @Field(type = FieldType.Text, analyzer = "korean_search")
+    private String description; // 가중치 50
 
 
     // 기여자 이름
@@ -84,6 +93,8 @@ public class BookSearchDocument {
 
     // 출판일
     @Field(type = FieldType.Date)
+    @JsonSerialize(using = LocalDateSerializer.class)
+    @JsonDeserialize(using = LocalDateDeserializer.class)
     private LocalDate publishDate;
 
     // 도서 정가
@@ -97,4 +108,17 @@ public class BookSearchDocument {
     //썸네일 이미지 경로 (검색에는 사용 X, 저장만함)
     @Field(type = FieldType.Keyword, index = false, docValues = false)
     private String imagePath;
+
+    @Field(type = FieldType.Long)
+    private Long popularity; // 인기도
+
+    @Field(type = FieldType.Long)
+    private Long reviewCount; // 리뷰 수
+
+    @Field(type = FieldType.Double)
+    private Double reviewRating; // 평점
+
+    // --- Ollama (BGE-M3) 1024차원 벡터 ---
+    @Field(type = FieldType.Dense_Vector, dims = 1024)
+    private List<Float> embedding;
 }
