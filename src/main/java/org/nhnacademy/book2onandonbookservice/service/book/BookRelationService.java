@@ -45,7 +45,6 @@ public class BookRelationService {
         setTags(book, request.getTagNames());
         setPublishers(book, request.getPublisherIds(), request.getPublisherName());
         setContributors(book, request.getContributorName());
-        setImages(book, request.getImagePath());
     }
 
     /// 기여자(저자) 설정: "XXX, XXX" 등의 형태를 , 기준으로 분리. 빈 문자열이면 아무것도 추가하지 않음.
@@ -195,11 +194,6 @@ public class BookRelationService {
             setContributors(book, request.getContributorName());
         }
 
-        // 이미지: null 이면 건드리지 않고, 빈 문자열이면 모두 제거
-        if (request.getImagePath() != null) {
-            book.getImages().clear();
-            setImages(book, request.getImagePath());
-        }
     }
 
     /// 공통 문자열 유틸

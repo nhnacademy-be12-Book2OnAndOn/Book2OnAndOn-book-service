@@ -283,20 +283,34 @@ public class BookServiceImpl implements BookService {
                 .toList();
     }
 
-    /// 신간 도서를 출간일 최신순으로 조회하고 캐싱
-    @Cacheable(value = "newArrivals", key = "#categoryId + '_' + #pageable.pageNumber+ '_' + #pageable.pageSize", cacheManager = "RedisCacheManager")
     @Override
+    @Cacheable(
+            value = "newArrivals",
+            key = "#categoryId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize",
+            cacheManager = "RedisCacheManager"
+    )
     public Page<BookListResponse> getNewArrivals(Long categoryId, Pageable pageable) {
-        Page<Book> bookPage;
+        long startTime = System.currentTimeMillis();
+        log.info("🔍 신간도서 조회 시작 - categoryId: {}, page: {}, size: {}",
+                categoryId, pageable.getPageNumber(), pageable.getPageSize());
 
-        if (categoryId != null) {
-            List<Long> allCategoryIds = getAllCategoryIds(categoryId);
-            bookPage = bookRepository.findBooksByCategoryIdsSorted(allCategoryIds, pageable);
-        } else {
-            bookPage = bookRepository.findAllByOrderByPublishDateDesc(pageable);
-        }
-        return new RestPage<>(bookPage.map(BookListResponse::from));
+        // 1단계: Book + Category + Images 조회
+        Page<Book> bookPage = fetchBooks(categoryId, pageable, startTime);
+
+        // 2단계: Contributors, Publishers, Tags 조회 (Batch Fetch)
+        fetchAdditionalDetails(bookPage.getContent(), startTime);
+
+        // 3단계: DTO 변환
+        Page<BookListResponse> result = convertToResponse(bookPage, startTime);
+
+        long totalTime = System.currentTimeMillis() - startTime;
+        log.info("✅ 신간도서 조회 완료 - 총 {}ms, {} 건 조회", totalTime, result.getTotalElements());
+
+        return result;
     }
+
+
+
 
     /// 내부 통신용 주문서 생성 및 결제 검증을 위한 도서 정보 다건 조회
     @Override
@@ -419,26 +433,69 @@ public class BookServiceImpl implements BookService {
         return status == BookStatus.SOLD_OUT || status == BookStatus.OUT_OF_STOCK;
     }
 
-    private List<Long> getAllCategoryIds(Long parentId) {
-        Category parent = categoryRepository.findById(parentId)
-                .orElseThrow(() -> new IllegalArgumentException("카테고리 없음"));
-
-        List<Long> ids = new ArrayList<>();
-
-        ids.add(parent.getId());
-
-        collectChildIds(parent, ids);
-        return ids;
+    private List<Long> getAllCategoryIds(Long categoryId) {
+        List<Long> categoryIds = new ArrayList<>();
+        collectCategoryIds(categoryId, categoryIds);
+        return categoryIds;
     }
 
-    private void collectChildIds(Category parent, List<Long> ids) {
-        if (parent.getChildren() == null || parent.getChildren().isEmpty()) {
+    private void collectCategoryIds(Long categoryId, List<Long> result) {
+        result.add(categoryId);
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElse(null);
+
+        if (category != null && category.getChildren() != null) {
+            for (Category child : category.getChildren()) {
+                collectCategoryIds(child.getId(), result);
+            }
+        }
+    }
+
+
+    private void fetchAdditionalDetails(List<Book> books, long startTime) {
+        if (books.isEmpty()) {
+            log.debug(" 2단계 스킵 (조회 결과 없음)");
             return;
         }
-        for (Category child : parent.getChildren()) {
-            ids.add(child.getId());
-            collectChildIds(child, ids);
-        }
+
+        long t3 = System.currentTimeMillis();
+        List<Long> bookIds = books.stream()
+                .map(Book::getId)
+                .toList();
+
+        bookRepository.findBooksWithDetails(bookIds);
+        log.debug("2단계 쿼리 (상세정보): {}ms", System.currentTimeMillis() - t3);
     }
 
+    private Page<Book> fetchBooks(Long categoryId, Pageable pageable, long startTime) {
+        Page<Book> bookPage;
+
+        if (categoryId != null) {
+            // 카테고리 필터링
+            long t1 = System.currentTimeMillis();
+            List<Long> allCategoryIds = getAllCategoryIds(categoryId);
+            log.debug(" 카테고리 ID 수집: {}ms ({} 개)",
+                    System.currentTimeMillis() - t1, allCategoryIds.size());
+
+            long t2 = System.currentTimeMillis();
+            bookPage = bookRepository.findBooksByCategoryIdsSorted(allCategoryIds, pageable);
+            log.debug("1단계 쿼리 (필터): {}ms ({} 건)",
+                    System.currentTimeMillis() - t2, bookPage.getContent().size());
+        } else {
+            // 전체 조회
+            long t2 = System.currentTimeMillis();
+            bookPage = bookRepository.findAllByOrderByPublishDateDesc(pageable);
+            log.debug(" 1단계 쿼리 (전체): {}ms ({} 건)",
+                    System.currentTimeMillis() - t2, bookPage.getContent().size());
+        }
+
+        return bookPage;
+    }
+    private Page<BookListResponse> convertToResponse(Page<Book> bookPage, long startTime) {
+        long t4 = System.currentTimeMillis();
+        Page<BookListResponse> result = new RestPage<>(bookPage.map(BookListResponse::from));
+        log.debug("DTO 변환: {}ms", System.currentTimeMillis() - t4);
+        return result;
+    }
 }

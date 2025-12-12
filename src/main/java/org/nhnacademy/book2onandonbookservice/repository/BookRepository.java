@@ -6,21 +6,15 @@ import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
-    @Query("SELECT b FROM Book b "
-            + "WHERE (b.priceStandard = 0 OR b.description IS NULL OR b.description = '') "
-            + "AND b.status != 'BOOK_DELETED'")
-    List<Book> findBooksNeedingEnrichment(Pageable pageable);
 
     List<BookIdAndIsbn> findByIsbnIn(List<String> isbns);
-
-    @Query("SELECT b FROM Book b WHERE (b.description IS NOT NULL AND b.description != '') AND SIZE(b.bookTags) = 0")
-    List<Book> findBooksNeedingTags(Pageable pageable);
 
     // Book 수정 시 연관관계를 한 번에 가져오기 위한 전용 쿼리
      @Query("""
@@ -32,8 +26,14 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     Optional<Book> findByIdWithRelations(Long bookId);
 
     /// 신간 도서 조회용 (정렬 O)
-    @Query("SELECT b FROM Book b WHERE b.status='ON_SALE' AND b.category.id IN :categoryIds ORDER BY b.publishDate DESC")
-    Page<Book> findBooksByCategoryIdsSorted(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
+    @Query("""
+        SELECT DISTINCT b FROM Book b
+        LEFT JOIN FETCH b.category
+        WHERE b.status = 'ON_SALE' 
+        AND b.category.id IN :categoryIds 
+        ORDER BY b.publishDate DESC
+        """)
+   Page<Book> findBooksByCategoryIdsSorted(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
     /// 검색 동기화용 (정렬 X)
     @Query("""
@@ -51,10 +51,28 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             """)
     Page<Book> findByTagId(Long tagId, Pageable pageable);
 
-    @Query("SELECT b FROM Book b WHERE b.category.id = :categoryId ORDER BY b.publishDate DESC")
-    Page<Book> findNewArrivalsByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
 
+    @Query("""
+        SELECT b FROM Book b
+        LEFT JOIN FETCH b.category
+        WHERE b.status = 'ON_SALE'
+        ORDER BY b.publishDate DESC
+        """)
     Page<Book> findAllByOrderByPublishDateDesc(Pageable pageable);
+
+
+    @Query("""
+        SELECT DISTINCT b FROM Book b
+        LEFT JOIN FETCH b.bookContributors bc
+        LEFT JOIN FETCH bc.contributor
+        LEFT JOIN FETCH b.bookPublishers bp
+        LEFT JOIN FETCH bp.publisher
+        LEFT JOIN FETCH b.bookTags bt
+        LEFT JOIN FETCH bt.tag
+        WHERE b.id IN :bookIds
+        """)
+    List<Book> findBooksWithDetails(@Param("bookIds") List<Long> bookIds);
+
 
     //주문 후 재고 차감 로직
     @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 동기화)

@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -122,6 +123,7 @@ public class Book {
     @Setter
     @ManyToOne
     @OnDelete(action = OnDeleteAction.SET_NULL)
+    @JoinColumn(name = "category_id") // ★★★ 여기를 추가하세요!
     private Category category;
 
     // 태그 매핑

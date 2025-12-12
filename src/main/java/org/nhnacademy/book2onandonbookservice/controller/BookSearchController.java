@@ -11,6 +11,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,10 +24,10 @@ public class BookSearchController {
     private final BookSearchService bookSearchService;
 
     // ES 기반 도서 검색
-    @GetMapping("/search")
+    @PostMapping("/search")
     public ResponseEntity<Page<BookListResponse>> searchBooks(
             @ModelAttribute BookSearchCondition condition,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault Pageable pageable
     ) {
         Page<BookListResponse> result = bookSearchService.search(condition, pageable);
         return ResponseEntity.ok(result);

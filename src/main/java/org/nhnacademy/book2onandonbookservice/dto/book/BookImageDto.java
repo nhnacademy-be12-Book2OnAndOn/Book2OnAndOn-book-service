@@ -14,6 +14,7 @@ public class BookImageDto {
     private Long id;
     private String url;
 
+
     public static BookImageDto from(BookImage bookImage) {
         return BookImageDto.builder()
                 .id(bookImage.getId())

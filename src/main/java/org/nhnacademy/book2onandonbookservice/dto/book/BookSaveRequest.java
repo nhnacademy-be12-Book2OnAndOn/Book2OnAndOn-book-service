@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 // 도서 등록 및 수정 요청 DTO
 @Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -46,10 +47,6 @@ public class BookSaveRequest {
     private Long categoryId; // 카테고리
     private Set<String> tagNames;  // 태그 리스트
     private Boolean isWrapped;  // 포장 여부
-
-    // 이미지 url(경로)
-    @Setter
-    private List<MultipartFile> imagePath;
 
     // 목차
     private String chapter;

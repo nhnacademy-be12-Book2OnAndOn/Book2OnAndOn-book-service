@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.exception;
 
 
 import java.time.LocalDateTime;
+import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.error.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
     /**
      * [404] NotFoundBookException , NotFoundReviewException
@@ -85,6 +87,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
+
         ErrorResponse response = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),

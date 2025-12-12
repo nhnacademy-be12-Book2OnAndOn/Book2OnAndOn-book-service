@@ -3,7 +3,7 @@ GET https://examples.http-client.intellij.net/get
     ?generated-in=IntelliJ IDEA
 
 ### 엘라스틱 서치
-GET http://localhost:8089/books/search?keyword=스프링부트관련된책&sort=score
+GET http://localhost:8089/books/search?keyword=자바&sort=score
 
 ###전체 북 인덱싱목록 반환
 GET http://10.116.64.14:9200/book2onandon-books/_search
