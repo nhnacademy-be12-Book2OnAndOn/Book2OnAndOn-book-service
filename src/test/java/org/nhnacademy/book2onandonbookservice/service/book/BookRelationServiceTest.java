@@ -81,7 +81,6 @@ class BookRelationServiceTest {
                 .publisherIds(List.of(20L))
                 .publisherName("신규 출판사")
                 .contributorName("작가1, 작가2")
-                .imagePath(List.of(imageFile))
                 .build();
 
         Category category = Category.builder().id(10L).categoryName("카테고리").build();
@@ -142,7 +141,6 @@ class BookRelationServiceTest {
                 .tagNames(null)
                 .publisherIds(null)
                 .contributorName(null)
-                .imagePath(null)
                 .build();
 
         bookRelationService.applyRelationsForUpdate(book, req);
@@ -197,31 +195,4 @@ class BookRelationServiceTest {
         assertThat(book.getBookPublishers()).hasSize(2);
     }
 
-    @Test
-    @DisplayName("이미지 빈 리스트면 추가 안함")
-    void setImages_EmptyList() {
-        BookSaveRequest request = BookSaveRequest.builder()
-                .imagePath(List.of())
-                .build();
-
-        bookRelationService.applyRelationsForCreate(book, request);
-        assertThat(book.getImages()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("여러 이미지 업로드")
-    void setImages_Multiple() {
-        MockMultipartFile image1 = new MockMultipartFile("image1", "test1.jpg", "image/jpeg", "test1".getBytes());
-        MockMultipartFile image2 = new MockMultipartFile("image2", "test2.jpg", "image/jpeg", "test2".getBytes());
-
-        BookSaveRequest request = BookSaveRequest.builder()
-                .imagePath(List.of(image1, image2))
-                .build();
-
-        given(imageUploadService.uploadBookImage(any(MultipartFile.class)))
-                .willReturn("http://minio/image1.jpg", "http://minio/image2.jpg");
-
-        bookRelationService.applyRelationsForCreate(book, request);
-        assertThat(book.getImages()).hasSize(2);
-    }
 }

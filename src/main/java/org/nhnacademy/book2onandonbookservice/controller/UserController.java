@@ -3,7 +3,6 @@ package org.nhnacademy.book2onandonbookservice.controller;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
-import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
 import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService;
@@ -39,10 +38,10 @@ public class UserController {
     /// RestPage<MyLikedBookResponse></MyLikedBookResponse> 형태를 받아감
     @GetMapping("/likes/me")
     @AuthCheck(Role.USER)
-    public ResponseEntity<RestPage<MyLikedBookResponse>> getMyLikedBooks(
+    public ResponseEntity<Page<MyLikedBookResponse>> getMyLikedBooks(
             @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Direction.DESC) Pageable pageable) {
         Long userId = util.getUserId();
-        RestPage<MyLikedBookResponse> likedBooks = bookLikeService.getMyLikedBookIds(userId, pageable);
+        Page<MyLikedBookResponse> likedBooks = bookLikeService.getMyLikedBookIds(userId, pageable);
         return ResponseEntity.ok(likedBooks);
     }
 

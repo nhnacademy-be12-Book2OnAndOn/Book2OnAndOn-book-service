@@ -35,6 +35,8 @@ public class BookListResponse {
 
     private String thumbnail;
 
+    private String aiRecommendation;
+
     public static BookListResponse from(Book book) {
         String resolvedImage = book.getThumbnail();
 

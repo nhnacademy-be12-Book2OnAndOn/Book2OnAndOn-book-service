@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 // 도서 등록 및 수정 요청 DTO
 @Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -47,15 +48,12 @@ public class BookSaveRequest {
     private Set<String> tagNames;  // 태그 리스트
     private Boolean isWrapped;  // 포장 여부
 
-    // 이미지 url(경로)
-    @Setter
-    private List<MultipartFile> imagePath;
-
     // 목차
     private String chapter;
 
     // -- 설명 - WYSIWYG 편집 후 결과 HTML -> Book.book_description에 그대로 저장
     private String descriptionHtml;
 
+    private String imageUrl; // GoogleBooks에서 가져온 이미지 URL (사용자가 파일을 직접 업로드 하지 않았을 때 이 URL을 사용해 이미지를 다운로드
 
 }

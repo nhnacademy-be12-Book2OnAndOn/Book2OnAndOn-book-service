@@ -26,7 +26,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
 import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookLike;
@@ -182,7 +181,7 @@ class BookLikeServiceTest {
 
         when(bookLikeRepository.findAllByUserId(userId, pageable)).thenReturn(likePage);
 
-        RestPage<MyLikedBookResponse> result = bookLikeService.getMyLikedBookIds(userId, pageable);
+        Page<MyLikedBookResponse> result = bookLikeService.getMyLikedBookIds(userId, pageable);
 
         assertThat(result.getContent()).hasSize(1);
 

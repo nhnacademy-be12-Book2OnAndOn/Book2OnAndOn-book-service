@@ -9,9 +9,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
-import org.springframework.web.multipart.MultipartFile;
 
 @Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -45,10 +45,6 @@ public class BookUpdateRequest {
     private Long categoryId; // 카테고리
     private Set<String> tagNames;  // 태그 리스트
     private Boolean isWrapped;  // 포장 여부
-
-    // 이미지 url(경로)
-    @Setter
-    private List<MultipartFile> imagePath;
 
     // 목차
     private String chapter;

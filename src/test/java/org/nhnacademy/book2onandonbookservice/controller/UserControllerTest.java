@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
@@ -91,11 +90,10 @@ class UserControllerTest {
 
         List<MyLikedBookResponse> content = List.of(responseDto);
         PageImpl<MyLikedBookResponse> page = new PageImpl<>(content, PageRequest.of(0, 10), 1);
-        RestPage<MyLikedBookResponse> responsePage = new RestPage<>(page);
 
         given(util.getUserId()).willReturn(userId);
         given(bookLikeService.getMyLikedBookIds(eq(userId), any(Pageable.class)))
-                .willReturn(responsePage);
+                .willReturn(page);
 
         mockMvc.perform(get("/internal/users/likes/me")
                         .param("page", "0")

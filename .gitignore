@@ -38,3 +38,6 @@ build/
 .env
 application-local.properties
 /logs
+/http
+.DS_Store
+**/.DS_Store

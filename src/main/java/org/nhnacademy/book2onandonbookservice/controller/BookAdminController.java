@@ -10,19 +10,19 @@ import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookStatusUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
-import org.nhnacademy.book2onandonbookservice.service.book.BookPriceService;
+import org.nhnacademy.book2onandonbookservice.service.book.AladinService;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
-import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
-import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,13 +33,23 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class BookAdminController {
     private final BookService bookService;
+    private final AladinService aladinService;
 
+    /**
+     * 도서 등록(관리자용) : GoogleBooksApi 사용
+     */
+    @AuthCheck(Role.BOOK_ADMIN)
+    @GetMapping("/lookup")
+    public ResponseEntity<BookSaveRequest> lookupBook(@RequestParam String isbn){
+        BookSaveRequest response = aladinService.searchBookInfo(isbn);
+        return ResponseEntity.ok(response);
+    }
     /**
      * 도서 등록 (관리자용) - 방식: multipart/form-data -"book": Json 데이터 (BookSaveRequest) - "image" : 파일 데이터
      */
     @AuthCheck(Role.BOOK_ADMIN)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Void> createBook(@RequestPart("book") BookSaveRequest request,
+    public ResponseEntity<Void> createBook(@RequestPart("book") @Valid BookSaveRequest request,
                                            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         log.info("도서 등록 요청: {}", request.getTitle());
 

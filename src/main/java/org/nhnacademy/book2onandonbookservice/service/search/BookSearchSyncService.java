@@ -11,6 +11,7 @@ import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,25 +30,25 @@ public class BookSearchSyncService {
     /**
      * 특정 카테고리에 속한 책들을 모두 재인덱싱
      */
-    @Transactional(readOnly = true)
-    public long reindexByCategoryId(Long categoryId) {
+    @Async
+    @Transactional
+    public void reindexByCategoryId(Long categoryId) {
         log.info("[ES Sync] Start reindexByCategoryId categoryId={}", categoryId);
         List<Long> targetCategoryIds = getAllCategoryIds(categoryId);
         long total = reindexPaged(pageable -> bookRepository.findBooksByCategoryIds(targetCategoryIds, pageable));
         log.info("[ES Sync] Done reindexByCategoryId rootId={} (totalIds={}) totalReindexed={}",
                 categoryId, targetCategoryIds.size(), total);
-        return total;
     }
 
     /**
      * 특정 태그를 가진 책들을 모두 재인덱싱
      */
-    @Transactional(readOnly = true)
-    public long reindexByTagId(Long tagId) {
+    @Async
+    @Transactional
+    public void reindexByTagId(Long tagId) {
         log.info("[ES Sync] Start reindexByTagId tagId={}", tagId);
         long total = reindexPaged(pageable -> bookRepository.findByTagId(tagId, pageable));
         log.info("[ES Sync] Done reindexByTagId tagId={} totalReindexed={}", tagId, total);
-        return total;
     }
 
     /**

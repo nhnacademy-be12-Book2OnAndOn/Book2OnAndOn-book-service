@@ -1,0 +1,39 @@
+### GET request to example server
+GET https://examples.http-client.intellij.net/get
+    ?generated-in=IntelliJ IDEA
+
+### 엘라스틱 서치
+GET http://localhost:8089/books/search?keyword=자바&sort=score
+
+###전체 북 인덱싱목록 반환
+GET http://10.116.64.14:9200/book2onandon-books/_search
+Authorization: Basic elastic nhnacademy123!
+Content-Type: application/json
+
+{
+  "query": {
+    "match_all": {}
+  },
+  "size": 100
+}
+
+### 인덱스 설정 조회
+GET http://10.116.64.14:9200/book2onandon-books/_mapping
+Authorization: Basic elastic nhnacademy123!
+Content-Type: application/json
+
+###
+POST http://10.116.64.14:9200/book2onandon-books/_doc/99999
+Authorization: Basic elastic nhnacademy123!
+Content-Type: application/json
+
+{
+  "_class": "org.nhnacademy.book2onandonbookservice.service.search.BookSearchDocument",
+  "id": 99999,
+  "title": "이것이 자바다 Java Programming",
+  "description": "자바 언어의 기초부터 고급 기술까지 친절하게 설명한 베스트셀러.",
+  "contributorNames": ["신용권"],
+  "publisherNames": ["한빛미디어"],
+  "priceStandard": 30000,
+  "publishDate": "2023-01-01"
+}
