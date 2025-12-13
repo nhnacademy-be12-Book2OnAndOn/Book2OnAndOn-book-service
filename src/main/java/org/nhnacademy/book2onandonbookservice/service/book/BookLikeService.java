@@ -3,7 +3,6 @@ package org.nhnacademy.book2onandonbookservice.service.book;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
 import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookLike;
@@ -67,11 +66,11 @@ public class BookLikeService {
 
     /// 내가 좋아요한 책 ID 목록
     @Transactional(readOnly = true)
-    public RestPage<MyLikedBookResponse> getMyLikedBookIds(Long userId, Pageable pageable) {
+    public Page<MyLikedBookResponse> getMyLikedBookIds(Long userId, Pageable pageable) {
         Page<BookLike> likePage = bookLikeRepository.findAllByUserId(userId, pageable);
 
         Page<MyLikedBookResponse> dtoPage = likePage.map(MyLikedBookResponse::from);
-        return new RestPage<>(dtoPage);
+        return dtoPage;
     }
 
     public record BookLikeToggleResult(boolean liked, Long likeCount) {

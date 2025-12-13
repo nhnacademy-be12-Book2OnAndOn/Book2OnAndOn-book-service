@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
-import org.nhnacademy.book2onandonbookservice.dto.api.RestPage;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
@@ -39,6 +38,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 // 등록/수정 담당
@@ -65,7 +65,7 @@ public class BookServiceImpl implements BookService {
     @CacheEvict(value={"newArrivals","bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public Long createBook(BookSaveRequest request, List<MultipartFile> images) {
         bookValidator.validateForCreate(request);
-        Book book = bookFactory.createFrom(request);
+        Book book = bookFactory.createFrom(request); //기본 도서 정보 저장
 
         Book saved = bookRepository.save(book);
         boolean hasThumbnail = book.getImages().stream().anyMatch(BookImage::isThumbnail);
@@ -89,6 +89,15 @@ public class BookServiceImpl implements BookService {
                     saved.getImages().add(bookImage);
                 }
             }
+        }
+        if (!hasThumbnail && StringUtils.hasText(request.getImageUrl())) {
+            BookImage externalImage = BookImage.builder()
+                    .book(saved)
+                    .imagePath(request.getImageUrl()) // 구글/외부 이미지 URL 저장
+                    .isThumbnail(true) // 파일이 없으므로 이게 썸네일이 됨
+                    .build();
+
+            saved.getImages().add(externalImage);
         }
 
         bookRelationService.applyRelationsForCreate(saved, request);
@@ -494,7 +503,7 @@ public class BookServiceImpl implements BookService {
     }
     private Page<BookListResponse> convertToResponse(Page<Book> bookPage, long startTime) {
         long t4 = System.currentTimeMillis();
-        Page<BookListResponse> result = new RestPage<>(bookPage.map(BookListResponse::from));
+        Page<BookListResponse> result = bookPage.map(BookListResponse::from);
         log.debug("DTO 변환: {}ms", System.currentTimeMillis() - t4);
         return result;
     }

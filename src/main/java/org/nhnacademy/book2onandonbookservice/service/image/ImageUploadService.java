@@ -6,6 +6,7 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import java.io.InputStream;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -86,6 +87,35 @@ public class ImageUploadService {
             // 여기가 핵심! 진짜 에러 원인을 로그에 찍습니다.
             log.error("[이미지 업로드 실패] MinIO 에러 발생! bucket: {}, url: {}", rootBucket, minioUrl, e);
             throw new ImageUploadException("이미지 업로드 실패", e);
+        }
+    }
+
+    private String uploadImageFromUrl(String imageUrl){
+        if(imageUrl==null || imageUrl.isBlank()){
+            return null;
+        }
+
+        try{
+            URL url = new URL(imageUrl);
+
+            try(InputStream inputStream = url.openStream()){
+                String savedFileName = UUID.randomUUID() + ".jpg";
+                String objectName = bookFolder + "/" + savedFileName;
+
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(objectName)
+                                .stream(inputStream, -1, 10485760) //10MB
+                                .contentType("image/jpeg")
+                                .build()
+                );
+
+                log.info("외부 이미지 다운로드 및 업로드 성공함: {}", objectName);
+                return minioUrl + "/" + rootBucket + "/" + objectName;
+            }
+        } catch (Exception e) {
+            log.warn("외부 이미지 다운로드 실패 (무시하고 진행): {}",imageUrl, e);
+            return null;
         }
     }
 
