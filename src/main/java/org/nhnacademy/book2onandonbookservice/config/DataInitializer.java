@@ -79,7 +79,7 @@ public class DataInitializer implements ApplicationRunner {
         // 캐시 : 이미 DB에 있는 출판사/작가를 메모리에 올림 (중복 Insert 방지 및 속도 향상)
         preloadCaches();
 
-        Resource[] resources = resolver.getResources("classpath:/data/*.csv");
+        Resource[] resources = resolver.getResources("classpath*:/data/*.csv");
         if (resources.length == 0) {
             log.warn("classpath:/data 경로에 CSV 파일이 없습니다.");
             return;

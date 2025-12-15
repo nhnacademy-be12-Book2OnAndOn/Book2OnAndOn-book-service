@@ -59,13 +59,14 @@ public class BatchInsertRepository {
             return;
         }
 
-        String sql = "INSERT INTO book_image (book_id, book_image_path) VALUES (?,?)";
+        String sql = "INSERT INTO book_image (book_id, book_image_path, is_thumbnail) VALUES (?,?,?)";
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
                 BookImage image = images.get(i);
                 ps.setLong(1, image.getBook().getId());
                 ps.setString(2, image.getImagePath());
+                ps.setBoolean(3, image.isThumbnail());
             }
 
             @Override
