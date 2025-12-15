@@ -15,10 +15,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 public class GlobalExceptionHandler {
     /**
-     * [404] NotFoundBookException , NotFoundReviewException
+     * [404] NotFoundBookException , NotFoundReviewException, NotFoundCategoryException
      */
-    @ExceptionHandler({NotFoundBookException.class, NotFoundReviewException.class})
+    @ExceptionHandler({NotFoundBookException.class, NotFoundReviewException.class, NotFoundCategoryException.class})
     public ResponseEntity<ErrorResponse> handleNotFoundBookException(Exception ex) {
+        log.error(ex.getMessage());
         ErrorResponse response = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.NOT_FOUND.value(),
@@ -87,7 +88,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
-
+        log.error(ex.getMessage());
         ErrorResponse response = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),

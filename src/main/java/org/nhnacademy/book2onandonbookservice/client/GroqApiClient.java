@@ -63,7 +63,7 @@ public class GroqApiClient {
                 형식:
                 {
                     "tags": ["표준태그1", "표준태그2", "생성된태그"],
-                    "chapter": "..."
+                    "chapter": ["..."]
                 }
                 """.formatted(STANDARD_TAGS, isbn, title, safeDescription);
 

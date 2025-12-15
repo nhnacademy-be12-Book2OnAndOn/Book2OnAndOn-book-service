@@ -25,6 +25,7 @@ import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundCategoryException;
 import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
@@ -68,28 +69,10 @@ public class BookServiceImpl implements BookService {
         Book book = bookFactory.createFrom(request); //기본 도서 정보 저장
 
         Book saved = bookRepository.save(book);
+
+        processImages(saved, images);
         boolean hasThumbnail = book.getImages().stream().anyMatch(BookImage::isThumbnail);
-        if (images != null && !images.isEmpty()) {
-            for (int i = 0; i < images.size(); i++) {
-                MultipartFile file = images.get(i);
 
-                if (!file.isEmpty()) {
-                    String minioUrl = imageUploadService.uploadBookImage(file);
-
-                    boolean isThisThumbnail = !hasThumbnail;
-                    BookImage bookImage = BookImage.builder()
-                            .book(saved)
-                            .imagePath(minioUrl)
-                            .isThumbnail(isThisThumbnail)
-                            .build();
-
-                    if(isThisThumbnail){
-                        hasThumbnail=true;
-                    }
-                    saved.getImages().add(bookImage);
-                }
-            }
-        }
         if (!hasThumbnail && StringUtils.hasText(request.getImageUrl())) {
             BookImage externalImage = BookImage.builder()
                     .book(saved)
@@ -129,34 +112,15 @@ public class BookServiceImpl implements BookService {
             });
         }
 
-        if (newImages != null && !newImages.isEmpty()) {
-            boolean hasThumbnail = book.getImages().stream().anyMatch(BookImage::isThumbnail);
-            for (MultipartFile file : newImages) {
-                if (!file.isEmpty()) {
-                    String minioUrl = imageUploadService.uploadBookImage(file);
+        processImages(book, newImages);
 
-                    boolean isThisThumbnail = !hasThumbnail;
-
-                    BookImage newImage = BookImage.builder()
-                            .book(book)
-                            .imagePath(minioUrl)
-                            .isThumbnail(isThisThumbnail)
-                            .build();
-
-                    if(isThisThumbnail){
-                        hasThumbnail=true;
-                    }
-
-                    book.getImages().add(newImage);
-                }
-            }
-        }
         bookRelationService.applyRelationsForUpdate(book, request);
         bookSearchIndexService.index(book);
     }
 
     @Override
     @Transactional
+    //썸네일 업데이트
     @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public void updateThumbnail(Long bookId, Long bookImageId) {
         Book book = bookRepository.findByIdWithRelations(bookId)
@@ -216,6 +180,33 @@ public class BookServiceImpl implements BookService {
         }
 
 
+    }
+
+    @Override
+    public long getBookCount() {
+        return bookRepository.count();
+    }
+
+    @Override
+    public Page<BookListResponse> getBooksByCategory(Long categoryId, Pageable pageable) {
+        Category rootCategory = categoryRepository.findById(categoryId)
+                .orElseThrow(()-> new NotFoundCategoryException(categoryId));
+
+        List<Long> allCategoryIds = new ArrayList<>();
+        collectSubCategoryIds(rootCategory, allCategoryIds);
+
+        Page<Book> books = bookRepository.findByCategory_IdIn(allCategoryIds, pageable);
+
+        return books.map(BookListResponse::from);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "categoryInfo", key = "#categoryId", cacheManager = "RedisCacheManager")
+    public CategoryDto getCategory(Long categoryId){
+        Category category = categoryRepository.findById(categoryId).orElseThrow(()-> new NotFoundCategoryException(categoryId)  );
+
+        return CategoryToDto(category);
     }
 
     // 공통 mapper 사용 -> 리스트용 DTO 매핑
@@ -300,7 +291,7 @@ public class BookServiceImpl implements BookService {
     )
     public Page<BookListResponse> getNewArrivals(Long categoryId, Pageable pageable) {
         long startTime = System.currentTimeMillis();
-        log.info("🔍 신간도서 조회 시작 - categoryId: {}, page: {}, size: {}",
+        log.info(" 신간도서 조회 시작 - categoryId: {}, page: {}, size: {}",
                 categoryId, pageable.getPageNumber(), pageable.getPageSize());
 
         // 1단계: Book + Category + Images 조회
@@ -313,7 +304,7 @@ public class BookServiceImpl implements BookService {
         Page<BookListResponse> result = convertToResponse(bookPage, startTime);
 
         long totalTime = System.currentTimeMillis() - startTime;
-        log.info("✅ 신간도서 조회 완료 - 총 {}ms, {} 건 조회", totalTime, result.getTotalElements());
+        log.info("신간도서 조회 완료 - 총 {}ms, {} 건 조회", totalTime, result.getTotalElements());
 
         return result;
     }
@@ -379,7 +370,7 @@ public class BookServiceImpl implements BookService {
     public Page<BookListResponse> getPopularBooks(Pageable pageable) {
         Page<Book> bookPage =
                 bookRepository.findByStatusOrderByLikeCountDesc(BookStatus.ON_SALE, pageable);
-
+        log.info("좋아요 요청 들어옴 갯수: {}", bookPage.getSize());
         return bookPage.map(BookListResponse::from);
     }
 
@@ -443,20 +434,22 @@ public class BookServiceImpl implements BookService {
     }
 
     private List<Long> getAllCategoryIds(Long categoryId) {
+        // 1. 여기서 딱 한 번만 DB 조회!
+        Category rootCategory = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new NotFoundCategoryException(categoryId));
+
         List<Long> categoryIds = new ArrayList<>();
-        collectCategoryIds(categoryId, categoryIds);
+        // 2. 이후엔 메모리에서 하위 카테고리 싹 긁어모음
+        collectSubCategoryIds(rootCategory, categoryIds);
+
         return categoryIds;
     }
 
-    private void collectCategoryIds(Long categoryId, List<Long> result) {
-        result.add(categoryId);
-
-        Category category = categoryRepository.findById(categoryId)
-                .orElse(null);
-
-        if (category != null && category.getChildren() != null) {
+    private void collectSubCategoryIds(Category category, List<Long> result) {
+        result.add(category.getId());
+        if (category.getChildren() != null) {
             for (Category child : category.getChildren()) {
-                collectCategoryIds(child.getId(), result);
+                collectSubCategoryIds(child, result);
             }
         }
     }
@@ -506,5 +499,26 @@ public class BookServiceImpl implements BookService {
         Page<BookListResponse> result = bookPage.map(BookListResponse::from);
         log.debug("DTO 변환: {}ms", System.currentTimeMillis() - t4);
         return result;
+    }
+    private void processImages(Book book, List<MultipartFile> images) {
+        if (images == null || images.isEmpty()) return;
+
+        boolean hasThumbnail = book.getImages().stream().anyMatch(BookImage::isThumbnail);
+
+        for (MultipartFile file : images) {
+            if (!file.isEmpty()) {
+                String minioUrl = imageUploadService.uploadBookImage(file);
+
+                // 썸네일이 없으면 현재 이미지를 썸네일로 지정
+                boolean isThisThumbnail = !hasThumbnail;
+                if (isThisThumbnail) hasThumbnail = true;
+
+                book.getImages().add(BookImage.builder()
+                        .book(book)
+                        .imagePath(minioUrl)
+                        .isThumbnail(isThisThumbnail)
+                        .build());
+            }
+        }
     }
 }
