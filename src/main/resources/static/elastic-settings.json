@@ -11,42 +11,30 @@
         "nori_pos_filter": {
           "type": "nori_part_of_speech",
           "stoptags": [
-            "E",
-            "IC",
-            "J",
-            "MAG",
-            "MAJ",
-            "MM",
-            "SP",
-            "SSC",
-            "SSO",
-            "SC",
-            "SE",
-            "XPN",
-            "XSA",
-            "XSN",
-            "XSV",
-            "UNA",
-            "NA",
-            "VSV"
+            "E", "IC", "J", "MAG", "MAJ", "MM", "SP", "SSC", "SSO", "SC", "SE", "XPN", "XSA", "XSN", "XSV", "UNA", "NA", "VSV"
           ]
-        },
-        "lowercase_filter": {
-          "type": "lowercase"
         },
         "icu_normalizer": {
           "type": "icu_normalizer",
-          "name": "nfkc",
-          "mode": "compose"
+          "name": "nfkc"
         }
       },
       "analyzer": {
+        "korean_nori_analyzer": {
+          "type": "custom",
+          "tokenizer": "nori_tokenizer",
+          "filter": [
+            "nori_pos_filter",
+            "lowercase",
+            "icu_normalizer"
+          ]
+        },
         "korean_search": {
           "type": "custom",
           "tokenizer": "nori_tokenizer",
           "filter": [
             "nori_pos_filter",
-            "lowercase_filter",
+            "lowercase",
             "icu_normalizer"
           ]
         }
@@ -54,36 +42,70 @@
     }
   },
   "mappings": {
-    "dynamic": true,
+    "dynamic": "false",
     "properties": {
-      "id": {
-        "type": "long"
-      },
-      "isbn": {
-        "type": "keyword"
-      },
+      "id": { "type": "long" },
+      "isbn": { "type": "keyword" },
       "title": {
         "type": "text",
-        "analyzer": "korean_search",
-        "search_analyzer": "korean_search"
+        "analyzer": "korean_nori_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" }
+        }
       },
-      "name": {
+      "volume": {
         "type": "text",
-        "analyzer": "korean_search",
-        "search_analyzer": "korean_search"
+        "analyzer": "korean_nori_analyzer"
       },
-      "contributorName": {
+      "description": {
         "type": "text",
-        "analyzer": "korean_search",
-        "search_analyzer": "korean_search"
+        "analyzer": "korean_search"
+      },
+      "contributorNames": {
+        "type": "text",
+        "analyzer": "korean_nori_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" }
+        }
+      },
+      "publisherNames": {
+        "type": "text",
+        "analyzer": "korean_nori_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" }
+        }
+      },
+      "categoryIds": { "type": "keyword" },
+      "categoryNames": {
+        "type": "text",
+        "analyzer": "korean_nori_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" }
+        }
       },
       "tagNames": {
         "type": "text",
-        "analyzer": "korean_search",
-        "search_analyzer": "korean_search"
+        "analyzer": "korean_nori_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" }
+        }
       },
-      "categoryIds": {
-        "type": "long"
+      "publishDate": { "type": "date" },
+      "priceStandard": { "type": "long" },
+      "priceSales": { "type": "long" },
+      "imagePath": {
+        "type": "keyword",
+        "index": false,
+        "doc_values": false
+      },
+      "popularity": { "type": "long" },
+      "reviewCount": { "type": "long" },
+      "reviewRating": { "type": "double" },
+      "embedding": {
+        "type": "dense_vector",
+        "dims": 1024,
+        "index": true,
+        "similarity": "cosine"
       }
     }
   }

@@ -3,11 +3,17 @@ package org.nhnacademy.book2onandonbookservice.service.category;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
+import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.event.CategoryUpdatedEvent;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundCategoryException;
+import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,17 +25,18 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final ApplicationEventPublisher eventPublisher;
 
+
     @CacheEvict(value = "categories", allEntries = true, cacheManager = "RedisCacheManager")
     @Transactional
     public Category updateCategoryName(Long categoryId, String newName) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다. id=" + categoryId));
+                .orElseThrow(() -> new NotFoundCategoryException(categoryId));
 
         String oldName = category.getCategoryName();
 
         // 이름이 같으면 이벤트 안 보냄
         if (Objects.equals(oldName, newName)) {
-            log.info("카테고리 이름이 바뀌지 않았습니다. id={}, name={}" + categoryId, newName);
+            log.info("카테고리 이름이 바뀌지 않았습니다. id={}, name={}", categoryId, newName);
             return category;
         }
 
@@ -43,4 +50,6 @@ public class CategoryService {
 
         return category;
     }
+
+
 }

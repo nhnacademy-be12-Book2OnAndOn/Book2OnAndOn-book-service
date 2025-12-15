@@ -1,12 +1,15 @@
 package org.nhnacademy.book2onandonbookservice.service.mapper;
 
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchDocument;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 @RequiredArgsConstructor
@@ -15,10 +18,6 @@ public class BookListResponseMapper {
     /// JPA 엔티티 → 목록 DTO 변환
     public BookListResponse fromEntity(Book book) {
 
-        String imagePath = book.getImages().stream()
-                .findFirst()
-                .map(BookImage::getImagePath)
-                .orElse(null);
 
         List<String> contributorNames = book.getBookContributors().stream()
                 .map(bc -> bc.getContributor().getContributorName())
@@ -28,9 +27,13 @@ public class BookListResponseMapper {
                 .map(bp -> bp.getPublisher().getPublisherName())
                 .toList();
 
-        List<String> categoryIds = book.getBookCategories().stream()
-                .map(bc -> String.valueOf(bc.getCategory().getId()))
-                .toList();
+        List<String> categoryNames = new ArrayList<>();
+        Category category = book.getCategory();
+        while (category != null) {
+            categoryNames.add(0, category.getCategoryName()); // 앞에 추가 (루트가 먼저)
+            category = category.getParent();
+        }
+
 
         List<String> tagNames = book.getBookTags().stream()
                 .map(bt -> bt.getTag().getTagName())
@@ -42,10 +45,10 @@ public class BookListResponseMapper {
                 .volume(book.getVolume())
                 .priceStandard(book.getPriceStandard())
                 .priceSales(book.getPriceSales())
-                .imagePath(imagePath)
+                .thumbnail(book.getThumbnail())
                 .contributorNames(contributorNames)
                 .publisherNames(publisherNames)
-                .categoryIds(categoryIds)
+                .categoryNames(categoryNames)
                 .tagNames(tagNames)
                 .build();
     }
@@ -58,10 +61,10 @@ public class BookListResponseMapper {
                 .volume(doc.getVolume())
                 .priceStandard(doc.getPriceStandard())
                 .priceSales(doc.getPriceSales())
-                .imagePath(null)  // ES에 이미지 안 넣었으면 null
+                .thumbnail(doc.getImagePath())  // ES에 이미지 안 넣었으면 null
                 .contributorNames(doc.getContributorNames())
                 .publisherNames(doc.getPublisherNames())
-                .categoryIds(doc.getCategoryNames())
+                .categoryNames(doc.getCategoryNames())
                 .tagNames(doc.getTagNames())
                 .build();
     }

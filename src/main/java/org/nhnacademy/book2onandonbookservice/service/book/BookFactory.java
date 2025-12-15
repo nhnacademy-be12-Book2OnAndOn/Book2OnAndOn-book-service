@@ -1,8 +1,8 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
 import lombok.RequiredArgsConstructor;
-import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +16,10 @@ public class BookFactory {
         Integer stockCount = (request.getStockCount() != null) ? request.getStockCount() : 0;
         boolean wrapped = Boolean.TRUE.equals(request.getIsWrapped());
 
-        return Book.builder().title(request.getTitle()).isbn(request.getIsbn()).volume(request.getVolume())
+        return Book.builder()
+                .title(request.getTitle())
+                .isbn(request.getIsbn())
+                .volume(request.getVolume())
                 .chapter(request.getChapter())
                 .description(request.getDescriptionHtml())
                 .priceStandard(priceStandard)
@@ -24,12 +27,11 @@ public class BookFactory {
                 .publishDate(request.getPublishDate())
                 .status(request.getStatus())
                 .stockCount(stockCount)
-                .status(BookStatus.ON_SALE) // 신규 등록은 기본 'ON_SALE'
                 .build();
     }
 
     // 도서 수정 시 단일 필드 업데이트
-    public void updateFields(Book book, BookSaveRequest req) {
+    public void updateFields(Book book, BookUpdateRequest req) {
 
         if (req.getTitle() != null) {
             book.setTitle(req.getTitle());

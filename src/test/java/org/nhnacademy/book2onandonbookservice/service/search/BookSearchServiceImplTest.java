@@ -1,22 +1,41 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.time.Duration;
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
+import co.elastic.clients.elasticsearch.core.search.TotalHits;
+import java.io.IOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.nhnacademy.book2onandonbookservice.client.GeminiSearchClient;
+import org.nhnacademy.book2onandonbookservice.client.GeminiSearchClient.AiRecommendation;
+import org.nhnacademy.book2onandonbookservice.client.OllamaApiClient;
+import org.nhnacademy.book2onandonbookservice.client.RerankerApiClient;
+import org.nhnacademy.book2onandonbookservice.client.RerankerApiClient.RerankResult;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
@@ -24,156 +43,288 @@ import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.elasticsearch.client.elc.NativeQuery;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.data.elasticsearch.core.SearchHit;
-import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.data.elasticsearch.core.SearchHitsImpl;
-import org.springframework.data.elasticsearch.core.TotalHitsRelation;
+import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class BookSearchServiceImplTest {
+
     @InjectMocks
     private BookSearchServiceImpl bookSearchService;
 
     @Mock
-    private ElasticsearchOperations elasticsearchOperations;
-
-    @Mock
     private CategoryRepository categoryRepository;
+    @Mock
+    private OllamaApiClient ollamaApiClient;
+    @Mock
+    private RerankerApiClient rerankerApiClient;
+    @Mock
+    private ElasticsearchClient elasticsearchClient;
+    @Mock
+    private GeminiSearchClient geminiSearchClient;
 
     @Test
-    @DisplayName("기본 검색 성공: 조건없이 전체 검색 및 결과 매핑 확인")
-    void search_Success() {
+    @DisplayName("검색 결과 없음: ES 결과가 비어있으면 빈 페이지 반환")
+    void search_Empty() throws IOException {
         BookSearchCondition condition = new BookSearchCondition();
         Pageable pageable = PageRequest.of(0, 10);
 
-        BookSearchDocument doc = createSampleDocument(1L, "테스트 책");
-        SearchHits<BookSearchDocument> mockHits = createMockSearchHits(List.of(doc), 1);
+        mockElasticsearchResponse(Collections.emptyList(), 0L);
 
-        given(elasticsearchOperations.search(any(NativeQuery.class), eq(BookSearchDocument.class))).willReturn(
-                mockHits);
         Page<BookListResponse> result = bookSearchService.search(condition, pageable);
 
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent()).hasSize(1);
-
-        BookListResponse response = result.getContent().get(0);
-        assertThat(response.getTitle()).isEqualTo("테스트 책");
-        assertThat(response.getPriceStandard()).isEqualTo(10000L);
+        assertThat(result.getContent()).isEmpty();
+        then(geminiSearchClient).should(never()).selectBestBooks(any(), any());
     }
 
     @Test
-    @DisplayName("카테고리 필터 검색: DB에서 카테고리명을 조회해서 쿼리에 반영하나?")
-    void search_WithCategory_filter() {
+    @DisplayName("일반 검색: 키워드 없음 -> AI/Rerank 없이 단순 매핑 반환")
+    void search_Simple_NoKeyword() throws IOException {
+        BookSearchCondition condition = new BookSearchCondition(); // keyword null
+        Pageable pageable = PageRequest.of(0, 10);
+
+        BookSearchDocument doc = createDoc(1L, "Test Book");
+        mockElasticsearchResponse(List.of(doc), 1L);
+
+        Page<BookListResponse> result = bookSearchService.search(condition, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Test Book");
+
+        then(ollamaApiClient).should(never()).getEmbedding(anyString());
+        then(rerankerApiClient).should(never()).rerank(anyString(), anyList());
+        then(geminiSearchClient).should(never()).selectBestBooks(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("일반 검색: 키워드 있음 + 정확도 정렬 -> 임베딩 & Rerank 실행, Gemini 미실행")
+    void search_Keyword_WithRerank_NoGemini() throws IOException {
+        String keyword = "Java Programming";
+        BookSearchCondition condition = new BookSearchCondition(keyword, null, null, null, null, null, null, null);
+        Pageable pageable = PageRequest.of(0, 10);
+
+        BookSearchDocument doc1 = createDoc(1L, "Java Basic");
+        BookSearchDocument doc2 = createDoc(2L, "Advanced Java");
+        BookSearchDocument doc3 = createDoc(3L, "Spring Boot");
+        List<BookSearchDocument> docs = List.of(doc1, doc2, doc3);
+
+        given(ollamaApiClient.getEmbedding(keyword)).willReturn(List.of(0.1f, 0.2f));
+
+        mockElasticsearchResponse(docs, 3L);
+
+        RerankResult r1 = new RerankResult(0, 0.5f);
+        RerankResult r2 = new RerankResult(1, 0.9f);
+        RerankResult r3 = new RerankResult(2, 0.4f);
+
+        given(rerankerApiClient.rerank(eq(keyword), anyList()))
+                .willReturn(new ArrayList<>(List.of(r1, r2, r3)));
+
+        Page<BookListResponse> result = bookSearchService.search(condition, pageable);
+
+        assertThat(result.getContent()).hasSize(3);
+        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Advanced Java");
+        assertThat(result.getContent().get(1).getTitle()).isEqualTo("Java Basic");
+
+        then(geminiSearchClient).should(never()).selectBestBooks(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("AI 검색: 트리거 단어('추천') 포함 -> Gemini 실행 및 AI 코멘트 매핑")
+    void search_Gemini_Triggered_Success() throws IOException {
+        String keyword = "Java 책 추천해줘";
+        BookSearchCondition condition = new BookSearchCondition(keyword, null, null, null, null, null, null, null);
+        Pageable pageable = PageRequest.of(0, 10);
+
+        BookSearchDocument doc1 = createDoc(1L, "Java 101");
+        List<BookSearchDocument> docs = List.of(doc1);
+
+        given(ollamaApiClient.getEmbedding(keyword)).willReturn(List.of(0.1f));
+        mockElasticsearchResponse(docs, 1L);
+
+        // [수정됨] 여기도 Reranking이 먼저 실행되므로 ArrayList로 감싸야 합니다.
+        given(rerankerApiClient.rerank(anyString(), anyList()))
+                .willReturn(new ArrayList<>(List.of(new RerankResult(0, 0.9f))));
+
+        // Gemini 결과는 서비스에서 수정하지 않으므로 List.of() 써도 괜찮음
+        AiRecommendation rec = new AiRecommendation(1L, "초보자에게 좋습니다.");
+        given(geminiSearchClient.selectBestBooks(anyString(), anyList())).willReturn(List.of(rec));
+
+        Page<BookListResponse> result = bookSearchService.search(condition, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getAiRecommendation()).isEqualTo("초보자에게 좋습니다.");
+        then(geminiSearchClient).should(times(1)).selectBestBooks(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("AI 검색: Gemini 호출했으나 결과 없음 -> Rerank 결과로 Fallback")
+    void search_Gemini_Fallback() throws IOException {
+        String keyword = "엄청 긴 문장으로 검색을 시도해서 AI를 동작시키려는 의도입니다.";
+        BookSearchCondition condition = new BookSearchCondition(keyword, null, null, null, null, null, null, null);
+        Pageable pageable = PageRequest.of(0, 10);
+
+        BookSearchDocument doc1 = createDoc(1L, "Book A");
+        List<BookSearchDocument> docs = List.of(doc1);
+
+        given(ollamaApiClient.getEmbedding(keyword)).willReturn(List.of(0.1f));
+        mockElasticsearchResponse(docs, 1L);
+
+        // [수정됨] 여기서도 Reranker 리스트 수정이 일어나므로 ArrayList 사용 필수
+        given(rerankerApiClient.rerank(anyString(), anyList()))
+                .willReturn(new ArrayList<>(List.of(new RerankResult(0, 0.8f))));
+
+        given(geminiSearchClient.selectBestBooks(anyString(), anyList())).willReturn(Collections.emptyList());
+
+        Page<BookListResponse> result = bookSearchService.search(condition, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Book A");
+        assertThat(result.getContent().get(0).getAiRecommendation()).isNull(); // 코멘트 없음
+    }
+
+    @Test
+    @DisplayName("스마트 판단: 검색 결과가 3개 미만이면 트리거 단어 없어도 Gemini 실행")
+    void search_Gemini_Triggered_By_LowResults() throws IOException {
+        String keyword = "희귀한책";
+        BookSearchCondition condition = new BookSearchCondition(keyword, null, null, null, null, null, null, null);
+        Pageable pageable = PageRequest.of(0, 10);
+
+        BookSearchDocument doc = createDoc(1L, "Rare Book");
+        mockElasticsearchResponse(List.of(doc), 1L);
+        given(ollamaApiClient.getEmbedding(keyword)).willReturn(List.of(0.1f));
+
+        // ★ 여기 수정됨: new ArrayList<>(List.of(...)) 사용
+        given(rerankerApiClient.rerank(anyString(), anyList()))
+                .willReturn(new ArrayList<>(List.of(new RerankResult(0, 0.9f))));
+
+        given(geminiSearchClient.selectBestBooks(anyString(), anyList())).willReturn(Collections.emptyList());
+
+        bookSearchService.search(condition, pageable);
+
+        then(geminiSearchClient).should(times(1)).selectBestBooks(anyString(), anyList());
+    }
+    @Test
+    @DisplayName("정렬 조건: 가격순 정렬 시 Reranker/Gemini 모두 스킵 (성능 최적화)")
+    void search_Sort_Price_Skip_AI() throws IOException {
+        String keyword = "Java";
+        BookSearchCondition condition = new BookSearchCondition(keyword, null, null, null, null, null, null, null);
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("priceStandard").ascending());
+
+        BookSearchDocument doc = createDoc(1L, "Cheap Java");
+        mockElasticsearchResponse(List.of(doc), 1L);
+        given(ollamaApiClient.getEmbedding(keyword)).willReturn(List.of(0.1f));
+
+        Page<BookListResponse> result = bookSearchService.search(condition, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+
+        then(rerankerApiClient).should(never()).rerank(anyString(), anyList());
+        then(geminiSearchClient).should(never()).selectBestBooks(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("필터 검색: 카테고리/출판사 등 필터 적용 확인")
+    void search_With_Filters() throws IOException {
         Long categoryId = 100L;
-        String categoryName = "카테고리";
-
-        BookSearchCondition condition = new BookSearchCondition(null, categoryId, null, null, null, null, null, null);
+        BookSearchCondition condition = new BookSearchCondition(null, categoryId, "IT", "Writer", "Pub", null, null, null);
         Pageable pageable = PageRequest.of(0, 10);
 
-        Category category = mock(Category.class);
-        given(category.getCategoryName()).willReturn(categoryName);
-        given(categoryRepository.findById(categoryId)).willReturn(Optional.of(category));
-
-        BookSearchDocument doc = createSampleDocument(1L, "Spring JPA");
-        SearchHits<BookSearchDocument> mockHits = createMockSearchHits(List.of(doc), 1L);
-
-        given(elasticsearchOperations.search(any(NativeQuery.class), eq(BookSearchDocument.class))).willReturn(
-                mockHits);
+        mockElasticsearchResponse(List.of(createDoc(1L, "Filtered Book")), 1L);
 
         Page<BookListResponse> result = bookSearchService.search(condition, pageable);
 
         assertThat(result.getContent()).hasSize(1);
-        verify(categoryRepository).findById(categoryId);
+        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Filtered Book");
+        verify(categoryRepository, never()).findById(categoryId);
 
     }
 
     @Test
-    @DisplayName("단순 필터 검색: 기여자, 출판사, 태그 조건")
-    void search_WithSimpleFilters() {
-        BookSearchCondition condition = new BookSearchCondition(
-                null, null, "IT", "전유진", "NHN", null, null, null
-        );
-
+    @DisplayName("ES 예외 발생 시 RuntimeException으로 래핑")
+    void search_Exception_Handling() throws IOException {
+        BookSearchCondition condition = new BookSearchCondition();
         Pageable pageable = PageRequest.of(0, 10);
 
-        BookSearchDocument doc = createSampleDocument(2L, "JPA 프로그래밍");
-        SearchHits<BookSearchDocument> mockHits = createMockSearchHits(List.of(doc), 1L);
+        given(elasticsearchClient.search(any(Function.class), eq(BookSearchDocument.class)))
+                .willThrow(new IOException("ES Connection Fail"));
 
-        given(elasticsearchOperations.search(any(NativeQuery.class), eq(BookSearchDocument.class)))
-                .willReturn(mockHits);
-
-        Page<BookListResponse> result = bookSearchService.search(condition, pageable);
-
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getTitle()).isEqualTo("JPA 프로그래밍");
+        assertThatThrownBy(() -> bookSearchService.search(condition, pageable))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Search failed");
     }
 
     @Test
-    @DisplayName("정렬 조건 적용했을때 : 가격 오름차순")
-    void search_WithSort() {
-        BookSearchCondition condition = new BookSearchCondition(
-                null, null, null, null, null, null, null, "PRICE_ASC"
-        );
-        Pageable pageable = PageRequest.of(0, 10);
+    @DisplayName("페이징 처리: 결과 리스트가 PageSize보다 클 때 서브리스트 반환")
+    void search_Pagination_Logic() throws IOException {
 
-        BookSearchDocument doc = createSampleDocument(1L, "JPA프로그래밍");
-        SearchHits<BookSearchDocument> mockHits = createMockSearchHits(List.of(doc), 1L);
 
-        given(elasticsearchOperations.search(any(NativeQuery.class), eq(BookSearchDocument.class)))
-                .willReturn(mockHits);
+        List<BookSearchDocument> docs = new ArrayList<>();
+        for(int i=0; i<15; i++) {
+            docs.add(createDoc((long)i, "Book " + i));
+        }
+        mockElasticsearchResponse(docs, 15L);
+
+        Pageable pageable = PageRequest.of(0, 5);
+        BookSearchCondition condition = new BookSearchCondition();
 
         Page<BookListResponse> result = bookSearchService.search(condition, pageable);
 
-        assertThat(result.getContent()).isNotEmpty();
 
+        assertThat(result.getContent()).hasSize(5);
+        assertThat(result.getTotalElements()).isEqualTo(15);
     }
 
-    private BookSearchDocument createSampleDocument(Long id, String title) {
+    @Test
+    @DisplayName("페이징 처리: Offset이 전체 결과보다 클 때 빈 페이지 반환")
+    void search_Pagination_Out_Of_Bound() throws IOException {
+        mockElasticsearchResponse(List.of(createDoc(1L, "Book")), 1L);
+
+        Pageable pageable = PageRequest.of(1, 10);
+        BookSearchCondition condition = new BookSearchCondition();
+
+        Page<BookListResponse> result = bookSearchService.search(condition, pageable);
+
+
+        assertThat(result.getContent()).isEmpty();
+    }
+
+    // --- Helpers ---
+
+    private void mockElasticsearchResponse(List<BookSearchDocument> docs, long totalHitsVal) throws IOException {
+        List<Hit<BookSearchDocument>> hitList = new ArrayList<>();
+        for (BookSearchDocument doc : docs) {
+            Hit<BookSearchDocument> hit = mock(Hit.class);
+            given(hit.source()).willReturn(doc);
+            hitList.add(hit);
+        }
+
+        HitsMetadata<BookSearchDocument> hitsMetadata = mock(HitsMetadata.class);
+        given(hitsMetadata.hits()).willReturn(hitList);
+
+        TotalHits totalHits = mock(TotalHits.class);
+        given(totalHits.value()).willReturn(totalHitsVal);
+        given(hitsMetadata.total()).willReturn(totalHits);
+
+        SearchResponse<BookSearchDocument> response = mock(SearchResponse.class);
+        given(response.hits()).willReturn(hitsMetadata);
+
+        given(elasticsearchClient.search(any(Function.class), eq(BookSearchDocument.class)))
+                .willReturn(response);
+    }
+
+    private BookSearchDocument createDoc(Long id, String title) {
         return BookSearchDocument.builder()
                 .id(id)
                 .title(title)
-                .isbn("1234567890123")
-                .volume("1권")
+                .description("Description for " + title)
+                .isbn("12345")
+                .volume("1")
                 .priceStandard(10000L)
                 .priceSales(9000L)
-                .contributorNames(List.of("작가"))
-                .publisherNames(List.of("출판사"))
-                .contributorNames(List.of("카테고리"))
-                .tagNames(List.of("태그"))
-                .publishDate(LocalDate.now())
+                .contributorNames(List.of("Author"))
+                .publisherNames(List.of("Publisher"))
+                .categoryNames(List.of("Category"))
+                .tagNames(List.of("Tag"))
+                .imagePath("img.jpg")
                 .build();
-    }
-
-    private SearchHits<BookSearchDocument> createMockSearchHits(List<BookSearchDocument> documents, long totalHits) {
-        List<SearchHit<BookSearchDocument>> searchHits = documents.stream()
-                .map(doc -> new SearchHit<BookSearchDocument>(
-                        "index-name",
-                        String.valueOf(doc.getId()),
-                        null,
-                        1.0f,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        doc
-                )).toList();
-
-        // ★ [수정됨] 생성자 인자 10개로 맞춤 (Spring Data Elasticsearch 5.x)
-        return new SearchHitsImpl<>(
-                totalHits,                        // 1. totalHits (long): 전체 결과 수
-                TotalHitsRelation.EQUAL_TO, // 2. totalHitsRelation: 정확한 개수인지 여부 (보통 EQUAL_TO 사용)
-                1.0f,                       // 3. maxScore (float): 최대 스코어
-                Duration.ofMillis(100),     // 4. executionDuration: 실행 시간 (Duration 객체 필수)
-                null,                       // 5. scrollId (String): 스크롤 ID (없으면 null)
-                null,                       // 6. pointInTimeId (String): PIT ID (없으면 null) <-- 이 부분이 추가된 것 같습니다
-                searchHits,                       // 7. searchHits (List): 실제 데이터 리스트
-                null,                       // 8. aggregations: 집계 데이터 (없으면 null)
-                null,                       // 9. suggest: 추천 데이터 (없으면 null)
-                null                        // 10. searchShardStatistics: 샤드 통계 (없으면 null)
-        );
     }
 }

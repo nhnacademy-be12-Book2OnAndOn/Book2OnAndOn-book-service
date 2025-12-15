@@ -35,10 +35,10 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
@@ -46,16 +46,19 @@ import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundCategoryException;
 import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
+import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMapper;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 class BookServiceImplTest {
@@ -86,6 +89,8 @@ class BookServiceImplTest {
     private BookListResponseMapper bookListResponseMapper;
     @Mock
     private BookHistoryService bookHistoryService;
+    @Mock
+    private ImageUploadService imageUploadService;
 
     private Book bookA;
     private Pageable pageable;
@@ -112,9 +117,6 @@ class BookServiceImplTest {
         lenient().when(mockCategoryEntity.getId()).thenReturn(70L);
         lenient().when(mockCategoryEntity.getCategoryName()).thenReturn("Test Category");
 
-        BookCategory mockBookCategory = mock(BookCategory.class);
-        lenient().when(mockBookCategory.getCategory()).thenReturn(mockCategoryEntity);
-
         mockBookImage = mock(BookImage.class);
         lenient().when(mockBookImage.getImagePath()).thenReturn("/path/to/image.jpg");
 
@@ -130,7 +132,6 @@ class BookServiceImplTest {
                 .stockCount(100)
                 .priceSales(9000L)
                 .images(new HashSet<>(List.of(mockBookImage)))
-                .bookCategories(new HashSet<>(List.of(mockBookCategory)))
                 .bookContributors(new HashSet<>(List.of(mockBookContributor)))
                 .bookPublishers(new HashSet<>(List.of(mockBookPublisher)))
                 .bookTags(new HashSet<>())
@@ -146,7 +147,7 @@ class BookServiceImplTest {
         given(bookFactory.createFrom(any(BookSaveRequest.class))).willReturn(bookA);
         given(bookRepository.save(any(Book.class))).willReturn(bookA);
 
-        Long saveId = bookService.createBook(request);
+        Long saveId = bookService.createBook(request, null);
 
         assertThat(saveId).isEqualTo(bookA.getId());
         verify(bookValidator, times(1)).validateForCreate(request);
@@ -162,7 +163,7 @@ class BookServiceImplTest {
         given(bookRepository.save(any(Book.class))).willReturn(bookA);
         willThrow(new RuntimeException("ES Error")).given(bookSearchIndexService).index(bookA);
 
-        assertThatCode(() -> bookService.createBook(request)).doesNotThrowAnyException();
+        assertThatCode(() -> bookService.createBook(request, null)).doesNotThrowAnyException();
 
         verify(bookRepository, times(1)).save(bookA);
         verify(bookSearchIndexService, times(1)).index(bookA);
@@ -173,27 +174,27 @@ class BookServiceImplTest {
     void createBook_Fail_Validation() {
         BookSaveRequest request = new BookSaveRequest(); //잘못된 데이터라고 생각하기
         willThrow(new IllegalArgumentException("도서 제목은 필수 작성 항목입니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("도서 제목은 필수 작성 항목입니다.");
 
         willThrow(new IllegalArgumentException("ISBN은 필수 작성 항목입니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("ISBN은 필수 작성 항목입니다.");
 
         willThrow(new IllegalArgumentException("출판일은 필수 작성 항목입니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("출판일은 필수 작성 항목입니다.");
 
         willThrow(new IllegalArgumentException("정가는 필수입니다..")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("정가는 필수입니다.");
 
         willThrow(new IllegalArgumentException("정가는 0원 이상이어야 합니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("정가는 0원 이상이어야 합니다.");
 
         willThrow(new IllegalArgumentException("판매가는 0원 이상이어야 합니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request)).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("판매가는 0원 이상이어야 합니다.");
 
         verify(bookRepository, never()).save(any());
@@ -201,31 +202,49 @@ class BookServiceImplTest {
 
 
     @Test
-    @DisplayName("도서 수정 성공")
+    @DisplayName("도서 수정 성공 - 이미지 파일 포함")
     void updateBook() {
         Long bookId = 1L;
-        BookSaveRequest request = new BookSaveRequest();
+        BookUpdateRequest request = new BookUpdateRequest(); // 또는 BookSaveRequest (본인 코드에 맞게)
+
+        MultipartFile mockImage1 = mock(MultipartFile.class);
+        MultipartFile mockImage2 = mock(MultipartFile.class);
+        List<MultipartFile> images = List.of(mockImage1, mockImage2);
+
         given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
 
-        bookService.updateBook(bookId, request);
+        given(mockImage1.isEmpty()).willReturn(false);
+        given(mockImage2.isEmpty()).willReturn(false);
+
+        given(imageUploadService.uploadBookImage(any(MultipartFile.class)))
+                .willReturn("http://minio.com/test-image.jpg");
+
+        bookService.updateBook(bookId, request, images);
 
         verify(bookFactory, times(1)).updateFields(bookA, request);
+
+        verify(imageUploadService, times(2)).uploadBookImage(any(MultipartFile.class));
+
         verify(bookRelationService, times(1)).applyRelationsForUpdate(bookA, request);
         verify(bookSearchIndexService, times(1)).index(bookA);
     }
 
     @Test
-    @DisplayName("도서 수정 실패")
+    @DisplayName("도서 수정 실패 - 책이 존재하지 않음")
     void updateBook_Fail() {
         Long bookId = 9999L;
-        BookSaveRequest request = new BookSaveRequest();
+        BookUpdateRequest request = new BookUpdateRequest();
+        List<MultipartFile> images = List.of();
+
         given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> bookService.updateBook(bookId, request))
+        assertThatThrownBy(() -> bookService.updateBook(bookId, request, images))
                 .isInstanceOf(NotFoundBookException.class)
                 .hasMessageContaining("해당 도서를 찾을 수 없습니다 ID: " + bookId);
 
         verify(bookFactory, never()).updateFields(any(), any());
+
+        verify(imageUploadService, never()).uploadBookImage(any());
         verify(bookRelationService, never()).applyRelationsForUpdate(any(), any());
         verify(bookSearchIndexService, never()).index(any());
     }
@@ -274,7 +293,7 @@ class BookServiceImplTest {
     }
 
     @Test
-    @DisplayName("도서 상세 조회 성공 - 로그인 유저, 좋아요 상태 포함")
+    @DisplayName("도서 상세 조회 성공")
     void getBookDetail_Success() {
         Long bookId = 1L;
         Long userId = 100L;
@@ -282,22 +301,37 @@ class BookServiceImplTest {
 
         long mockLikeCount = 5L;
 
+        // bookA에 카테고리 설정 (카테고리 계층 구조)
+        Category parentCategory = Category.builder()
+                .id(1L)
+                .categoryName("국내도서")
+                .build();
+
+        Category childCategory = Category.builder()
+                .id(2L)
+                .categoryName("Test Category")
+                .parent(parentCategory)
+                .build();
+
+        bookA.setCategory(childCategory);
+
         given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
         given(bookLikeRepository.countByBookId(bookId)).willReturn(mockLikeCount);
         given(bookLikeRepository.existsByBookIdAndUserId(bookId, userId)).willReturn(true);
 
         BookDetailResponse result = bookService.getBookDetail(bookId, userId, guestId);
 
-        assertThat(result.getLikedByCurrentUser()).isTrue();
-
         assertThat(result).isNotNull();
-
+        assertThat(result.getLikedByCurrentUser()).isTrue();
         assertThat(result.getLikeCount()).isEqualTo(mockLikeCount);
         assertThat(result.getRating()).isEqualTo(5.0);
         assertThat(result.getTitle()).isEqualTo("Book A");
-
-        assertThat(result.getCategories().get(0).getName()).isEqualTo("Test Category");
         assertThat(result.getPriceStandard()).isEqualTo(10000L);
+
+        // 카테고리 경로 검증 (루트 -> 리프)
+        assertThat(result.getCategories()).hasSize(2);
+        assertThat(result.getCategories().get(0).getName()).isEqualTo("국내도서");
+        assertThat(result.getCategories().get(1).getName()).isEqualTo("Test Category");
 
         verify(bookRepository, times(1)).findByIdWithRelations(bookId);
         verify(bookLikeRepository, times(1)).existsByBookIdAndUserId(bookId, userId);
@@ -430,8 +464,7 @@ class BookServiceImplTest {
         given(categoryRepository.findById(categoryId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> bookService.getNewArrivals(categoryId, pageable))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("카테고리 없음");
+                .isInstanceOf(NotFoundCategoryException.class);
 
         verify(bookRepository, never()).findBooksByCategoryIdsSorted(anyList(), any());
     }
@@ -456,16 +489,31 @@ class BookServiceImplTest {
     @Test
     @DisplayName("주문용 도서 정보 다건 조회 성공")
     void getBooksForOrder_Success() {
+        Category category = Category.builder()
+                .id(10L)
+                .categoryName("테스트 카테고리")
+                .build();
+
+        Book bookWithCategory = Book.builder()
+                .id(1L)
+                .title("테스트 책")
+                .priceSales(15000L)
+                .isWrapped(false)
+                .stockCount(100)
+                .status(BookStatus.ON_SALE)
+                .category(category)
+                .build();
+
         List<Long> bookIds = List.of(1L);
 
-        given(bookRepository.findAllById(bookIds)).willReturn(List.of(bookA));
+        given(bookRepository.findAllById(bookIds)).willReturn(List.of(bookWithCategory));
 
         List<BookOrderResponse> responses = bookService.getBooksForOrder(bookIds);
 
         assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).getBookId()).isEqualTo(bookA.getId());
-        assertThat(responses.get(0).getTitle()).isEqualTo(bookA.getTitle());
-        assertThat(responses.get(0).getPriceSales()).isEqualTo(bookA.getPriceSales());
+        assertThat(responses.get(0).getBookId()).isEqualTo(bookWithCategory.getId());
+        assertThat(responses.get(0).getTitle()).isEqualTo(bookWithCategory.getTitle());
+        assertThat(responses.get(0).getPriceSales()).isEqualTo(bookWithCategory.getPriceSales());
 
         verify(bookRepository, times(1)).findAllById(bookIds);
     }

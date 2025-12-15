@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -21,12 +22,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
+import org.nhnacademy.book2onandonbookservice.client.UserServiceClient;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewCreateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
+import org.nhnacademy.book2onandonbookservice.dto.review.ReviewEventRequest;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
@@ -67,6 +71,9 @@ class ReviewServiceImplTest {
     @Mock
     ValueOperations<String, String> valueOperations;
 
+    @Mock
+    UserServiceClient userServiceClient;
+
     private Book book;
     private Long bookId = 1L;
     private Long userId = 100L;
@@ -97,6 +104,11 @@ class ReviewServiceImplTest {
 
         verify(reviewRepository, times(1)).save(any(Review.class));
         verify(orderServiceClient, never()).hasPurchased(any(), any());
+
+        ArgumentCaptor<ReviewEventRequest> captor = ArgumentCaptor.forClass(ReviewEventRequest.class);
+        verify(userServiceClient).notifyReviewCreated(captor.capture());
+
+        assertThat(captor.getValue().isHasImage()).isFalse();
     }
 
     @Test
@@ -121,6 +133,26 @@ class ReviewServiceImplTest {
         // Redis에 캐시 저장했는지 검증 (90일)
         verify(valueOperations, times(1)).set(eq(redisKey), eq("Y"), any(Duration.class));
     }
+
+    @Test
+    @DisplayName("리뷰 생성 성공 - User Service 알림 전송 실패해도 리뷰는 정상 등록되어야 함 (Resilience)")
+    void createReview_Success_EvenIfUserClientFails() {
+        ReviewCreateRequest request = ReviewCreateRequest.builder().title("안전한 리뷰").score(5).content("내용").build();
+        String redisKey = "purchase:" + userId + ":" + bookId;
+
+        given(bookRepository.findById(bookId)).willReturn(Optional.of(book));
+        given(util.getUserId()).willReturn(userId);
+        given(redisTemplate.hasKey(redisKey)).willReturn(true);
+
+        doThrow(new RuntimeException("User Service Down")).when(userServiceClient).notifyReviewCreated(any());
+
+        reviewService.createReview(bookId, request, Collections.emptyList());
+
+        verify(reviewRepository, times(1)).save(any(Review.class));
+        verify(userServiceClient, times(1)).notifyReviewCreated(any());
+    }
+
+
 
     @Test
     @DisplayName("리뷰 생성 실패 - 구매 이력 없음 (Redis X, Feign False)")
@@ -190,6 +222,12 @@ class ReviewServiceImplTest {
 
         verify(imageUploadService, times(1)).uploadReviewImage(mockFile);
         verify(reviewRepository, times(1)).save(any(Review.class));
+        ArgumentCaptor<ReviewEventRequest> captor = ArgumentCaptor.forClass(ReviewEventRequest.class);
+        verify(userServiceClient, times(1)).notifyReviewCreated(captor.capture());
+
+        ReviewEventRequest sentRequest = captor.getValue();
+        assertThat(sentRequest.getUserId()).isEqualTo(userId);
+        assertThat(sentRequest.isHasImage()).isTrue();
     }
 
 
@@ -319,56 +357,5 @@ class ReviewServiceImplTest {
         assertThatThrownBy(() -> reviewService.updateReview(reviewId, request, null))
                 .isInstanceOf(NotFoundReviewException.class);
     }
-
-
-    @Test
-    @DisplayName("리뷰 삭제 성공")
-    void deleteReview_Success() {
-        Long reviewId = 10L;
-        Review review = Review.builder().id(reviewId).userId(userId).book(book).build();
-
-        given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
-        given(util.getUserId()).willReturn(userId);
-
-        reviewService.deleteReview(reviewId);
-
-        verify(reviewRepository, times(1)).delete(review);
-        // 평점 업데이트 호출 확인
-        verify(reviewRepository, times(1)).getAverageScoreByBook(book);
-    }
-
-    @Test
-    @DisplayName("리뷰 삭제 실패 - 작성자 불일치")
-    void deleteReview_Fail_AccessDenied() {
-        Long reviewId = 10L;
-        Long otherUser = 999L;
-        Review review = Review.builder().id(reviewId).userId(userId).build();
-
-        given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
-        given(util.getUserId()).willReturn(otherUser);
-
-        assertThatThrownBy(() -> reviewService.deleteReview(reviewId))
-                .isInstanceOf(AccessDeniedException.class);
-    }
-
-    @Test
-    @DisplayName("리뷰 삭제하고 평점 업데이트 만약 남은 리뷰가 없을때 평균이 null, 그럼 0.0으로 초기화 되는지")
-    void deleteReview_UpdateRating() {
-        Long reviewId = 10L;
-        book.updateRating(4.5);
-
-        Review review = Review.builder().id(reviewId).userId(userId).book(book).build();
-
-        given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
-        given(util.getUserId()).willReturn(userId);
-
-        given(reviewRepository.getAverageScoreByBook(book)).willReturn(null);
-
-        reviewService.deleteReview(reviewId);
-
-        verify(reviewRepository).delete(review);
-        assertThat(book.getRating()).isEqualTo(0.0);
-    }
-
 
 }

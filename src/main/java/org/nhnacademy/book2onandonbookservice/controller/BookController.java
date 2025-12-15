@@ -9,6 +9,7 @@ import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService;
@@ -18,6 +19,7 @@ import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,7 +38,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class BookController {
     private final BookService bookService;
-    private final ImageUploadService imageUploadService;
     private final BookLikeService bookLikeService;
     private final UserHeaderUtil util;
 
@@ -79,6 +81,7 @@ public class BookController {
     public ResponseEntity<Page<BookListResponse>> getNewArrivals(
             @RequestParam(value = "categoryId", required = false) Long categoryId,
             @PageableDefault(sort = "publishDate", direction = Direction.DESC) Pageable pageable) {
+        log.info("신간도서 요청 들어옴");
         Page<BookListResponse> newArrivals = bookService.getNewArrivals(categoryId, pageable);
         return ResponseEntity.ok(newArrivals);
     }
@@ -104,12 +107,11 @@ public class BookController {
     }
 
     /**
-     * 로그인 직후 비회원 기록 병합 API POST /books/recent-views/merge Header: X-User-ID, X-Guest-Id
+     * 로그인 직후 비회원 기록 병합 API POST /books/recent-views/merge Header: X-User-Id, X-Guest-Id
      */
     @PostMapping("/recent-views/merge")
-    public ResponseEntity<Void> mergeRecentViews() {
-        Long userId = util.getUserId();
-        String guestId = util.getGuestId();
+    public ResponseEntity<Void> mergeRecentViews(@RequestHeader("X-User-Id") Long userId,
+                                                 @RequestHeader("X-Guest-Id") String guestId) {
 
         bookService.mergeRecentViews(guestId, userId);
         return ResponseEntity.ok().build();
@@ -129,6 +131,22 @@ public class BookController {
         return ResponseEntity.ok(body);
     }
 
+    /// 카테고리별 도서 조회 API
+    @GetMapping("/categories/{categoryId}")
+    public ResponseEntity<Page<BookListResponse>> getBooksByCategory(@PathVariable Long categoryId,
+                                                                     @PageableDefault(page=0, size=12, sort="publishDate", direction = Direction.DESC) Pageable pageable){
+        Page<BookListResponse> result = bookService.getBooksByCategory(categoryId, pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    /// 카테고리 이름 반환
+    @GetMapping("/categories/{categoryId}/info")
+    public ResponseEntity<CategoryDto> getCategoryInfo(@PathVariable Long categoryId){
+        CategoryDto categoryDto = bookService.getCategory(categoryId);
+        return ResponseEntity.ok(categoryDto);
+    }
+
     public record BookLikeToggleResponse(boolean liked, Long likeCount) {
     }
+
 }

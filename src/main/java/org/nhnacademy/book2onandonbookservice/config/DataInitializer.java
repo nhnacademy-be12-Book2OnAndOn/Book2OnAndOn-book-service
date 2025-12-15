@@ -24,15 +24,18 @@ import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
+import org.nhnacademy.book2onandonbookservice.repository.BookEnrichmentTaskRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.nhnacademy.book2onandonbookservice.service.BookBatchService;
+import org.nhnacademy.book2onandonbookservice.service.BookEnrichmentService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Slf4j
@@ -43,6 +46,7 @@ public class DataInitializer implements ApplicationRunner {
     private final BookRepository bookRepository;
     private final PublisherRepository publisherRepository;
     private final ContributorRepository contributorRepository;
+    private final BookEnrichmentTaskRepository taskRepository;
     private final BookBatchService bookBatchService;
     private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
@@ -65,6 +69,7 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         if (bookRepository.count() > 0) {
             log.info("데이터가 이미 존재합니다. 초기화를 건너뜁니다.");
+            taskRepository.initTasksFromBook();
             return;
         }
 
@@ -83,7 +88,7 @@ public class DataInitializer implements ApplicationRunner {
         for (Resource resource : resources) {
             processCsvFile(resource);
         }
-
+        taskRepository.initTasksFromBook();
         long endTime = System.currentTimeMillis();
         log.info("전체 초기화 완료! 소요 시간: {}초", (endTime - startTime) / 1000);
     }
@@ -173,6 +178,9 @@ public class DataInitializer implements ApplicationRunner {
         );
 
         long price = parsePrice(safeGet(row, h, "PRC_VALUE"));
+        long defaultDiscountedPrice = (long) (price * 0.9);
+        String imageUrl = safeGet(row, h, "IMAGE_URL");
+
         // Book Entity 생성
         Book book = Book.builder()
                 .isbn(truncate(isbn, 20))
@@ -180,12 +188,13 @@ public class DataInitializer implements ApplicationRunner {
                 .description(safeGet(row, h, "BOOK_INTRCN_CN")) // 책 소개
                 .chapter(null) // 목차는 CSV에 없으면 null
                 .priceStandard(price)
-                .priceSales(price)
+                .priceSales(defaultDiscountedPrice)
                 .publishDate(parseDate(safeGet(row, h, "TWO_PBLICTE_DE")))
                 .stockCount(100) // 기본 재고
                 .isWrapped(true) // 포장 가능 여부
                 .status(BookStatus.ON_SALE)
                 .volume(safeGet(row, h, "VLM_NM")) //volume
+                .thumbnail(StringUtils.hasText(imageUrl)? imageUrl : null)
                 .build();
 
         //연관관계 설정: 출판사
@@ -199,7 +208,6 @@ public class DataInitializer implements ApplicationRunner {
         if (StringUtils.hasText(rawAuthorStr)) {
             parseAndAddContributors(book, rawAuthorStr);
         }
-        String imageUrl = safeGet(row, h, "IMAGE_URL");
         if (StringUtils.hasText(imageUrl)) {
             book.getImages().add(BookImage.builder()
                     .book(book)
@@ -361,6 +369,7 @@ public class DataInitializer implements ApplicationRunner {
             return LocalDate.now();
         }
     }
+
 
     private String truncate(String val, int len) {
         if (val == null) {

@@ -1,0 +1,106 @@
+spring:
+  application:
+    name: book-service
+
+  cloud:
+    config:
+      enabled: false
+  config:
+    import: optional:file:.
+
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      repositories:
+        enabled: false
+
+  elasticsearch:
+    uris: http://localhost:9200
+    username: dummy
+    password: dummy
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        auto-startup: false
+
+  task:
+    scheduling:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+minio:
+  url: http://localhost:9000
+  access-key: dummy-access
+  secret-key: dummy-secret
+  bucket-name: dummy-bucket
+  folder:
+    book: books
+    review: reviews
+
+google:
+  api-key: dummy-google-key
+
+aladin:
+  api:
+    base-url: http://localhost
+    create-ttb-key: dummy
+  api-ttb-key: dummy
+
+gemini:
+  api:
+    base-url: http://localhost
+    api-key: dummy
+    search-key: dummy
+    create-key: dummy
+
+groq:
+  api:
+    base-url: http://localhost
+    api-key: dummy
+
+ollama:
+  embaddings:
+    url: http://localhost
+  model:
+    name: dummy-model
+
+reranker:
+  url: http://localhost
+
+dooray:
+  url: http://localhost
+  service:
+    id: dummy-service-id
+  bot:
+    id: dummy-bot-id
+    botToken: dummy-bot-token
+
+logging:
+  level:
+    org.springframework.web.multipart: INFO
+    org.springframework.web.servlet: INFO

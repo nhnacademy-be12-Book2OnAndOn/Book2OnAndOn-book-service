@@ -1,9 +1,9 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
+import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService;
 import org.nhnacademy.book2onandonbookservice.service.review.ReviewService;
@@ -34,13 +34,15 @@ public class UserController {
         return ResponseEntity.ok(reviewPage);
     }
 
-    /// 사용자 좋아요 목록 조회 GET /internal/users/likes/me User Service에서 호출 후 List<Long> 형태를 받아감
+    /// 사용자 좋아요 목록 조회 GET /internal/users/likes/me User Service에서 호출 후
+    /// RestPage<MyLikedBookResponse></MyLikedBookResponse> 형태를 받아감
     @GetMapping("/likes/me")
     @AuthCheck(Role.USER)
-    public ResponseEntity<List<Long>> getMyLikedBooks() {
+    public ResponseEntity<Page<MyLikedBookResponse>> getMyLikedBooks(
+            @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Direction.DESC) Pageable pageable) {
         Long userId = util.getUserId();
-        List<Long> bookIds = bookLikeService.getMyLikedBookIds(userId);
-        return ResponseEntity.ok(bookIds);
+        Page<MyLikedBookResponse> likedBooks = bookLikeService.getMyLikedBookIds(userId, pageable);
+        return ResponseEntity.ok(likedBooks);
     }
 
 

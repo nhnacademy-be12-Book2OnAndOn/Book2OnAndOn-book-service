@@ -1,33 +1,33 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.nhnacademy.book2onandonbookservice.entity.Category;
-import org.nhnacademy.book2onandonbookservice.entity.Tag;
-import org.nhnacademy.book2onandonbookservice.service.category.CategoryService;
+import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
+import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage;
 import org.nhnacademy.book2onandonbookservice.service.search.BookReindexService;
-import org.nhnacademy.book2onandonbookservice.service.search.BookSearchSyncService;
-import org.nhnacademy.book2onandonbookservice.service.tag.TagService;
-import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
-import org.springframework.http.MediaType;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ReindexController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@EnableAspectJAutoProxy
 class ReindexControllerTest {
+
     @Autowired
     MockMvc mockMvc;
 
@@ -35,83 +35,74 @@ class ReindexControllerTest {
     BookReindexService bookReindexService;
 
     @MockitoBean
-    BookSearchSyncService bookSearchSyncService;
+    RabbitTemplate rabbitTemplate;
 
     @MockitoBean
-    CategoryService categoryService;
-
-    @MockitoBean
-    TagService tagService;
-
-    @MockitoBean
-    UserHeaderUtil util;
+    JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
-    @DisplayName("전체 재색인 (관리자)")
-    void reindexAll() throws Exception {
-        given(util.getUserRole()).willReturn("ROLE_SUPER_ADMIN");
-        doNothing().when(bookReindexService).reindexAll();
-        mockMvc.perform(post("/admin/reindex"))
-                .andExpect(status().isOk());
+    @DisplayName("[성공] 전체 도서 재인덱싱 요청")
+    void reindexAll_Success() throws Exception {
+        willDoNothing().given(bookReindexService).reindexAll();
+
+        mockMvc.perform(post("/admin/search/reindex"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("전체 재인덱싱 작업이 백그라운드에서 시작되었습니다")));
+
+        verify(bookReindexService).reindexAll();
     }
 
     @Test
-    @DisplayName("카테고리별 재색인")
-    void reindexByCategory() throws Exception {
-        Long categoryId = 1L;
-        given(bookSearchSyncService.reindexByCategoryId(categoryId)).willReturn(10L);
+    @DisplayName("[성공] 특정 카테고리 강제 재인덱싱 요청")
+    void manualReindexCategory_Success() throws Exception {
+        Long categoryId = 123L;
 
-        mockMvc.perform(post("/admin/reindex/category/{categoryId}", categoryId))
+        mockMvc.perform(post("/admin/search/reindex/category/{categoryId}", categoryId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value("Reindexed 10 books for categoryId=1"));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("카테고리(ID:" + categoryId + ")")));
+
+        verify(rabbitTemplate).convertAndSend(
+                eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
+                eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
+                any(SearchSyncMessage.class)
+        );
     }
 
     @Test
-    @DisplayName("태그별 재색인")
-    void reindexByTag() throws Exception {
-        Long tagId = 1L;
-        given(bookSearchSyncService.reindexByTagId(tagId)).willReturn(10L);
+    @DisplayName("[성공] 특정 태그 강제 재인덱싱 요청")
+    void manualReindexTag_Success() throws Exception {
+        Long tagId = 456L;
 
-        mockMvc.perform(post("/admin/reindex/tag/{tagId}", tagId))
+        mockMvc.perform(post("/admin/search/reindex/tag/{tagId}", tagId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value("Reindexed 10 books for tagId=1"));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("태그(ID:" + tagId + ")")));
+
+        verify(rabbitTemplate).convertAndSend(
+                eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
+                eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
+                any(SearchSyncMessage.class)
+        );
     }
 
     @Test
-    @DisplayName("카테고리 이름 변경")
-    void updateCategoryName() throws Exception {
-        Long categoryId = 1L;
-        String requestBody = "{\"newName\":\"새로운 카테고리\"}";
+    @DisplayName("[실패] 전체 재인덱싱 중 서비스 예외 발생")
+    void reindexAll_Fail() throws Exception {
 
-        Category mockCategory = Category.builder()
-                .id(categoryId)
-                .categoryName("새로운 카테고리")
-                .build();
-        given(categoryService.updateCategoryName(categoryId, "새로운 카테고리")).willReturn(mockCategory);
+        willThrow(new RuntimeException("Reindex failed")).given(bookReindexService).reindexAll();
 
-        mockMvc.perform(put("/admin/category/{categoryId}", categoryId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoryName").value("새로운 카테고리"));
+        mockMvc.perform(post("/admin/search/reindex"))
+                .andExpect(status().is5xxServerError());
     }
 
     @Test
-    @DisplayName("태그 이름 변경")
-    void updateTagName() throws Exception {
-        Long tagId = 1L;
-        String requestBody = "{\"newName\":\"새로운 태그\"}";
+    @DisplayName("[실패] RabbitMQ 메시지 전송 실패")
+    void manualReindexCategory_Fail() throws Exception {
+        Long categoryId = 123L;
 
-        Tag mockTag = Tag.builder()
-                .id(tagId)
-                .tagName("새로운 태그")
-                .build();
-        given(tagService.updateTagName(tagId, "새로운 태그")).willReturn(mockTag);
+        willThrow(new RuntimeException("MQ Connection failed"))
+                .given(rabbitTemplate).convertAndSend(anyString(), anyString(), any(SearchSyncMessage.class));
 
-        mockMvc.perform(put("/admin/tag/{tagId}", tagId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tagName").value("새로운 태그"));
+        mockMvc.perform(post("/admin/search/reindex/category/{categoryId}", categoryId))
+                .andExpect(status().is5xxServerError());
     }
 }

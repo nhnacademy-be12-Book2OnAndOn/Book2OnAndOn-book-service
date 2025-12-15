@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "BookImage")
+@Table(name = "book_image")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
@@ -33,9 +33,14 @@ public class BookImage {
     @Column(name = "book_image_path", columnDefinition = "TEXT", nullable = false)
     private String imagePath;
 
+    @Setter
+    @Column(name = "is_thumbnail", nullable = false)
+    private boolean isThumbnail;
+
     // 도서 아이디
     @Setter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
+
 }

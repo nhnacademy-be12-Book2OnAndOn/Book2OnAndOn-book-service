@@ -1,46 +1,31 @@
 package org.nhnacademy.book2onandonbookservice.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import java.util.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
 import org.nhnacademy.book2onandonbookservice.client.GeminiApiClient;
+import org.nhnacademy.book2onandonbookservice.client.GroqApiClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
-import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookCategory;
-import org.nhnacademy.book2onandonbookservice.entity.BookImage;
-import org.nhnacademy.book2onandonbookservice.entity.BookTag;
-import org.nhnacademy.book2onandonbookservice.entity.Category;
-import org.nhnacademy.book2onandonbookservice.entity.Tag;
-import org.nhnacademy.book2onandonbookservice.repository.BookCategoryRepository;
-import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
-import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
-import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
-import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
+import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
+import org.nhnacademy.book2onandonbookservice.entity.*;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.repository.*;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class BookEnrichmentServiceTest {
@@ -49,8 +34,6 @@ class BookEnrichmentServiceTest {
     private BookRepository bookRepository;
     @Mock
     private CategoryRepository categoryRepository;
-    @Mock
-    private BookCategoryRepository bookCategoryRepository;
     @Mock
     private TagRepository tagRepository;
     @Mock
@@ -61,15 +44,15 @@ class BookEnrichmentServiceTest {
     private GeminiApiClient geminiApiClient;
     @Mock
     private AladinApiClient aladinApiClient;
-
     @Mock
-    private TransactionTemplate transactionTemplate;
+    private GroqApiClient groqApiClient;
 
     @InjectMocks
     private BookEnrichmentService bookEnrichmentService;
 
     private Book testBook;
     private AladinApiResponse.Item aladinItem;
+    private BookContentDto aiContent;
 
     @BeforeEach
     void setUp() {
@@ -78,78 +61,121 @@ class BookEnrichmentServiceTest {
                 .isbn("9788901234567")
                 .title("테스트 책")
                 .description("테스트 설명")
-                .bookCategories(new HashSet<>())
                 .bookTags(new HashSet<>())
                 .images(new HashSet<>())
+                .status(BookStatus.ON_SALE)
+                .priceStandard(0L)
                 .build();
 
         aladinItem = mock(AladinApiResponse.Item.class);
+        aiContent = new BookContentDto(List.of("소설"), "1. 서론\n2. 본론");
     }
 
     @Test
-    @DisplayName("책이 존재하지 않을 때 처리")
+    @DisplayName("책이 존재하지 않을 때 예외 발생")
     void enrichBookData_BookNotExists() {
         when(bookRepository.findById(1L)).thenReturn(Optional.empty());
 
-        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
-
-        result.join();
-        assertThat(result).isCompleted();
-        verify(bookRepository, never()).save(any());
+        assertThatThrownBy(() -> bookEnrichmentService.enrichBookData(1L))
+                .isInstanceOf(NotFoundBookException.class);
     }
 
     @Test
-    @DisplayName("ISBN으로 책을 찾을 수 없을 때")
-    void enrichBookData_BookForIsbnNotFound() {
-        when(bookRepository.existsById(1L)).thenReturn(true);
+    @DisplayName("이미 삭제된 책이면 로직 종료")
+    void enrichBookData_BookDeleted() throws JsonProcessingException {
+        testBook.setStatus(BookStatus.BOOK_DELETED);
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
 
-        when(bookRepository.findById(1L))
-                .thenReturn(Optional.of(testBook))
-                .thenReturn(Optional.empty());
+        bookEnrichmentService.enrichBookData(1L);
 
-        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
-
-        result.join();
-        assertThat(result).isCompleted();
+        verify(aladinApiClient, never()).searchByIsbn(anyString());
     }
 
     @Test
-    @DisplayName("알라딘 데이터로 책 정보 보강 성공")
-    void enrichBookData_WithAladinData() {
-        when(bookRepository.existsById(1L)).thenReturn(true);
+    @DisplayName("알라딘 API 통신 오류 발생 시 예외 던짐")
+    void enrichBookData_AladinApiError() throws JsonProcessingException {
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(aladinApiClient.searchByIsbn(anyString())).thenThrow(new RuntimeException("Connection Timeout"));
+
+        assertThatThrownBy(() -> bookEnrichmentService.enrichBookData(1L))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    @DisplayName("Groq 성공 시 Gemini 호출 안 함")
+    void enrichBookData_GroqSuccess() throws JsonProcessingException {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(aladinApiClient.searchByIsbn(anyString())).thenReturn(aladinItem);
-        when(geminiApiClient.extractTags(anyString(), anyString()))
-                .thenReturn(Arrays.asList("소설", "한국문학", "베스트셀러"));
+        // Groq 성공 설정
+        when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(aiContent);
 
         Tag tag1 = Tag.builder().id(1L).tagName("소설").build();
-        Tag tag2 = Tag.builder().id(2L).tagName("한국문학").build();
-        Tag tag3 = Tag.builder().id(3L).tagName("베스트셀러").build();
-
         when(tagRepository.findByTagName("소설")).thenReturn(Optional.of(tag1));
-        when(tagRepository.findByTagName("한국문학")).thenReturn(Optional.of(tag2));
-        when(tagRepository.findByTagName("베스트셀러")).thenReturn(Optional.of(tag3));
-        when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
 
-        doAnswer(invocation -> {
-            invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class)
-                    .doInTransaction(null);
-            return null;
-        }).when(transactionTemplate).execute(any());
+        bookEnrichmentService.enrichBookData(1L);
 
-        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
+        // 검증: Groq은 호출되고 Gemini는 호출되지 않아야 함
+        verify(groqApiClient).extractContent(anyString(), anyString(), anyString());
+        verify(geminiApiClient, never()).extractContent(anyString(), anyString(), anyString());
 
-        result.join();
-        verify(transactionTemplate).execute(any());
-        verify(aladinApiClient).searchByIsbn(testBook.getIsbn());
+        verify(bookRepository).save(testBook);
+        verify(bookSearchIndexService).index(testBook);
     }
 
     @Test
-    @DisplayName("외부 API 데이터가 없을 때 책 삭제 처리")
-    void updateBookInTransaction_NoExternalData_DeleteBook() {
+    @DisplayName("Groq 실패 시 Gemini로 재시도하여 성공")
+    void enrichBookData_GroqFail_GeminiSuccess() throws JsonProcessingException {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(aladinApiClient.searchByIsbn(any())).thenReturn(aladinItem);
 
-        bookEnrichmentService.updateBookInTransaction(1L, null, null);
+        when(groqApiClient.extractContent(any(), any(), any()))
+                .thenThrow(new RuntimeException("Groq Error"));
+        when(geminiApiClient.extractContent(any(), any(), any()))
+                .thenReturn(aiContent);
+
+        Tag tag1 = Tag.builder().id(1L).tagName("소설").build();
+        when(tagRepository.findByTagName("소설")).thenReturn(Optional.of(tag1));
+
+        bookEnrichmentService.enrichBookData(1L);
+
+        // 검증: 둘 다 호출되어야 함
+        verify(groqApiClient).extractContent(any(), any(), any());
+        verify(geminiApiClient).extractContent(any(), any(), any());
+
+        verify(bookRepository).save(testBook);
+    }
+
+    @Test
+    @DisplayName("Groq 실패 후 Gemini Limit 에러 발생 시 예외 던짐")
+    void enrichBookData_GroqFail_GeminiLimitError() throws JsonProcessingException {
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(aladinApiClient.searchByIsbn(any())).thenReturn(aladinItem);
+
+        when(groqApiClient.extractContent(any(), any(), any()))
+                .thenThrow(new RuntimeException("Groq Error"));
+        // Gemini Limit 에러 설정
+        when(geminiApiClient.extractContent(any(), any(), any()))
+                .thenThrow(new RuntimeException("Gemini API Rate Limit Exceeded"));
+
+        assertThatThrownBy(() -> bookEnrichmentService.enrichBookData(1L))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Limit");
+    }
+
+    @Test
+    @DisplayName("외부 데이터가 없고 가격도 0원일 때 책 삭제 처리")
+    void updateBookInTransaction_NoExternalData_And_NoPrice_DeleteBook() throws JsonProcessingException {
+        testBook.setPriceStandard(0L);
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(aladinApiClient.searchByIsbn(anyString())).thenReturn(null);
+        // Groq 호출해서 null 리턴하는 상황 가정 (혹은 예외 발생 후 Gemini도 null 리턴)
+        // 실제 로직에서는 예외가 발생하면 catch해서 Gemini 호출하므로, 여기선 Groq이 null 리턴하는 상황보다는
+        // Groq 에러 -> Gemini 에러(일반 에러) -> catch 후 null 상태로 진행되는 흐름을 테스트하는 게 맞으나,
+        // Mockito 설정상 Groq이 null 리턴한다고 가정해도 무방함 (BookContentDto.empty()와 유사)
+        when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(null);
+        // 실제 코드 흐름상 Groq null이면 catch 안 걸리고 aiContent가 null이 됨
+
+        bookEnrichmentService.enrichBookData(1L);
 
         assertThat(testBook.getStatus()).isEqualTo(BookStatus.BOOK_DELETED);
         verify(bookRepository).save(testBook);
@@ -157,405 +183,52 @@ class BookEnrichmentServiceTest {
     }
 
     @Test
-    @DisplayName("알라딘 데이터로 카테고리 저장")
-    void updateBookInTransaction_SaveCategories() {
+    @DisplayName("외부 데이터가 없어도 기존 가격 정보가 있으면 삭제하지 않음")
+    void updateBookInTransaction_NoExternalData_But_HasPrice_KeepBook() throws JsonProcessingException {
+        testBook.setPriceStandard(15000L);
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(aladinItem.getCategoryName()).thenReturn("국내도서>소설>한국소설");
+        when(aladinApiClient.searchByIsbn(anyString())).thenReturn(null);
+        when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(null);
 
-        Category parentCategory = Category.builder().id(1L).categoryName("국내도서").build();
-        Category middleCategory = Category.builder().id(2L).categoryName("소설").parent(parentCategory).build();
-        Category leafCategory = Category.builder().id(3L).categoryName("한국소설").parent(middleCategory).build();
+        bookEnrichmentService.enrichBookData(1L);
 
-        when(categoryRepository.findByCategoryNameAndParentIsNull("국내도서"))
-                .thenReturn(Optional.of(parentCategory));
-        when(categoryRepository.findByCategoryNameAndParent("소설", parentCategory))
-                .thenReturn(Optional.of(middleCategory));
-        when(categoryRepository.findByCategoryNameAndParent("한국소설", middleCategory))
-                .thenReturn(Optional.of(leafCategory));
-        when(bookCategoryRepository.existsByBookAndCategory(any(), any())).thenReturn(false);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        verify(bookCategoryRepository).save(any(BookCategory.class));
+        assertThat(testBook.getStatus()).isNotEqualTo(BookStatus.BOOK_DELETED);
+        verify(bookSearchIndexService, never()).deleteIndex(anyLong());
+        verify(bookRepository, never()).save(any(Book.class));
     }
 
     @Test
     @DisplayName("알라딘 데이터로 가격 정보 업데이트")
-    void updateBookInTransaction_UpdatePrice() {
-        testBook.setPriceStandard(null);
-        testBook.setPriceSales(null);
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(aladinItem.getPriceStandard()).thenReturn(15000L);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        assertThat(testBook.getPriceStandard()).isEqualTo(15000L);
-        assertThat(testBook.getPriceSales()).isEqualTo(15000L);
-        verify(bookRepository).save(testBook);
-        verify(bookSearchIndexService).index(testBook);
-    }
-
-    @Test
-    @DisplayName("알라딘 데이터로 출판일 업데이트")
-    void updateBookInTransaction_UpdatePublishDate() {
-        testBook.setPublishDate(null);
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(aladinItem.getPubDate()).thenReturn("2024-01-15");
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        assertThat(testBook.getPublishDate()).isEqualTo(LocalDate.of(2024, 1, 15));
-        verify(bookRepository).save(testBook);
-    }
-
-    @Test
-    @DisplayName("알라딘 데이터로 설명 업데이트")
-    void updateBookInTransaction_UpdateDescription() {
-        testBook.setDescription(null);
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(aladinItem.getDescription()).thenReturn("알라딘 설명");
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        assertThat(testBook.getDescription()).isEqualTo("알라딘 설명");
-        verify(bookRepository).save(testBook);
-    }
-
-    @Test
-    @DisplayName("알라딘 데이터로 이미지 추가")
-    void updateBookInTransaction_AddImage() {
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(aladinItem.getCover()).thenReturn("http://example.com/cover.jpg");
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        assertThat(testBook.getImages()).hasSize(1);
-        verify(bookRepository).save(testBook);
-    }
-
-    @Test
-    @DisplayName("Gemini로 생성한 태그 저장")
-    void updateBookInTransaction_SaveTags() {
-        List<String> tags = Arrays.asList("소설", "한국문학", "베스트셀러");
+    void updateBookInTransaction_UpdatePrice() throws JsonProcessingException {
+        testBook.setPriceStandard(0L);
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
 
-        Tag tag1 = Tag.builder().id(1L).tagName("소설").build();
-        Tag tag2 = Tag.builder().id(2L).tagName("한국문학").build();
-        Tag tag3 = Tag.builder().id(3L).tagName("베스트셀러").build();
-
-        when(tagRepository.findByTagName("소설")).thenReturn(Optional.of(tag1));
-        when(tagRepository.findByTagName("한국문학")).thenReturn(Optional.of(tag2));
-        when(tagRepository.findByTagName("베스트셀러")).thenReturn(Optional.of(tag3));
-        when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
-
-        verify(bookTagRepository, times(3)).save(any(BookTag.class));
-    }
-
-    @Test
-    @DisplayName("새로운 태그 생성 및 저장")
-    void updateBookInTransaction_CreateAndSaveNewTag() {
-        List<String> tags = Arrays.asList("신규태그");
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        Tag newTag = Tag.builder().id(10L).tagName("신규태그").build();
-
-        when(tagRepository.findByTagName("신규태그")).thenReturn(Optional.empty());
-        when(tagRepository.saveAndFlush(any(Tag.class))).thenReturn(newTag);
-        when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
-
-        verify(tagRepository).saveAndFlush(any(Tag.class));
-        verify(bookTagRepository).save(any(BookTag.class));
-    }
-
-    @Test
-    @DisplayName("태그 이름 50자로 자르기")
-    void updateBookInTransaction_TruncateTagName() {
-        String longTagName = "a".repeat(60);
-        List<String> tags = Arrays.asList(longTagName);
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        Tag tag = Tag.builder().id(1L).tagName(longTagName.substring(0, 50)).build();
-        when(tagRepository.findByTagName(anyString())).thenReturn(Optional.of(tag));
-        when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
-
-        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        verify(tagRepository).findByTagName(captor.capture());
-        assertThat(captor.getValue()).hasSize(50);
-    }
-
-    @Test
-    @DisplayName("빈 태그 이름은 무시")
-    void updateBookInTransaction_IgnoreEmptyTagName() {
-        List<String> tags = Arrays.asList("", "   ", "유효한태그");
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        Tag tag = Tag.builder().id(1L).tagName("유효한태그").build();
-        when(tagRepository.findByTagName("유효한태그")).thenReturn(Optional.of(tag));
-        when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
-
-        verify(bookTagRepository, times(1)).save(any(BookTag.class));
-    }
-
-    @Test
-    @DisplayName("중복된 BookTag는 저장하지 않음")
-    void updateBookInTransaction_SkipDuplicateBookTag() {
-        List<String> tags = Arrays.asList("중복태그");
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        Tag tag = Tag.builder().id(1L).tagName("중복태그").build();
-        when(tagRepository.findByTagName("중복태그")).thenReturn(Optional.of(tag));
-        when(bookTagRepository.existsByBookAndTag(testBook, tag)).thenReturn(true);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
-
-        verify(bookTagRepository, never()).save(any(BookTag.class));
-    }
-
-    @Test
-    @DisplayName("카테고리 생성 시 이름 100자로 자르기")
-    void updateBookInTransaction_TruncateCategoryName() {
-        String longCategoryName = "a".repeat(120);
-        when(aladinItem.getCategoryName()).thenReturn(longCategoryName);
-        when(aladinItem.getPriceStandard()).thenReturn(10000L);
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        Category category = Category.builder()
-                .id(1L)
-                .categoryName(longCategoryName.substring(0, 100))
-                .build();
-        when(categoryRepository.findByCategoryNameAndParentIsNull(anyString()))
-                .thenReturn(Optional.of(category));
-        when(bookCategoryRepository.existsByBookAndCategory(any(), any())).thenReturn(false);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        verify(categoryRepository).findByCategoryNameAndParentIsNull(captor.capture());
-        assertThat(captor.getValue()).hasSize(100);
-    }
-
-    @Test
-    @DisplayName("카테고리 생성 - 루트 카테고리")
-    void updateBookInTransaction_CreateRootCategory() {
-        when(aladinItem.getCategoryName()).thenReturn("새로운카테고리");
-        when(aladinItem.getPriceStandard()).thenReturn(10000L);
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        Category newCategory = Category.builder().id(1L).categoryName("새로운카테고리").build();
-        when(categoryRepository.findByCategoryNameAndParentIsNull("새로운카테고리"))
-                .thenReturn(Optional.empty());
-        when(categoryRepository.save(any(Category.class))).thenReturn(newCategory);
-        when(bookCategoryRepository.existsByBookAndCategory(any(), any())).thenReturn(false);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        verify(categoryRepository).save(any(Category.class));
-    }
-
-    @Test
-    @DisplayName("중복된 BookCategory는 저장하지 않음")
-    void updateBookInTransaction_SkipDuplicateBookCategory() {
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        when(aladinItem.getCategoryName()).thenReturn("국내도서");
-        when(aladinItem.getPriceStandard()).thenReturn(10000L);
-
-        Category category = Category.builder().id(1L).categoryName("국내도서").build();
-        when(categoryRepository.findByCategoryNameAndParentIsNull(anyString()))
-                .thenReturn(Optional.of(category));
-        when(bookCategoryRepository.existsByBookAndCategory(testBook, category)).thenReturn(true);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        verify(bookCategoryRepository, never()).save(any(BookCategory.class));
-    }
-
-    @Test
-    @DisplayName("출판일 파싱 실패 시 현재 날짜로 설정")
-    void updateBookInTransaction_InvalidDateFormat() {
-        testBook.setPublishDate(null);
-        when(aladinItem.getPubDate()).thenReturn("invalid-date");
-        when(aladinItem.getPriceStandard()).thenReturn(10000L);
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        assertThat(testBook.getPublishDate()).isEqualTo(LocalDate.now());
-    }
-
-    @Test
-    @DisplayName("API 호출 중 예외 발생 시 처리")
-    void enrichBookData_ApiException() {
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(bookRepository.existsById(1L)).thenReturn(true);
-        when(aladinApiClient.searchByIsbn(anyString())).thenThrow(new RuntimeException("API Error"));
-
-        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
-        result.join();
-        assertThat(result).isCompleted();
-        verify(transactionTemplate, never()).execute(any());
-    }
-
-    @Test
-    @DisplayName("Gemini 태그 생성 실패 시 계속 진행")
-    void enrichBookData_GeminiException() {
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(bookRepository.existsById(1L)).thenReturn(true);
-        when(aladinApiClient.searchByIsbn(anyString())).thenReturn(aladinItem);
-        when(geminiApiClient.extractTags(anyString(), anyString()))
-                .thenThrow(new RuntimeException("Gemini Error"));
-
-        doAnswer(invocation -> {
-            invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class)
-                    .doInTransaction(null);
-            return null;
-        }).when(transactionTemplate).execute(any());
-
-        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
-
-        result.join();
-        verify(transactionTemplate).execute(any());
-    }
-
-    @Test
-    @DisplayName("설명이 없을 때 Gemini 태그 생성 안함")
-    void enrichBookData_NoDescriptionNoGemini() {
-        testBook.setDescription(null);
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-        when(bookRepository.existsById(1L)).thenReturn(true);
+        when(aladinItem.getPriceStandard()).thenReturn(20000L);
         when(aladinApiClient.searchByIsbn(anyString())).thenReturn(aladinItem);
 
-        doAnswer(invocation -> {
-            invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class)
-                    .doInTransaction(null);
-            return null;
-        }).when(transactionTemplate).execute(any());
+        // AI 호출 결과가 null이어도 알라딘 데이터가 있으면 저장됨
+        when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(null);
 
-        CompletableFuture<Void> result = bookEnrichmentService.enrichBookData(1L);
+        bookEnrichmentService.enrichBookData(1L);
 
-        result.join();
-        verify(geminiApiClient, never()).extractTags(anyString(), anyString());
+        assertThat(testBook.getPriceStandard()).isEqualTo(20000L);
+        assertThat(testBook.getPriceSales()).isEqualTo(18000L);
+        verify(bookRepository).save(testBook);
     }
 
     @Test
-    @DisplayName("업데이트할 항목이 없을 때는 저장하지 않음")
-    void updateBookInTransaction_NoUpdate() {
-
-        testBook.setPriceStandard(15000L);
-        testBook.setPriceSales(15000L);
-        testBook.setDescription("기존 설명");
-        testBook.setPublishDate(LocalDate.now());
-
-        // 카테고리가 이미 있는 경우
-        Category category = Category.builder().id(1L).categoryName("기존카테고리").build();
-        BookCategory bookCategory = BookCategory.builder()
-                .book(testBook)
-                .category(category)
-                .build();
-        testBook.getBookCategories().add(bookCategory);
-
-        // 이미지가 이미 있는 경우
-        BookImage existingImage = BookImage.builder()
-                .book(testBook)
-                .imagePath("existing.jpg")
-                .build();
-        testBook.getImages().add(existingImage);
-
-        // 태그가 이미 있는 경우
-        Tag tag = Tag.builder().id(1L).tagName("기존태그").build();
-        BookTag bookTag = BookTag.builder()
-                .book(testBook)
-                .tag(tag)
-                .build();
-        testBook.getBookTags().add(bookTag);
-
+    @DisplayName("AI 목차가 있고 기존 목차가 없을 때 목차 업데이트 성공")
+    void updateBookInTransaction_UpdateChapter() throws JsonProcessingException {
+        testBook.setChapter(null);
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(aladinApiClient.searchByIsbn(anyString())).thenReturn(aladinItem);
 
-        // aladinItem은 있지만 모든 필드가 이미 채워져있어서 업데이트 안됨
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
+        BookContentDto dtoWithChapter = new BookContentDto(Collections.emptyList(), "새로운 목차");
+        when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(dtoWithChapter);
 
-        assertThat(testBook.getPriceStandard()).isEqualTo(15000L);
-        verify(bookRepository, never()).save(any());
-    }
+        bookEnrichmentService.enrichBookData(1L);
 
-    @Test
-    @DisplayName("이미 이미지가 있을 때 추가하지 않음")
-    void updateBookInTransaction_ImageAlreadyExists() {
-        BookImage existingImage = BookImage.builder()
-                .book(testBook)
-                .imagePath("existing.jpg")
-                .build();
-        testBook.getImages().add(existingImage);
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        when(aladinItem.getPriceStandard()).thenReturn(10000L);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        assertThat(testBook.getImages()).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("태그 저장 시 예외 발생해도 계속 진행")
-    void updateBookInTransaction_TagSaveException() {
-        List<String> tags = Arrays.asList("태그1", "태그2");
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        when(tagRepository.findByTagName("태그1"))
-                .thenThrow(new RuntimeException("DB Error"));
-
-        Tag tag2 = Tag.builder().id(2L).tagName("태그2").build();
-        when(tagRepository.findByTagName("태그2")).thenReturn(Optional.of(tag2));
-        when(bookTagRepository.existsByBookAndTag(any(), any())).thenReturn(false);
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, tags);
-
-        verify(bookTagRepository, times(1)).save(any(BookTag.class));
-    }
-
-    @Test
-    @DisplayName("카테고리 경로가 빈 문자열일 때 처리")
-    void updateBookInTransaction_EmptyCategoryPath() {
-        when(aladinItem.getCategoryName()).thenReturn("");
-        when(aladinItem.getPriceStandard()).thenReturn(10000L);
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        verify(categoryRepository, never()).save(any());
-        verify(bookCategoryRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("카테고리 연결 시 예외 발생해도 계속 진행")
-    void updateBookInTransaction_BookCategorySaveException() {
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
-
-        when(aladinItem.getCategoryName()).thenReturn("국내도서");
-        when(aladinItem.getPriceStandard()).thenReturn(10000L);
-
-        Category category = Category.builder().id(1L).categoryName("국내도서").build();
-        when(categoryRepository.findByCategoryNameAndParentIsNull(anyString()))
-                .thenReturn(Optional.of(category));
-        when(bookCategoryRepository.existsByBookAndCategory(any(), any())).thenReturn(false);
-        when(bookCategoryRepository.save(any(BookCategory.class)))
-                .thenThrow(new RuntimeException("Duplicate"));
-
-        bookEnrichmentService.updateBookInTransaction(1L, aladinItem, null);
-
-        verify(bookCategoryRepository).save(any(BookCategory.class));
+        assertThat(testBook.getChapter()).isEqualTo("새로운 목차");
         verify(bookRepository).save(testBook);
     }
 }

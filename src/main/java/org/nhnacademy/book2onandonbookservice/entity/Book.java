@@ -9,7 +9,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Size;
@@ -21,10 +23,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 
 @Entity
-@Table(name = "Book", indexes = {
+@Table(name = "book", indexes = {
         @Index(name = "idx_book_isbn", columnList = "ISBN"),
         @Index(name = "idx_book_publish_date", columnList = "book_publish_date")
 })
@@ -106,6 +110,10 @@ public class Book {
     @Column(name = "book_status", length = 30, nullable = false)
     private BookStatus status;
 
+    @Column(name="thumbnail")
+    @Setter
+    private String thumbnail;
+
     /// 연관 관계 설정
     // 도서 이미지 매핑
     @Setter
@@ -113,11 +121,11 @@ public class Book {
     @Builder.Default
     private Set<BookImage> images = new HashSet<>();
 
-    // 도서 카테고리 매핑
     @Setter
-    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<BookCategory> bookCategories = new HashSet<>();
+    @ManyToOne
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @JoinColumn(name = "category_id") // ★★★ 여기를 추가하세요!
+    private Category category;
 
     // 태그 매핑
     @Setter
@@ -149,7 +157,7 @@ public class Book {
     @Builder.Default
     private Set<BookLike> likes = new HashSet<>();
 
-    // 도서 like count 필드 추가
+    // 도서 like count 필드 추가 (성능개선을 위한 반정규화) BookLike와 필드 갯수가 맞지않을 수 있는 위험 있어서 조심해야함! 트랜잭션 처리 필수
     @Builder.Default
     @Column(name = "like_count", nullable = false)
     private Long likeCount = 0L;
