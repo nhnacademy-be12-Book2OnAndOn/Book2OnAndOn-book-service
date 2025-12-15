@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
 
@@ -73,6 +74,12 @@ public interface BookRepository extends JpaRepository<Book, Long> {
         """)
     List<Book> findBooksWithDetails(@Param("bookIds") List<Long> bookIds);
 
+    Page<Book> findByCategory_IdIn(List<Long> categoryIds, Pageable pageable);
+
+    @Transactional
+    @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 불일치 방지)
+    @Query("UPDATE Book b SET b.status = 'BOOK_DELETED' WHERE b.id = :bookId")
+    void updateStatusToDeleted(@Param("bookId") Long bookId);
 
     //주문 후 재고 차감 로직
     @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 동기화)

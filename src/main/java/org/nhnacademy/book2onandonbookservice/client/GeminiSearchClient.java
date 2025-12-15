@@ -68,7 +68,7 @@ public class GeminiSearchClient {
                     [
                         { "id": ..., "reason": "..."},
                         { "id": ..., "reason": "..."},
-                    }
+                    ]
                 """.formatted(userQuery, booksInfo);
 
         String responseText = callApi(prompt);
@@ -94,17 +94,32 @@ public class GeminiSearchClient {
         return null;
     }
 
-    private List<AiRecommendation> parseResponse(String text){
-        if(text==null) return Collections.emptyList();
+    private List<AiRecommendation> parseResponse(String text) {
+        if (text == null) return Collections.emptyList();
 
-        try{
+        try {
+            // 1. 마크다운 제거
             String cleanJson = text.replaceAll("```json", "").replaceAll("```", "").trim();
+
+            // 2. 대괄호 '[' 부터 ']' 까지만 추출 (앞뒤 잡설 제거)
+            int startIndex = cleanJson.indexOf("[");
+            int endIndex = cleanJson.lastIndexOf("]");
+
+            if (startIndex != -1 && endIndex != -1) {
+                cleanJson = cleanJson.substring(startIndex, endIndex + 1);
+            } else {
+                // 대괄호가 없다면 실패 처리
+                log.warn("[Gemini Search] 유효한 JSON 배열을 찾을 수 없음: {}", text);
+                return Collections.emptyList();
+            }
+
             return objectMapper.readValue(cleanJson, new TypeReference<List<AiRecommendation>>() {});
         } catch (Exception e) {
             log.error("[Gemini Search] 파싱 실패. Raw Text: {}", text, e);
             return Collections.emptyList();
         }
     }
+
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor

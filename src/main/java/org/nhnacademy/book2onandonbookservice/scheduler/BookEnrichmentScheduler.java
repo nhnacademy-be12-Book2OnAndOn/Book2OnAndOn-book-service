@@ -66,16 +66,18 @@ public class BookEnrichmentScheduler {
                 if(task.getRetryCount() >= 3 && !isLimitError(e.getMessage())){
                     handlePermanentFailure(task.getBookId());
                 }
+            }finally {
+                taskRepository.save(task);
             }
             
             // API 속도 조절을 위해 건당 약간의 딜레이를 줄 수도 있음
             try {
                 Thread.sleep(500);
-            } catch (InterruptedException e) {}
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
-        // 5. 상태 업데이트 저장
-        taskRepository.saveAll(tasks);
     }
     
     // 작업 완료 후 테이블 정리 메서드
@@ -107,13 +109,12 @@ public class BookEnrichmentScheduler {
         return msg.contains("limit") || msg.contains("quota") || msg.contains("429") || msg.contains("제한");
     }
 
-    private void handlePermanentFailure(Long bookId){
-        try{
-            bookRepository.findById(bookId).ifPresent(book -> {
-                book.setStatus(BookStatus.BOOK_DELETED);
-                bookRepository.save(book);
-                log.info("[영구 실패 처리] 책 ID: {}", bookId);
-            });
+     // 벌크 연산(@Modifying)은 트랜잭션 필수 (BookRepository에 붙여놈!)
+    public void handlePermanentFailure(Long bookId) {
+        try {
+            // 조회(Select) 없이 바로 업데이트(Update) 쿼리 실행 -> 쿼리 1방
+            bookRepository.updateStatusToDeleted(bookId);
+            log.info("[영구 실패 처리] 책 ID: {} -> 상태 'BOOK_DELETED'로 변경 완료", bookId);
         } catch (Exception e) {
             log.error("영구 실패 처리 중 DB 오류 (BookId: {})", bookId, e);
         }

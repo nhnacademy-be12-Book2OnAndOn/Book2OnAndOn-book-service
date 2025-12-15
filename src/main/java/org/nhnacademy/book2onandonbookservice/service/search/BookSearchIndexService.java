@@ -31,6 +31,7 @@ public class BookSearchIndexService {
         try{
             BookSearchDocument bookSearchDocument = createDocument(book);
             bookSearchRepository.save(bookSearchDocument);
+            log.info("인덱싱 완료!!!!!!!!!!!: {}", bookSearchDocument.getTitle());
         } catch (Exception e) {
             log.error("인덱싱 실패 book id={}", book.getId(), e);
         }

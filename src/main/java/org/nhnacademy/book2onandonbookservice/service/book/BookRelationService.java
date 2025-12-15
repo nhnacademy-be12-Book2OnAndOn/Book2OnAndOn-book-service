@@ -20,6 +20,7 @@ import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
 import org.nhnacademy.book2onandonbookservice.entity.Tag;
 import org.nhnacademy.book2onandonbookservice.exception.ImageUploadException;
+import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
@@ -35,6 +36,7 @@ public class BookRelationService {
 
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
+    private final BookTagRepository bookTagRepository;
     private final PublisherRepository publisherRepository;
     private final ContributorRepository contributorRepository;
     private final ImageUploadService imageUploadService;

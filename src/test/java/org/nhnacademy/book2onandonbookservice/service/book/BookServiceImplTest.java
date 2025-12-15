@@ -46,6 +46,7 @@ import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundCategoryException;
 import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
@@ -463,8 +464,7 @@ class BookServiceImplTest {
         given(categoryRepository.findById(categoryId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> bookService.getNewArrivals(categoryId, pageable))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("카테고리 없음");
+                .isInstanceOf(NotFoundCategoryException.class);
 
         verify(bookRepository, never()).findBooksByCategoryIdsSorted(anyList(), any());
     }
@@ -489,16 +489,31 @@ class BookServiceImplTest {
     @Test
     @DisplayName("주문용 도서 정보 다건 조회 성공")
     void getBooksForOrder_Success() {
+        Category category = Category.builder()
+                .id(10L)
+                .categoryName("테스트 카테고리")
+                .build();
+
+        Book bookWithCategory = Book.builder()
+                .id(1L)
+                .title("테스트 책")
+                .priceSales(15000L)
+                .isWrapped(false)
+                .stockCount(100)
+                .status(BookStatus.ON_SALE)
+                .category(category)
+                .build();
+
         List<Long> bookIds = List.of(1L);
 
-        given(bookRepository.findAllById(bookIds)).willReturn(List.of(bookA));
+        given(bookRepository.findAllById(bookIds)).willReturn(List.of(bookWithCategory));
 
         List<BookOrderResponse> responses = bookService.getBooksForOrder(bookIds);
 
         assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).getBookId()).isEqualTo(bookA.getId());
-        assertThat(responses.get(0).getTitle()).isEqualTo(bookA.getTitle());
-        assertThat(responses.get(0).getPriceSales()).isEqualTo(bookA.getPriceSales());
+        assertThat(responses.get(0).getBookId()).isEqualTo(bookWithCategory.getId());
+        assertThat(responses.get(0).getTitle()).isEqualTo(bookWithCategory.getTitle());
+        assertThat(responses.get(0).getPriceSales()).isEqualTo(bookWithCategory.getPriceSales());
 
         verify(bookRepository, times(1)).findAllById(bookIds);
     }

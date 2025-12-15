@@ -72,8 +72,6 @@ class BookRelationServiceTest {
     @Test
     @DisplayName("도서 등록 시 연관관계 설정")
     void applyRelationsForCreate() {
-        MockMultipartFile imageFile = new MockMultipartFile(
-                "image", "test.jpg", "image/jpeg", "test image".getBytes());
 
         BookSaveRequest request = BookSaveRequest.builder()
                 .categoryId(10L)
@@ -98,7 +96,6 @@ class BookRelationServiceTest {
         given(contributorRepository.findByContributorName(anyString())).willReturn(Optional.empty());
         given(contributorRepository.save(any(Contributor.class))).willAnswer(inv -> inv.getArgument(0));
 
-        given(imageUploadService.uploadBookImage(any(MultipartFile.class))).willReturn("http://minio/uploaded-image.jpg");
 
         bookRelationService.applyRelationsForCreate(book, request);
 
@@ -107,7 +104,6 @@ class BookRelationServiceTest {
         assertThat(book.getBookTags()).hasSize(1);
         assertThat(book.getBookPublishers()).hasSize(2);
         assertThat(book.getBookContributors()).hasSize(2);
-        assertThat(book.getImages()).hasSize(1);
     }
 
     @Test

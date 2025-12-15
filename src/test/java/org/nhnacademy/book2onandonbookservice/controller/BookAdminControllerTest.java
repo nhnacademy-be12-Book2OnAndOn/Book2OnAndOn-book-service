@@ -21,6 +21,7 @@ import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookStatusUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
+import org.nhnacademy.book2onandonbookservice.service.book.AladinService;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
@@ -38,6 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(BookAdminController.class)
 class BookAdminControllerTest {
+
     @Autowired
     MockMvc mockMvc;
 
@@ -48,12 +50,14 @@ class BookAdminControllerTest {
     BookService bookService;
 
     @MockitoBean
+    AladinService aladinService;
+
+    @MockitoBean
     ImageUploadService imageUploadService;
 
     @MockitoBean
-    UserHeaderUtil util;
-    @Autowired
-    private UserHeaderUtil userHeaderUtil;
+    UserHeaderUtil userHeaderUtil;
+
     @MockitoBean
     JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
@@ -139,9 +143,12 @@ class BookAdminControllerTest {
 
         MockMultipartFile bookPart = new MockMultipartFile("book", "", "application/json", reqJson.getBytes(
                 StandardCharsets.UTF_8));
-        MockMultipartFile imagePart = new MockMultipartFile("image", "new.jpg", "image/jpeg", "new-dummy".getBytes());
+
+        MockMultipartFile imagePart = new MockMultipartFile("images", "new.jpg", "image/jpeg", "new-dummy".getBytes());
+
         given(imageUploadService.uploadBookImage(any())).willReturn("http://minio/new.jpg");
         doNothing().when(bookService).updateBook(eq(bookId), any(BookUpdateRequest.class), anyList());
+
         mockMvc.perform(multipart("/admin/books/{bookId}", bookId)
                         .file(bookPart)
                         .file(imagePart)
@@ -176,6 +183,5 @@ class BookAdminControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
-
     }
 }

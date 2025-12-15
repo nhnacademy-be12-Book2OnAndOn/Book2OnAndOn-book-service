@@ -99,4 +99,12 @@ public class BookAdminController {
         return ResponseEntity.ok().build();
     }
 
+    /// 도서 개수 반환
+    @AuthCheck(Role.BOOK_ADMIN)
+    @GetMapping("/count")
+    public ResponseEntity<Long> getBookCount(){
+        long count = bookService.getBookCount();
+        return ResponseEntity.ok(count);
+    }
+
 }

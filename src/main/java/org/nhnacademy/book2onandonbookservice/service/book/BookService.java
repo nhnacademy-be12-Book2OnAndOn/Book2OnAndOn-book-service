@@ -23,10 +23,19 @@ public interface BookService {
 
     void updateThumbnail(Long bookId, Long bookImageId);
 
+    //카테고리별 책 목록반환
+    Page<BookListResponse> getBooksByCategory(Long categoryId, Pageable pageable);
+
+    //카테고리 정보
+    CategoryDto getCategory(Long categoryId);
+
     // 도서 삭제
     void deleteBook(Long bookId);
 
-    // 도서 목록 조회(검색 시)
+    //도서 개수
+    long getBookCount();
+
+    // 도서 목록 조회(검색 시) (없애야할듯)
     Page<BookListResponse> getBooks(BookSearchCondition condition, Pageable pageable);
 
     // 도서 상세 조회

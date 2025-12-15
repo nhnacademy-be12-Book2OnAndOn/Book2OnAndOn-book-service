@@ -162,6 +162,7 @@ public class BookEnrichmentService {
 
         if (book.getCategory() == null && StringUtils.hasText(aladinData.getCategoryName())) {
             saveCategories(book, aladinData.getCategoryName());
+            updated=true;
         }
         if ((book.getPriceStandard() == null || book.getPriceStandard() == 0) && aladinData.getPriceStandard() > 0) {
             long newStandardPrice = aladinData.getPriceStandard();

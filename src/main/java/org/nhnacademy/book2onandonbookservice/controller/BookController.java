@@ -19,6 +19,7 @@ import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -128,6 +129,21 @@ public class BookController {
         );
 
         return ResponseEntity.ok(body);
+    }
+
+    /// 카테고리별 도서 조회 API
+    @GetMapping("/categories/{categoryId}")
+    public ResponseEntity<Page<BookListResponse>> getBooksByCategory(@PathVariable Long categoryId,
+                                                                     @PageableDefault(page=0, size=12, sort="publishDate", direction = Direction.DESC) Pageable pageable){
+        Page<BookListResponse> result = bookService.getBooksByCategory(categoryId, pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    /// 카테고리 이름 반환
+    @GetMapping("/categories/{categoryId}/info")
+    public ResponseEntity<CategoryDto> getCategoryInfo(@PathVariable Long categoryId){
+        CategoryDto categoryDto = bookService.getCategory(categoryId);
+        return ResponseEntity.ok(categoryDto);
     }
 
     public record BookLikeToggleResponse(boolean liked, Long likeCount) {
