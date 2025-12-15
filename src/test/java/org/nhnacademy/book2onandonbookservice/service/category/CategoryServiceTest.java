@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.event.CategoryUpdatedEvent;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundCategoryException;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -71,15 +72,16 @@ class CategoryServiceTest {
     }
 
     @Test
-    @DisplayName("카테고리 수정 실패")
-    void updateCategoryName_Fail() {
-        Long categoryId = 1L;
+    @DisplayName("카테고리 수정 실패: 존재하지 않는 카테고리 ID")
+    void updateCategoryName_Fail_NotFound() {
+        Long categoryId = 999L;
+        String newName = "New Name";
 
         given(categoryRepository.findById(categoryId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> categoryService.updateCategoryName(categoryId, "new name"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("카테고리를 찾을 수 없습니다.");
+        assertThatThrownBy(() -> categoryService.updateCategoryName(categoryId, newName))
+                .isInstanceOf(NotFoundCategoryException.class);
+
         verifyNoMoreInteractions(eventPublisher);
     }
 }

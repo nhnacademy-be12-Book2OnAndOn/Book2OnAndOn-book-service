@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.service.book;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,25 +67,20 @@ public class BookServiceImpl implements BookService {
     @CacheEvict(value={"newArrivals","bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public Long createBook(BookSaveRequest request, List<MultipartFile> images) {
         bookValidator.validateForCreate(request);
-        Book book = bookFactory.createFrom(request); //기본 도서 정보 저장
 
+        // 1. 기본 정보로 엔티티 생성
+        Book book = bookFactory.createFrom(request);
+
+        // 2. 이미지 처리 및 썸네일 동기화
+        processImagesForCreate(book, images, request.getImageUrl());
+
+        // 3. 저장 (Cascade로 이미지도 같이 저장됨)
         Book saved = bookRepository.save(book);
 
-        processImages(saved, images);
-        boolean hasThumbnail = book.getImages().stream().anyMatch(BookImage::isThumbnail);
-
-        if (!hasThumbnail && StringUtils.hasText(request.getImageUrl())) {
-            BookImage externalImage = BookImage.builder()
-                    .book(saved)
-                    .imagePath(request.getImageUrl()) // 구글/외부 이미지 URL 저장
-                    .isThumbnail(true) // 파일이 없으므로 이게 썸네일이 됨
-                    .build();
-
-            saved.getImages().add(externalImage);
-        }
-
+        // 4. 연관관계 설정 (태그, 작가 등)
         bookRelationService.applyRelationsForCreate(saved, request);
 
+        // 5. 검색 엔진 인덱싱
         try {
             bookSearchIndexService.index(saved);
         } catch (Exception e) {
@@ -96,31 +92,82 @@ public class BookServiceImpl implements BookService {
 
     // 도서 수정
     @Override
+    @Transactional
     @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> newImages) {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
-        bookFactory.updateFields(book, request);    // 단일 필드 업데이트
+
+        // 1. 단순 필드 업데이트
+        bookFactory.updateFields(book, request);
+
+        // 2. 이미지 삭제 로직 (썸네일 삭제 여부 체크가 핵심)
+        List<String> pathsToDelete = new ArrayList<>();
+        boolean thumbnailDeleted = false;
 
         if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()) {
-            book.getImages().removeIf(image -> {
-                if (request.getDeleteImageIds().contains(image.getId())) {
-                    imageUploadService.remove(image.getImagePath());
-                    return true;
+            Iterator<BookImage> iterator = book.getImages().iterator();
+            while (iterator.hasNext()) {
+                BookImage img = iterator.next();
+                if (request.getDeleteImageIds().contains(img.getId())) {
+                    // 삭제 대상 수집
+                    pathsToDelete.add(img.getImagePath());
+                    // 만약 썸네일이 삭제되는 거라면 플래그 ON
+                    if (img.isThumbnail()) {
+                        thumbnailDeleted = true;
+                    }
+                    iterator.remove(); // 컬렉션에서 제거 (DB 반영 예정)
                 }
-                return false;
-            });
+            }
         }
 
-        processImages(book, newImages);
+        // 3. 새 이미지 추가
+        if (newImages != null && !newImages.isEmpty()) {
+            for (MultipartFile file : newImages) {
+                if (!file.isEmpty()) {
+                    String url = imageUploadService.uploadBookImage(file);
+                    book.getImages().add(BookImage.builder()
+                            .book(book)
+                            .imagePath(url)
+                            .isThumbnail(false) // 일단 false로 넣고 아래에서 재조정
+                            .build());
+                }
+            }
+        }
 
+        // 4. 썸네일 재조정 (삭제됐거나, 원래 없었거나)
+        // 로직: 썸네일이 지워졌거나 현재 썸네일 설정이 없다면 -> 남은 이미지 중 하나를 썸네일로 승격
+        if (thumbnailDeleted || book.getThumbnail() == null) {
+            if (!book.getImages().isEmpty()) {
+                // Set이라 순서는 보장 안 되지만 하나를 꺼냄
+                BookImage newThumb = book.getImages().iterator().next();
+                newThumb.setThumbnail(true);
+                book.setThumbnail(newThumb.getImagePath()); // Book 엔티티 동기화
+            } else {
+                // 이미지가 아예 없으면 썸네일 제거
+                book.setThumbnail(null);
+            }
+        }
+
+        // 5. 연관관계 업데이트
         bookRelationService.applyRelationsForUpdate(book, request);
+
+        // 6. ES 인덱싱
         bookSearchIndexService.index(book);
+
+        // 7. 실제 파일 삭제 (DB 로직이 다 끝나갈 때 쯤 수행)
+        for (String path : pathsToDelete) {
+            try {
+                imageUploadService.remove(path);
+            } catch (Exception e) {
+                log.warn("이미지 파일 삭제 실패 (DB는 처리됨): {}", path);
+            }
+        }
     }
 
+    
     @Override
     @Transactional
-    //썸네일 업데이트
     @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
     public void updateThumbnail(Long bookId, Long bookImageId) {
         Book book = bookRepository.findByIdWithRelations(bookId)
@@ -128,20 +175,26 @@ public class BookServiceImpl implements BookService {
 
         Set<BookImage> images = book.getImages();
 
-        boolean exists = images.stream().anyMatch(img -> img.getId().equals(bookImageId));
+        // 해당 이미지가 존재하는지 확인
+        BookImage targetImage = images.stream()
+                .filter(img -> img.getId().equals(bookImageId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("해당 책에 존재하지 않는 이미지 입니다."));
 
-        if(!exists){
-            throw new IllegalArgumentException("해당 책에 존재하지 않는 이미지 입니다.");
-        }
-
-        for(BookImage image: images){
+        // 전체 순회하며 플래그 재설정 (하나만 true, 나머지 false)
+        for(BookImage image : images){
             if(image.getId().equals(bookImageId)){
                 image.setThumbnail(true);
-            }else{
-                image.setThumbnail(false);
+                // ★ 핵심: Book 엔티티의 문자열 필드도 같이 업데이트
+                book.setThumbnail(image.getImagePath());
+            } else {
+                if(image.isThumbnail()) {
+                    image.setThumbnail(false);
+                }
             }
         }
 
+        // 변경사항 ES 반영
         bookSearchIndexService.index(book);
     }
 
@@ -152,25 +205,27 @@ public class BookServiceImpl implements BookService {
     public void deleteBook(Long bookId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
-        Set<BookImage> images = book.getImages();
-        List<String> imagePaths = new ArrayList<>();
 
-        if (images != null) {
-            imagePaths = images.stream()
-                    .map(BookImage::getImagePath)
-                    .toList();
-        }
-        // DB에서 삭제
+        // 삭제할 파일 경로 백업
+        List<String> imagePaths = book.getImages().stream()
+                .map(BookImage::getImagePath)
+                .toList();
+
+        // 1. DB 삭제 시도
         bookRepository.delete(book);
 
-        // ES 인덱스에서도 삭제
+        // 2. 강제 플러시 (DB 제약조건 위반 여부 즉시 확인)
+        // 여기서 에러나면 트랜잭션 롤백되고 아래 MinIO/ES 삭제는 실행 안 됨 (안전)
+        bookRepository.flush();
+
+        // 3. ES 삭제 (DB 삭제 성공 후)
         try {
             bookSearchIndexService.deleteIndex(bookId);
-
         } catch (Exception e) {
-            log.error("ES 인덱스 삭제 실패: bookId={}", bookId, e);
+            log.error("ES 인덱스 삭제 실패 (DB는 삭제됨): bookId={}", bookId, e);
         }
 
+        // 4. MinIO 파일 삭제 (가장 마지막)
         for (String imagePath : imagePaths) {
             try {
                 imageUploadService.remove(imagePath);
@@ -178,8 +233,6 @@ public class BookServiceImpl implements BookService {
                 log.error("이미지 삭제 실패: path={}", imagePath, e);
             }
         }
-
-
     }
 
     @Override
@@ -443,6 +496,46 @@ public class BookServiceImpl implements BookService {
         collectSubCategoryIds(rootCategory, categoryIds);
 
         return categoryIds;
+    }
+    private void processImagesForCreate(Book book, List<MultipartFile> files, String externalUrl) {
+        boolean thumbnailSet = false;
+
+        // 1. 파일 업로드 처리
+        if (files != null && !files.isEmpty()) {
+            for (MultipartFile file : files) {
+                if (!file.isEmpty()) {
+                    String url = imageUploadService.uploadBookImage(file);
+
+                    // 첫 번째 이미지를 썸네일로 지정
+                    boolean isThumb = !thumbnailSet;
+
+                    BookImage bookImage = BookImage.builder()
+                            .book(book)
+                            .imagePath(url)
+                            .isThumbnail(isThumb)
+                            .build();
+
+                    book.getImages().add(bookImage);
+
+                    if (isThumb) {
+                        book.setThumbnail(url); // Book 엔티티 동기화
+                        thumbnailSet = true;
+                    }
+                }
+            }
+        }
+
+        // 2. 파일이 없고 외부 URL만 있는 경우 (알라딘 등)
+        if (!thumbnailSet && StringUtils.hasText(externalUrl)) {
+            BookImage externalImage = BookImage.builder()
+                    .book(book)
+                    .imagePath(externalUrl)
+                    .isThumbnail(true)
+                    .build();
+
+            book.getImages().add(externalImage);
+            book.setThumbnail(externalUrl); // Book 엔티티 동기화
+        }
     }
 
     private void collectSubCategoryIds(Category category, List<Long> result) {

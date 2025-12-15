@@ -111,6 +111,7 @@ public class Book {
     private BookStatus status;
 
     @Column(name="thumbnail")
+    @Setter
     private String thumbnail;
 
     /// 연관 관계 설정

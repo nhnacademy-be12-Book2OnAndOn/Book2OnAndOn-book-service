@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -45,7 +46,7 @@ class BookSearchControllerTest {
 
         given(bookSearchService.search(any(BookSearchCondition.class), any(Pageable.class))).willReturn(responsePage);
 
-        mockMvc.perform(get("/books/search")
+        mockMvc.perform(post("/books/search")
                         .param("keyword", "test")
                         .param("page", "0")
                         .param("size", "10"))

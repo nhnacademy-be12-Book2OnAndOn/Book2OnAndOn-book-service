@@ -69,11 +69,4 @@ public class BookReindexService {
         log.info("=== Book reindex 종료 ===");
     }
 
-    private void safeIndex(Book book) {
-        try {
-            bookSearchIndexService.index(book);
-        } catch (Exception e) {
-            log.error("ES 인덱싱 실패 - bookId={}", book.getId(), e);
-        }
-    }
 }

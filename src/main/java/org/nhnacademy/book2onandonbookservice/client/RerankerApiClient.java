@@ -55,6 +55,7 @@ public class RerankerApiClient {
 
     @Getter
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class RerankResult {
         private int index;   // 원본 리스트에서의 인덱스
         private double score; // 관련도 점수

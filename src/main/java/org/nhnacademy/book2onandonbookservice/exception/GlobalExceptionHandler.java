@@ -15,9 +15,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 public class GlobalExceptionHandler {
     /**
-     * [404] NotFoundBookException , NotFoundReviewException, NotFoundCategoryException
+     * [404] NotFoundBookException , NotFoundReviewException, NotFoundCategoryException, NotFoundTagException
      */
-    @ExceptionHandler({NotFoundBookException.class, NotFoundReviewException.class, NotFoundCategoryException.class})
+    @ExceptionHandler({NotFoundBookException.class, NotFoundReviewException.class, NotFoundCategoryException.class, NotFoundTagException.class})
     public ResponseEntity<ErrorResponse> handleNotFoundBookException(Exception ex) {
         log.error(ex.getMessage());
         ErrorResponse response = new ErrorResponse(
