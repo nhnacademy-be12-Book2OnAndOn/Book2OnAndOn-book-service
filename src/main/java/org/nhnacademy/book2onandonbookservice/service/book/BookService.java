@@ -1,6 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.util.List;
+import java.util.Map;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
@@ -8,6 +9,7 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.springframework.data.domain.Page;
@@ -69,4 +71,7 @@ public interface BookService {
 
     //최근 본 상품 guest -> 로그인 했을 때 merge
     void mergeRecentViews(String guestId, Long userId);
+
+    //cart 응답 (bookIdList를 받아오면 Id에 맞는 책 정보를 넘김)
+    Map<Long, CartResponse> getBookSnapshots(List<Long> bookIds);
 }

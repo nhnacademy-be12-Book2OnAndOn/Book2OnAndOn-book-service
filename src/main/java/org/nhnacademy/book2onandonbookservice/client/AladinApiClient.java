@@ -6,6 +6,7 @@ import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
+import org.nhnacademy.book2onandonbookservice.exception.AladinApiException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
@@ -56,7 +57,7 @@ public class AladinApiClient {
             }
             if (rawJson.contains("errorCode") || rawJson.contains("errorMessage")) {
                 log.error("알라딘 API 에러 응답 감지 (ISBN: {}): {}", isbn, rawJson);
-                throw new RuntimeException("Aladin API Error Response: " + rawJson);
+                throw new AladinApiException("Aladin API Error Response: " + rawJson);
             }
 
             AladinApiResponse response = objectMapper.readValue(rawJson, AladinApiResponse.class);
