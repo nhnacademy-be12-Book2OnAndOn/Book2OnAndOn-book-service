@@ -20,6 +20,7 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
@@ -471,6 +472,18 @@ public class BookServiceImpl implements BookService {
             return;
         }
         bookHistoryService.mergeHistory(guestId, userId);
+    }
+
+    @Override
+    public Map<Long, CartResponse> getBookSnapshots(List<Long> bookIds) {
+        List<Book> books = bookRepository.findAllById(bookIds);
+
+        return books.stream()
+                .map(CartResponse::from)
+                .collect(Collectors.toMap(
+                        CartResponse::getBookId,
+                        CartResponse -> CartResponse
+                ));
     }
 
     ///    내부 로직

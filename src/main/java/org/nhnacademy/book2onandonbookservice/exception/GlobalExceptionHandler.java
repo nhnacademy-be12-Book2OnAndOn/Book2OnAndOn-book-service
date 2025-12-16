@@ -1,6 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.exception;
 
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.error.ErrorResponse;
@@ -61,6 +62,9 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
 
+    /**
+     * [403 Forbidden] 접근 거부 예외
+     */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException e) {
         ErrorResponse response = new ErrorResponse(
@@ -97,4 +101,20 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    /**
+     * [502 Bad Gateway] 외부 API 통신 문제
+     */
+    @ExceptionHandler(AladinApiException.class)
+    public ResponseEntity<ErrorResponse> handleApiException(AladinApiException ae){
+        ErrorResponse response = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_GATEWAY.value(),
+                "EXTERNAL_API_ERROR",
+                "API 통신 중 오류가 발생했습니다."
+        );
+        return new ResponseEntity<>(response, HttpStatus.BAD_GATEWAY);
+
+    }
+
 }
