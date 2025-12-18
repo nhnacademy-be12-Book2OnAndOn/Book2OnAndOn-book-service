@@ -18,7 +18,7 @@ import org.springframework.web.client.RestTemplate;
 public class RerankerApiClient {
     private final RestTemplate restTemplate;
     @Value("${reranker.url}")
-    private String RERANK_URL;
+    private String rerankUrl;
 
 
     /**
@@ -33,7 +33,7 @@ public class RerankerApiClient {
         }
         try{
             RerankRequest rerankRequest = new RerankRequest(query, texts);
-            RerankResult[] response = restTemplate.postForObject(RERANK_URL, rerankRequest, RerankResult[].class);
+            RerankResult[] response = restTemplate.postForObject(rerankUrl, rerankRequest, RerankResult[].class);
 
             if(response != null){
                 return new ArrayList<>(List.of(response));

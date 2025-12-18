@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
-import org.springframework.web.multipart.MultipartFile;
 
 // 도서 등록 및 수정 요청 DTO
 @Getter

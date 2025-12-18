@@ -69,8 +69,7 @@ public class BookLikeService {
     public Page<MyLikedBookResponse> getMyLikedBookIds(Long userId, Pageable pageable) {
         Page<BookLike> likePage = bookLikeRepository.findAllByUserId(userId, pageable);
 
-        Page<MyLikedBookResponse> dtoPage = likePage.map(MyLikedBookResponse::from);
-        return dtoPage;
+        return likePage.map(MyLikedBookResponse::from);
     }
 
     public record BookLikeToggleResult(boolean liked, Long likeCount) {

@@ -65,16 +65,16 @@ public class BookListResponse {
                 .thumbnail(resolvedImage)
                 .contributorNames(book.getBookContributors().stream()
                         .map(bc -> bc.getContributor().getContributorName())
-                        .collect(Collectors.toList())
+                        .toList()
                 )
                 .publisherNames(book.getBookPublishers().stream()
                         .map(bp -> bp.getPublisher().getPublisherName())
-                        .collect(Collectors.toList())
+                        .toList()
                 )
                 .categoryNames(categoryNamesList)
                 .tagNames(book.getBookTags().stream()
                         .map(bt -> bt.getTag().getTagName())
-                        .collect(Collectors.toList())
+                        .toList()
                 ).build();
     }
 

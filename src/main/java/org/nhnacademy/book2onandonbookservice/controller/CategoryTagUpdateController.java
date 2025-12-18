@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.dto.common.TagDto;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
-public class CategoryTagController {
+public class CategoryTagUpdateController {
 
     private final CategoryService categoryService;
     private final TagService tagService;
@@ -60,6 +61,7 @@ public class CategoryTagController {
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
+    @Setter
     public static class UpdateRequest {
         private String newName;
     }

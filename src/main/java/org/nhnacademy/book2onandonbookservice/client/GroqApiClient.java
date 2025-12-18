@@ -9,11 +9,14 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
+import org.nhnacademy.book2onandonbookservice.exception.GroqApiCallException;
+import org.nhnacademy.book2onandonbookservice.exception.GroqQuotaExceededException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 @Slf4j
@@ -69,9 +72,12 @@ public class GroqApiClient {
 
         try {
             return callGroqApi(prompt);
+        } catch (GroqQuotaExceededException e) {
+            log.warn("Groq API 할당량 초과 (ISBN: {}): {}", isbn, e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.warn("Groq API 호출 실패 (ISBN: {}): {}", isbn, e.getMessage());
-            throw new RuntimeException("Groq Fail", e); // 서비스로 예외를 던져서 Gemini가 받게 함
+            throw new GroqApiCallException("Groq API Fail", e);
         }
     }
 
@@ -80,25 +86,33 @@ public class GroqApiClient {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(apiKey);
 
-        // OpenAI 호환 포맷
         Map<String, Object> requestBody = Map.of(
                 "model", MODEL_NAME,
                 "messages", List.of(
                         Map.of("role", "user", "content", prompt)
                 ),
-                "response_format", Map.of("type", "json_object") // JSON 강제 모드
+                "response_format", Map.of("type", "json_object")
         );
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        GroqChatResponse response = restTemplate.postForObject(baseUrl, entity, GroqChatResponse.class);
+        try {
+            GroqChatResponse response = restTemplate.postForObject(baseUrl, entity, GroqChatResponse.class);
 
-        if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
-            String content = response.getChoices().get(0).getMessage().getContent();
-            return objectMapper.readValue(content, BookContentDto.class);
+            if (response != null && response.getChoices() != null && !response.getChoices().isEmpty()) {
+                String content = response.getChoices().get(0).getMessage().getContent();
+                return objectMapper.readValue(content, BookContentDto.class);
+            }
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 429) {
+                throw new GroqQuotaExceededException("Groq Rate Limit Exceeded", e);
+            }
+            throw new GroqApiCallException("Groq HTTP Error: " + e.getStatusCode(), e);
+        } catch (Exception e) {
+            throw new GroqApiCallException("Groq Call Failed", e);
         }
 
-        throw new RuntimeException("Groq response was empty");
+        throw new GroqApiCallException("Groq response was empty");
     }
 
     // --- Response DTO (내부 클래스) ---

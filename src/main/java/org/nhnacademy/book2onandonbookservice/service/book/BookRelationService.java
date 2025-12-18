@@ -47,6 +47,7 @@ public class BookRelationService {
         setTags(book, request.getTagNames());
         setPublishers(book, request.getPublisherIds(), request.getPublisherName());
         setContributors(book, request.getContributorName());
+
     }
 
     /// 기여자(저자) 설정: "XXX, XXX" 등의 형태를 , 기준으로 분리. 빈 문자열이면 아무것도 추가하지 않음.
@@ -147,29 +148,6 @@ public class BookRelationService {
         }
     }
 
-    /// 이미지 설정: MultipartFile 업로드 후 저장
-    private void setImages(Book book, List<MultipartFile> imageFiles) {
-        if (imageFiles == null || imageFiles.isEmpty()) {
-            return;
-        }
-
-        for (MultipartFile imageFile : imageFiles) {
-            if (imageFile != null && !imageFile.isEmpty()) {
-                try {
-                    // MinIO에 이미지 업로드하고 URL 받기
-                    String uploadedImageUrl = imageUploadService.uploadBookImage(imageFile);
-
-                    BookImage image = BookImage.builder()
-                            .book(book)
-                            .imagePath(uploadedImageUrl)
-                            .build();
-                    book.getImages().add(image);
-                } catch (Exception e) {
-                    log.error("이미지 업로드 실패: {}", e.getMessage());
-                }
-            }
-        }
-    }
 
     /// 도서 수정 시 연관관계
     public void applyRelationsForUpdate(Book book, BookUpdateRequest request) {

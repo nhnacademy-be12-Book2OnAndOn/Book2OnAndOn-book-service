@@ -12,7 +12,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.domain.EnrichmentStatus;
-import org.springframework.cache.annotation.CacheEvict;
 
 @Entity
 @Table(name = "book_enrichment_task")
@@ -27,27 +26,57 @@ public class BookEnrichmentTask {
     private Long bookId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private EnrichmentStatus status;
+    @Column(name = "aladin_status", nullable = false)
+    @Builder.Default
+    private EnrichmentStatus aladinStatus = EnrichmentStatus.PENDING;
 
-    @Column(name="retry_count")
-    private int retryCount;
+    @Column(name="aladin_fail_reason", columnDefinition = "TEXT")
+    private String aladinFailReason;
 
-    @Column(name="fail_reason", columnDefinition = "TEXT")
-    private String failReason;
+    @Column(name="aladin_retry_count")
+    private int aladinRetryCount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ai_status", nullable = false)
+    private EnrichmentStatus aiStatus;
+
+    @Column(name="ai_fail_reason", columnDefinition = "TEXT")
+    private String aiFailReason;
+
+    @Column(name="ai_retry_count")
+    private int aiRetryCount;
 
 
-    /// 성공 처리 메서드
+    /// 상태 변경 로직
 
-    public void markDone(){
-        this.status=EnrichmentStatus.DONE;
-        this.failReason=null;
+   // --- 알라딘 메서드 ---
+    public void markAladinDone(){
+        this.aladinStatus = EnrichmentStatus.DONE;
+        this.aladinFailReason = null;
     }
 
-    public void markFailed(String reason){
-        this.status=EnrichmentStatus.FAILED;
-        this.retryCount++;
-        this.failReason=reason;
+    public void markAladinFailed(String reason){
+        this.aladinStatus = EnrichmentStatus.FAILED;
+        this.aladinRetryCount++;
+        this.aladinFailReason = reason;
     }
+
+    public void markAladinNotFound(){
+        this.aladinStatus = EnrichmentStatus.NOT_FOUND;
+        this.aladinFailReason = "ISBN 조회 결과 없음 (Aladin API)";
+    }
+
+    // --- AI 메서드 ---
+    public void markAiDone(){
+        this.aiStatus = EnrichmentStatus.DONE;
+        this.aiFailReason = null;
+    }
+
+    public void markAiFailed(String reason){
+        this.aiStatus = EnrichmentStatus.FAILED;
+        this.aiRetryCount++;
+        this.aiFailReason = reason;
+    }
+
 
 }

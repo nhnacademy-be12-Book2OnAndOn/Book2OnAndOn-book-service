@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookDetailResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
-import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService.BookLikeToggleResult;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
@@ -56,18 +55,6 @@ class BookControllerTest {
     @MockitoBean
     JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
-
-    @Test
-    @DisplayName("카테고리 목록 조회")
-    void getCategory() throws Exception {
-        List<CategoryDto> categoryDtos = List.of(CategoryDto.builder().id(1L).name("DDDD").build());
-        given(bookService.getCategories()).willReturn(categoryDtos);
-
-        mockMvc.perform(get("/books/categories"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("DDDD"))
-                .andDo(print());
-    }
 
     @Test
     @DisplayName("도서 목록 조회")

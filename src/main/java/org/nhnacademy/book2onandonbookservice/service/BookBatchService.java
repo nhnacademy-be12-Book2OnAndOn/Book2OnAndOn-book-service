@@ -31,7 +31,7 @@ public class BookBatchService {
 
         batchInsertRepository.saveAllBooks(books);
 
-        List<String> isbns = books.stream().map(Book::getIsbn).collect(Collectors.toList());
+        List<String> isbns = books.stream().map(Book::getIsbn).toList();
         List<BookRepository.BookIdAndIsbn> savedIds = bookRepository.findByIsbnIn(isbns);
         Map<String, Long> isbnIdMap = savedIds.stream()
                 .collect(Collectors.toMap(BookRepository.BookIdAndIsbn::getIsbn, BookRepository.BookIdAndIsbn::getId,

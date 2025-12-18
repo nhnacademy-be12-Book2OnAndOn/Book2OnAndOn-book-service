@@ -41,15 +41,6 @@ public class BookController {
     private final BookLikeService bookLikeService;
     private final UserHeaderUtil util;
 
-
-    @GetMapping("/categories")
-    public ResponseEntity<List<CategoryDto>> getCategory() {
-        log.info("전체 카테고리 목록 조회 요청");
-        List<CategoryDto> categories = bookService.getCategories();
-        log.info("조회된 카테고리 개수: {}", categories.size());
-        return ResponseEntity.ok(categories);
-    }
-
     /// 도서 목록 조회
     @GetMapping
     public ResponseEntity<Page<BookListResponse>> getBooks(
@@ -129,21 +120,6 @@ public class BookController {
         );
 
         return ResponseEntity.ok(body);
-    }
-
-    /// 카테고리별 도서 조회 API
-    @GetMapping("/categories/{categoryId}")
-    public ResponseEntity<Page<BookListResponse>> getBooksByCategory(@PathVariable Long categoryId,
-                                                                     @PageableDefault(page=0, size=12, sort="publishDate", direction = Direction.DESC) Pageable pageable){
-        Page<BookListResponse> result = bookService.getBooksByCategory(categoryId, pageable);
-        return ResponseEntity.ok(result);
-    }
-
-    /// 카테고리 이름 반환
-    @GetMapping("/categories/{categoryId}/info")
-    public ResponseEntity<CategoryDto> getCategoryInfo(@PathVariable Long categoryId){
-        CategoryDto categoryDto = bookService.getCategory(categoryId);
-        return ResponseEntity.ok(categoryDto);
     }
 
     public record BookLikeToggleResponse(boolean liked, Long likeCount) {

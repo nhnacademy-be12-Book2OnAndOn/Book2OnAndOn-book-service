@@ -14,11 +14,14 @@ import org.nhnacademy.book2onandonbookservice.dto.review.ReviewUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
 import org.nhnacademy.book2onandonbookservice.entity.ReviewImage;
+import org.nhnacademy.book2onandonbookservice.exception.BookNotPurchasedException;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundReviewException;
+import org.nhnacademy.book2onandonbookservice.exception.ReviewAlreadyExistsException;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ReviewRepository;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
+import org.nhnacademy.book2onandonbookservice.service.review.PurchaseVerificationService;
 import org.nhnacademy.book2onandonbookservice.service.review.ReviewService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.data.domain.Page;
@@ -35,17 +38,10 @@ import org.springframework.web.multipart.MultipartFile;
 @Transactional
 public class ReviewServiceImpl implements ReviewService {
     private final ReviewRepository reviewRepository;
-
     private final BookRepository bookRepository;
-
-    private final OrderServiceClient orderServiceClient;
-
     private final ImageUploadService imageUploadService;
-
+    private final PurchaseVerificationService purchaseVerificationService;
     private final UserHeaderUtil util;
-
-    private final StringRedisTemplate redisTemplate;
-
     private final UserServiceClient userServiceClient;
 
 
@@ -54,35 +50,20 @@ public class ReviewServiceImpl implements ReviewService {
     public Long createReview(Long bookId, ReviewCreateRequest req, List<MultipartFile> image) {
         Book book = bookRepository.findById(bookId).orElseThrow(() -> new NotFoundBookException(bookId));
         Long userId = util.getUserId();
-        String key = "purchase:" + userId + ":" + bookId;
-        //order-service에 유저가 해당 도서를 구매하고 배송이 완료된 후 리뷰를 작성하는지 검증
-        boolean isPurchased = false;
 
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
-            //1차 점검 (주문쪽에서 정한 캐싱만료일안에 리뷰작성을 한다면 redis에서 꺼내쓸 수 있음)
-            isPurchased = true;
-            log.info("Redis 캐시에서 구매 이력 확인완료: userId={}, bookId={}", userId, bookId);
-        } else {
-            try {
-                //2차 점검 (캐시 만료일이 지나서 redis에 없을때 직접 feign client로 요청을 보내야함)
-                isPurchased = orderServiceClient.hasPurchased(userId, bookId);
-                redisTemplate.opsForValue()
-                        .set(key, "Y", Duration.ofDays(90)); // 혹시 모르니 요청보내서 받아온것도 redis에 캐싱해두기 90일 만료로
-                log.info("Order Service API로 구매 이력 확인완료: result={}", isPurchased);
-            } catch (Exception e) {
-                log.error("주문 서비스 호출 실패 (Redis에도 없음): {}", e.getMessage());
+        //1. 구매 검증 (Redis 조회 -> 없으면 API 호출 -> 캐싱까지 자동처리
+        boolean isPurchased = purchaseVerificationService.verifyPurchase(userId,bookId );
 
-                throw new IllegalArgumentException("현재 시스템 점검 중으로 구매 이력을 확인할 수 없습니다.");
-            }
-        }
+        // 구매가 false면 커스텀 예외에서 배송 후 리뷰작성 메시지를 뱉음
         if (!isPurchased) {
-            throw new IllegalArgumentException("해당 도서를 구매후 배송이 완료된 회원만 리뷰 작성 가능합니다.");
+            throw new BookNotPurchasedException();
         }
-
+        //리뷰가 이미 존재하면 커스텀 예외에서 리뷰가 이미 존재 메시지를 뱉음
         if (reviewRepository.existsByBookIdAndUserId(bookId, userId)) {
-            throw new IllegalArgumentException("이미 해당 도서에 대한 리뷰를 작성했습니다.");
+            throw new ReviewAlreadyExistsException();
         }
 
+        //리뷰저장
         Review review = Review.builder()
                 .book(book)
                 .userId(userId)
@@ -94,6 +75,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         boolean hasImage = false;
 
+        //이미지 저장
         if (image != null && !image.isEmpty()) {
             for (MultipartFile file : image) {
                 if (!file.isEmpty()) {
@@ -112,7 +94,6 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         reviewRepository.save(review);
-
         updateBookRating(book);
 
         try{

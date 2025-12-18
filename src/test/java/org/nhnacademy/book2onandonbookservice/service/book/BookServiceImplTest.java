@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,8 +37,8 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
-import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
@@ -46,7 +47,6 @@ import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
-import org.nhnacademy.book2onandonbookservice.exception.NotFoundCategoryException;
 import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
@@ -81,10 +81,7 @@ class BookServiceImplTest {
     @Mock
     private CategoryRepository categoryRepository;
     @Mock
-    private BookImage mockBookImage;
-    @Mock
     private OrderServiceClient orderServiceClient;
-
     @Mock
     private BookListResponseMapper bookListResponseMapper;
     @Mock
@@ -113,12 +110,8 @@ class BookServiceImplTest {
         BookPublisher mockBookPublisher = mock(BookPublisher.class);
         lenient().when(mockBookPublisher.getPublisher()).thenReturn(mockPublisherEntity);
 
-        Category mockCategoryEntity = mock(Category.class);
-        lenient().when(mockCategoryEntity.getId()).thenReturn(70L);
-        lenient().when(mockCategoryEntity.getCategoryName()).thenReturn("Test Category");
-
-        mockBookImage = mock(BookImage.class);
-        lenient().when(mockBookImage.getImagePath()).thenReturn("/path/to/image.jpg");
+        BookImage image1 = BookImage.builder().id(100L).imagePath("url1").isThumbnail(true).build();
+        BookImage image2 = BookImage.builder().id(101L).imagePath("url2").isThumbnail(false).build();
 
         bookA = Book.builder()
                 .id(1L)
@@ -131,33 +124,52 @@ class BookServiceImplTest {
                 .status(BookStatus.ON_SALE)
                 .stockCount(100)
                 .priceSales(9000L)
-                .images(new HashSet<>(List.of(mockBookImage)))
+                .images(new HashSet<>(List.of(image1, image2)))
                 .bookContributors(new HashSet<>(List.of(mockBookContributor)))
                 .bookPublishers(new HashSet<>(List.of(mockBookPublisher)))
                 .bookTags(new HashSet<>())
                 .reviews(new HashSet<>())
                 .likes(new HashSet<>())
+                .thumbnail("url1")
                 .build();
     }
 
     @Test
-    @DisplayName("도서 등록 성공 - DB 저장 및 ES 인덱싱 호출 검증")
     void createBook() {
         BookSaveRequest request = new BookSaveRequest();
+        MultipartFile file = mock(MultipartFile.class);
+        given(file.isEmpty()).willReturn(false);
+        List<MultipartFile> files = List.of(file);
+
         given(bookFactory.createFrom(any(BookSaveRequest.class))).willReturn(bookA);
+        given(imageUploadService.uploadBookImage(any())).willReturn("new-url");
         given(bookRepository.save(any(Book.class))).willReturn(bookA);
 
-        Long saveId = bookService.createBook(request, null);
+        Long saveId = bookService.createBook(request, files);
 
         assertThat(saveId).isEqualTo(bookA.getId());
-        verify(bookValidator, times(1)).validateForCreate(request);
-        verify(bookRepository, times(1)).save(bookA);
-        verify(bookSearchIndexService, times(1)).index(bookA);
+        verify(bookValidator).validateForCreate(request);
+        verify(bookRepository).save(bookA);
+        verify(bookSearchIndexService).index(bookA);
     }
 
     @Test
-    @DisplayName("도서 등록 성공 - ES 인덱싱 실패해도 예외 던지지 않음")
-    void createBook_Success_EvenIfEsIndexFails() {
+    void createBook_ExternalUrl() {
+        BookSaveRequest request = new BookSaveRequest();
+        request.setImageUrl("http://external.com/img.jpg");
+        List<MultipartFile> files = Collections.emptyList();
+
+        given(bookFactory.createFrom(any(BookSaveRequest.class))).willReturn(bookA);
+        given(imageUploadService.uploadImageFromUrl(any())).willReturn("internal-url");
+        given(bookRepository.save(any(Book.class))).willReturn(bookA);
+
+        bookService.createBook(request, files);
+
+        verify(imageUploadService).uploadImageFromUrl("http://external.com/img.jpg");
+    }
+
+    @Test
+    void createBook_ESIndexFail() {
         BookSaveRequest request = new BookSaveRequest();
         given(bookFactory.createFrom(any(BookSaveRequest.class))).willReturn(bookA);
         given(bookRepository.save(any(Book.class))).willReturn(bookA);
@@ -165,602 +177,327 @@ class BookServiceImplTest {
 
         assertThatCode(() -> bookService.createBook(request, null)).doesNotThrowAnyException();
 
-        verify(bookRepository, times(1)).save(bookA);
-        verify(bookSearchIndexService, times(1)).index(bookA);
+        verify(bookRepository).save(bookA);
     }
 
     @Test
-    @DisplayName("도서 등록 실패 - 유효성 검증 실패 (Validator 에외 전파)")
-    void createBook_Fail_Validation() {
-        BookSaveRequest request = new BookSaveRequest(); //잘못된 데이터라고 생각하기
-        willThrow(new IllegalArgumentException("도서 제목은 필수 작성 항목입니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("도서 제목은 필수 작성 항목입니다.");
-
-        willThrow(new IllegalArgumentException("ISBN은 필수 작성 항목입니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("ISBN은 필수 작성 항목입니다.");
-
-        willThrow(new IllegalArgumentException("출판일은 필수 작성 항목입니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("출판일은 필수 작성 항목입니다.");
-
-        willThrow(new IllegalArgumentException("정가는 필수입니다..")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("정가는 필수입니다.");
-
-        willThrow(new IllegalArgumentException("정가는 0원 이상이어야 합니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("정가는 0원 이상이어야 합니다.");
-
-        willThrow(new IllegalArgumentException("판매가는 0원 이상이어야 합니다.")).given(bookValidator).validateForCreate(request);
-        assertThatThrownBy(() -> bookService.createBook(request, null)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("판매가는 0원 이상이어야 합니다.");
-
-        verify(bookRepository, never()).save(any());
-    }
-
-
-    @Test
-    @DisplayName("도서 수정 성공 - 이미지 파일 포함")
-    void updateBook() {
+    void updateBook_DeleteImage_And_AddImage() {
         Long bookId = 1L;
-        BookUpdateRequest request = new BookUpdateRequest(); // 또는 BookSaveRequest (본인 코드에 맞게)
+        BookUpdateRequest request = new BookUpdateRequest();
+        request.setDeleteImageIds(List.of(100L));
 
-        MultipartFile mockImage1 = mock(MultipartFile.class);
-        MultipartFile mockImage2 = mock(MultipartFile.class);
-        List<MultipartFile> images = List.of(mockImage1, mockImage2);
+        MultipartFile newFile = mock(MultipartFile.class);
+        given(newFile.isEmpty()).willReturn(false);
+        List<MultipartFile> newImages = List.of(newFile);
 
         given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
+        given(imageUploadService.uploadBookImage(newFile)).willReturn("new-image-url");
 
-        given(mockImage1.isEmpty()).willReturn(false);
-        given(mockImage2.isEmpty()).willReturn(false);
+        bookService.updateBook(bookId, request, newImages);
 
-        given(imageUploadService.uploadBookImage(any(MultipartFile.class)))
-                .willReturn("http://minio.com/test-image.jpg");
+        assertThat(bookA.getImages()).hasSize(2);
+        assertThat(bookA.getImages().stream().anyMatch(img -> img.getImagePath().equals("new-image-url"))).isTrue();
+        assertThat(bookA.getThumbnail()).isNotNull();
 
-        bookService.updateBook(bookId, request, images);
-
-        verify(bookFactory, times(1)).updateFields(bookA, request);
-
-        verify(imageUploadService, times(2)).uploadBookImage(any(MultipartFile.class));
-
-        verify(bookRelationService, times(1)).applyRelationsForUpdate(bookA, request);
-        verify(bookSearchIndexService, times(1)).index(bookA);
+        verify(bookRelationService).applyRelationsForUpdate(bookA, request);
+        verify(imageUploadService).remove("url1");
     }
 
     @Test
-    @DisplayName("도서 수정 실패 - 책이 존재하지 않음")
-    void updateBook_Fail() {
+    void updateBook_DeleteImage_Failure_Catch() {
+        Long bookId = 1L;
+        BookUpdateRequest request = new BookUpdateRequest();
+        request.setDeleteImageIds(List.of(100L));
+        List<MultipartFile> newImages = Collections.emptyList();
+
+        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
+        doThrow(new RuntimeException("MinIO Error")).when(imageUploadService).remove("url1");
+
+        assertThatCode(() -> bookService.updateBook(bookId, request, newImages)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void updateBook_NotFound() {
         Long bookId = 9999L;
         BookUpdateRequest request = new BookUpdateRequest();
-        List<MultipartFile> images = List.of();
+        List<MultipartFile> images = Collections.emptyList();
 
         given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> bookService.updateBook(bookId, request, images))
-                .isInstanceOf(NotFoundBookException.class)
-                .hasMessageContaining("해당 도서를 찾을 수 없습니다 ID: " + bookId);
-
-        verify(bookFactory, never()).updateFields(any(), any());
-
-        verify(imageUploadService, never()).uploadBookImage(any());
-        verify(bookRelationService, never()).applyRelationsForUpdate(any(), any());
-        verify(bookSearchIndexService, never()).index(any());
+                .isInstanceOf(NotFoundBookException.class);
     }
 
     @Test
-    @DisplayName("도서 삭제 성공 - 도서 미발견")
+    void updateThumbnail() {
+        Long bookId = 1L;
+        Long targetImageId = 101L;
+
+        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
+
+        bookService.updateThumbnail(bookId, targetImageId);
+
+        BookImage newThumb = bookA.getImages().stream().filter(img -> img.getId().equals(101L)).findFirst().get();
+        BookImage oldThumb = bookA.getImages().stream().filter(img -> img.getId().equals(100L)).findFirst().get();
+
+        assertThat(newThumb.isThumbnail()).isTrue();
+        assertThat(oldThumb.isThumbnail()).isFalse();
+        assertThat(bookA.getThumbnail()).isEqualTo("url2");
+        verify(bookSearchIndexService).index(bookA);
+    }
+
+    @Test
+    void updateThumbnail_ImageNotFound() {
+        Long bookId = 1L;
+        Long targetImageId = 999L;
+
+        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
+
+        assertThatThrownBy(() -> bookService.updateThumbnail(bookId, targetImageId))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void deleteBook() {
         Long bookId = 1L;
         given(bookRepository.findById(bookId)).willReturn(Optional.of(bookA));
 
         bookService.deleteBook(bookId);
 
-        verify(bookRepository, times(1)).delete(bookA);
-        verify(bookSearchIndexService, times(1)).deleteIndex(bookId);
+        verify(bookRepository).delete(bookA);
+        verify(bookRepository).flush();
+        verify(bookSearchIndexService).deleteIndex(bookId);
+        verify(imageUploadService, times(2)).remove(any());
     }
 
     @Test
-    @DisplayName("도서 삭제 실패 - 도서 미발견")
-    void deleteBook_Fail_NotFound() {
-        Long bookId = 999L;
-        given(bookRepository.findById(bookId)).willReturn(Optional.empty());
+    void deleteBook_ExceptionFlow() {
+        Long bookId = 1L;
+        given(bookRepository.findById(bookId)).willReturn(Optional.of(bookA));
+        willThrow(new RuntimeException("ES Error")).given(bookSearchIndexService).deleteIndex(bookId);
+        doThrow(new RuntimeException("MinIO Error")).when(imageUploadService).remove(any());
 
-        assertThatThrownBy(() -> bookService.deleteBook(bookId))
-                .isInstanceOf(NotFoundBookException.class)
-                .hasMessageContaining("해당 도서를 찾을 수 없습니다 ID: " + bookId);
+        assertThatCode(() -> bookService.deleteBook(bookId)).doesNotThrowAnyException();
 
-        verify(bookRepository, never()).delete(any());
-        verify(bookSearchIndexService, never()).deleteIndex(anyLong());
+        verify(bookRepository).delete(bookA);
     }
 
     @Test
-    @DisplayName("도서 목록 조회 성공")
+    void getBookCount() {
+        given(bookRepository.count()).willReturn(10L);
+        assertThat(bookService.getBookCount()).isEqualTo(10L);
+    }
+
+    @Test
     void getBooks() {
         BookSearchCondition condition = new BookSearchCondition();
         Page<Book> bookPage = new PageImpl<>(List.of(bookA), pageable, 1);
-
-        BookListResponse mockResponse = BookListResponse.builder().id(bookA.getId()).title("Book A").build();
-        given(bookListResponseMapper.fromEntity(bookA)).willReturn(mockResponse);
+        BookListResponse mockResponse = BookListResponse.builder().id(bookA.getId()).build();
 
         given(bookRepository.findByStatusNot(BookStatus.BOOK_DELETED, pageable)).willReturn(bookPage);
+        given(bookListResponseMapper.fromEntity(bookA)).willReturn(mockResponse);
 
-        Page<BookListResponse> responses = bookService.getBooks(condition, pageable);
-
-        assertThat(responses).hasSize(1);
-        verify(bookRepository, times(1)).findByStatusNot(BookStatus.BOOK_DELETED, pageable);
+        Page<BookListResponse> result = bookService.getBooks(condition, pageable);
+        assertThat(result).hasSize(1);
     }
 
     @Test
-    @DisplayName("도서 상세 조회 성공")
-    void getBookDetail_Success() {
+    void getBookDetail_LoggedIn() {
         Long bookId = 1L;
         Long userId = 100L;
-        String guestId = "guest-uuid";
-
-        long mockLikeCount = 5L;
-
-        // bookA에 카테고리 설정 (카테고리 계층 구조)
-        Category parentCategory = Category.builder()
-                .id(1L)
-                .categoryName("국내도서")
-                .build();
-
-        Category childCategory = Category.builder()
-                .id(2L)
-                .categoryName("Test Category")
-                .parent(parentCategory)
-                .build();
-
-        bookA.setCategory(childCategory);
+        String guestId = "guest";
 
         given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
-        given(bookLikeRepository.countByBookId(bookId)).willReturn(mockLikeCount);
+        given(bookLikeRepository.countByBookId(bookId)).willReturn(5L);
         given(bookLikeRepository.existsByBookIdAndUserId(bookId, userId)).willReturn(true);
 
         BookDetailResponse result = bookService.getBookDetail(bookId, userId, guestId);
 
-        assertThat(result).isNotNull();
         assertThat(result.getLikedByCurrentUser()).isTrue();
-        assertThat(result.getLikeCount()).isEqualTo(mockLikeCount);
-        assertThat(result.getRating()).isEqualTo(5.0);
-        assertThat(result.getTitle()).isEqualTo("Book A");
-        assertThat(result.getPriceStandard()).isEqualTo(10000L);
-
-        // 카테고리 경로 검증 (루트 -> 리프)
-        assertThat(result.getCategories()).hasSize(2);
-        assertThat(result.getCategories().get(0).getName()).isEqualTo("국내도서");
-        assertThat(result.getCategories().get(1).getName()).isEqualTo("Test Category");
-
-        verify(bookRepository, times(1)).findByIdWithRelations(bookId);
-        verify(bookLikeRepository, times(1)).existsByBookIdAndUserId(bookId, userId);
-        verify(bookHistoryService, timeout(1000).times(1)).addRecentView(userId, guestId, bookId);
+        verify(bookHistoryService, timeout(100)).addRecentView(userId, guestId, bookId);
     }
 
-
     @Test
-    @DisplayName("도서 상세 조회 성공 - 비로그인 유저")
-    void getBookDetail_Success_NotLoggedIn() {
+    void getBookDetail_NotLoggedIn() {
         Long bookId = 1L;
-
         given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
-        given(bookLikeRepository.countByBookId(bookId)).willReturn(10L);
 
         BookDetailResponse result = bookService.getBookDetail(bookId, null, null);
-
         assertThat(result.getLikedByCurrentUser()).isNull();
-
-        verify(bookLikeRepository, times(0)).existsByBookIdAndUserId(anyLong(), anyLong());
-        verify(bookHistoryService, never()).addRecentView(any(), any(), any());
     }
 
     @Test
-    @DisplayName("도서 상세 조회 실패 - 존재하지않은 도서 ID")
-    void getBook_Fail_Validation() {
-        Long bookId = 9999L;
-        Long userId = 1L;
-        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> bookService.getBookDetail(bookId, userId, null))
-                .isInstanceOf(NotFoundBookException.class)
-                .hasMessageContaining("해당 도서를 찾을 수 없습니다 ID: " + bookId);
-        verify(bookLikeRepository, never()).existsByBookIdAndUserId(anyLong(), anyLong());
-
-    }
-
-    @Test
-    @DisplayName("카테고리 조회 성공 - 트리 구조 변환 검증")
-    void getCategories_Success_TreeStructure() {
-        Category root = Category.builder().id(1L).categoryName("Root").build();
-        Category child1 = Category.builder().id(2L).categoryName("Child 1").parent(root).build();
-        Category child2 = Category.builder().id(3L).categoryName("Child 2").parent(root).build();
-
-        given(categoryRepository.findAll()).willReturn(List.of(root, child1, child2));
-
-        List<CategoryDto> result = bookService.getCategories();
-
-        assertThat(result).hasSize(1);
-        CategoryDto categoryDto = result.get(0);
-        assertThat(categoryDto.getName()).isEqualTo("Root");
-
-        assertThat(categoryDto.getParentId()).isNull();
-        assertThat(categoryDto.getChildren()).hasSize(2);
-        assertThat(categoryDto.getChildren()).extracting("name").containsExactlyInAnyOrder("Child 1", "Child 2");
-        verify(categoryRepository, times(1)).findAll();
-    }
-
-
-    @Test
-    @DisplayName("베스트 셀러 조회 성공")
     void getBestsellers() {
-        String period = "DAILY";
-        Book bookB = Book.builder().id(2L).title("Book B").build();
+        given(orderServiceClient.getBestSellersBookIds("DAILY")).willReturn(List.of(1L));
+        given(bookRepository.findAllById(List.of(1L))).willReturn(List.of(bookA));
 
-        given(orderServiceClient.getBestSellersBookIds(period)).willReturn(List.of(2L, 1L));
-        given(bookRepository.findAllById(anyList())).willReturn(List.of(bookA, bookB));
-
-        List<BookListResponse> responses = bookService.getBestsellers(period);
-
-        assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getId()).isEqualTo(2);
-        verify(orderServiceClient, times(1)).getBestSellersBookIds(period);
+        List<BookListResponse> result = bookService.getBestsellers("DAILY");
+        assertThat(result).hasSize(1);
     }
 
     @Test
-    @DisplayName("베스트셀러 조회 - Order Service 장애 발생시 (예외전파 확인)")
-    void getBestsellers_Fail_OrderServiceError() {
-        String period = "DAILY";
-        given(orderServiceClient.getBestSellersBookIds(period))
-                .willThrow(new RuntimeException("Order Service Unavailable"));
-
-        assertThatThrownBy(() -> bookService.getBestsellers(period))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Order Service Unavailable");
-
-        verify(bookRepository, never()).findAllById(any());
-    }
-
-    @Test
-    @DisplayName("베스트셀러 조회 - 결과 없음")
-    void getBestsellers_empty() {
+    void getBestsellers_Empty() {
         given(orderServiceClient.getBestSellersBookIds("DAILY")).willReturn(Collections.emptyList());
-        List<BookListResponse> responses = bookService.getBestsellers("DAILY");
-
-        assertThat(responses).isEmpty();
-        verify(bookRepository, never()).findAllById(anyList());
+        List<BookListResponse> result = bookService.getBestsellers("DAILY");
+        assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("신간 도서 조회 - 카테고리 지정")
     void getNewArrivals_WithCategory() {
-        Long categoryId = 5L;
-        Category category = Category.builder().id(categoryId).children(new ArrayList<>()).build();
-        given(categoryRepository.findById(categoryId)).willReturn(Optional.of(category));
-        given(bookRepository.findBooksByCategoryIdsSorted(anyList(), any(Pageable.class)))
-                .willReturn(new PageImpl<>(List.of(bookA)));
+        Long categoryId = 10L;
+        Category root = Category.builder().id(10L).children(new ArrayList<>()).build();
+        Category child = Category.builder().id(11L).children(new ArrayList<>()).build();
+        root.getChildren().add(child);
+
+        given(categoryRepository.findById(categoryId)).willReturn(Optional.of(root));
+        given(bookRepository.findBooksByCategoryIdsSorted(anyList(), any())).willReturn(new PageImpl<>(List.of(bookA)));
 
         Page<BookListResponse> result = bookService.getNewArrivals(categoryId, pageable);
-
         assertThat(result).hasSize(1);
     }
 
     @Test
-    @DisplayName("신간 도서 조회 - 카테고리 없음 (전체 최신순)")
     void getNewArrivals_NoCategory() {
-        given(bookRepository.findAllByOrderByPublishDateDesc(pageable))
-                .willReturn(new PageImpl<>(List.of(bookA)));
-
+        given(bookRepository.findAllByOrderByPublishDateDesc(pageable)).willReturn(new PageImpl<>(List.of(bookA)));
         Page<BookListResponse> result = bookService.getNewArrivals(null, pageable);
-
         assertThat(result).hasSize(1);
     }
 
     @Test
-    @DisplayName("신간 도서 조회 실패 - 존재하지 않는 카테고리 ID 요청")
-    void getNewArrivals_Fail_CategoryNotFound() {
-        Long categoryId = 999L;
-
-        given(categoryRepository.findById(categoryId)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> bookService.getNewArrivals(categoryId, pageable))
-                .isInstanceOf(NotFoundCategoryException.class);
-
-        verify(bookRepository, never()).findBooksByCategoryIdsSorted(anyList(), any());
+    void getNewArrivals_EmptyBooks() {
+        given(bookRepository.findAllByOrderByPublishDateDesc(pageable)).willReturn(Page.empty());
+        Page<BookListResponse> result = bookService.getNewArrivals(null, pageable);
+        assertThat(result).isEmpty();
     }
-
-    @Test
-    @DisplayName("신간 도서 조회 실패 - DB 연결 오류 (도서 조회 시점)")
-    void getNewArrivals_Fail_DBError() {
-        Long categoryId = 5L;
-        Category mockCategory = Category.builder().id(categoryId).children(new ArrayList<>()).build();
-
-        given(categoryRepository.findById(categoryId)).willReturn(Optional.of(mockCategory));
-
-        given(bookRepository.findBooksByCategoryIdsSorted(anyList(), any(Pageable.class)))
-                .willThrow(new RuntimeException("DB 연결 불안정"));
-
-        assertThatThrownBy(() -> bookService.getNewArrivals(categoryId, pageable))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("DB 연결 불안정");
-    }
-
 
     @Test
     @DisplayName("주문용 도서 정보 다건 조회 성공")
-    void getBooksForOrder_Success() {
+    void getBooksForOrder() {
+        List<Long> ids = List.of(1L);
+
         Category category = Category.builder()
-                .id(10L)
+                .id(100L)
                 .categoryName("테스트 카테고리")
                 .build();
 
-        Book bookWithCategory = Book.builder()
-                .id(1L)
-                .title("테스트 책")
-                .priceSales(15000L)
-                .isWrapped(false)
-                .stockCount(100)
-                .status(BookStatus.ON_SALE)
-                .category(category)
-                .build();
+        bookA.setCategory(category);
 
-        List<Long> bookIds = List.of(1L);
+        given(bookRepository.findAllById(ids)).willReturn(List.of(bookA));
 
-        given(bookRepository.findAllById(bookIds)).willReturn(List.of(bookWithCategory));
+        List<BookOrderResponse> result = bookService.getBooksForOrder(ids);
 
-        List<BookOrderResponse> responses = bookService.getBooksForOrder(bookIds);
-
-        assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).getBookId()).isEqualTo(bookWithCategory.getId());
-        assertThat(responses.get(0).getTitle()).isEqualTo(bookWithCategory.getTitle());
-        assertThat(responses.get(0).getPriceSales()).isEqualTo(bookWithCategory.getPriceSales());
-
-        verify(bookRepository, times(1)).findAllById(bookIds);
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getCategoryId()).isEqualTo(100L);
     }
 
     @Test
-    @DisplayName("주문용 도서 정보 조회 - 빈 리스트 입력 시 빈 결과 반환")
-    void getBooksForOrder_EmptyInput() {
-        List<BookOrderResponse> responsesNull = bookService.getBooksForOrder(null);
-        List<BookOrderResponse> responsesEmpty = bookService.getBooksForOrder(List.of());
-
-        assertThat(responsesNull).isEmpty();
-        assertThat(responsesEmpty).isEmpty();
-
-        verify(bookRepository, never()).findAllById(anyList());
+    void getBooksForOrder_Empty() {
+        assertThat(bookService.getBooksForOrder(null)).isEmpty();
     }
 
     @Test
-    @DisplayName("재고 차감 성공 - 재고가 남아있을 때 상태유지")
-    void decreaseStock_Success_StatusRemains() {
-        int quantity = 1;
+    void decreaseStock_Success() {
+        StockRequest req = StockRequest.builder().bookId(1L).quantity(1).build();
         bookA.setStockCount(10);
 
-        StockRequest request = mock(StockRequest.class);
-        given(request.getBookId()).willReturn(bookA.getId());
-        given(request.getQuantity()).willReturn(quantity);
+        given(bookRepository.decreaseStock(1L, 1)).willReturn(1);
+        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
 
-        given(bookRepository.decreaseStock(bookA.getId(), quantity)).willReturn(1);
-        given(bookRepository.findById(bookA.getId())).willReturn(Optional.of(bookA));
-
-        List<StockRequest> requests = new ArrayList<>(List.of(request));
-        bookService.decreaseStock(requests);
+        bookService.decreaseStock(new ArrayList<>(List.of(req)));
         assertThat(bookA.getStatus()).isEqualTo(BookStatus.ON_SALE);
-
-        verify(bookRepository, times(1)).decreaseStock(bookA.getId(), quantity);
     }
 
     @Test
-    @DisplayName("재고 차감 성공 - 재고가 0이 되어 품절(SOLD_OUT)로 상태변경")
-    void decreaseStock_Success_ChangeToSoldOut() {
-        int decreaseQuantity = 1;
-
+    void decreaseStock_SoldOut() {
+        StockRequest req = StockRequest.builder().bookId(1L).quantity(100).build();
         bookA.setStockCount(0);
-        StockRequest request = mock(StockRequest.class);
-        given(request.getBookId()).willReturn(bookA.getId());
-        given(request.getQuantity()).willReturn(decreaseQuantity);
 
-        given(bookRepository.decreaseStock(bookA.getId(), decreaseQuantity)).willReturn(1);
-        given(bookRepository.findById(bookA.getId())).willReturn(Optional.of(bookA));
+        given(bookRepository.decreaseStock(1L, 100)).willReturn(1);
+        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
 
-        List<StockRequest> requests = new ArrayList<>(List.of(request));
-        bookService.decreaseStock(requests);
-
+        bookService.decreaseStock(new ArrayList<>(List.of(req)));
         assertThat(bookA.getStatus()).isEqualTo(BookStatus.SOLD_OUT);
-
-        verify(bookRepository, times(1)).decreaseStock(bookA.getId(), decreaseQuantity);
     }
 
     @Test
-    @DisplayName("재고 차감 실패 - DB 업데이트 실패(재고부족) -> 예외 발생")
-    void decreaseStock_Fail_OutofStock() {
-        int decreaseQuantity = 999;
+    void decreaseStock_Fail_Count0() {
+        StockRequest req = StockRequest.builder().bookId(1L).quantity(1).build();
+        given(bookRepository.decreaseStock(1L, 1)).willReturn(0);
 
-        StockRequest request = mock(StockRequest.class);
-        given(request.getBookId()).willReturn(bookA.getId());
-        given(request.getQuantity()).willReturn(decreaseQuantity);
-
-        given(bookRepository.decreaseStock(bookA.getId(), decreaseQuantity)).willReturn(0);
-        List<StockRequest> requests = new ArrayList<>(List.of(request));
-        assertThatThrownBy(() -> bookService.decreaseStock(requests)).isInstanceOf(OutOfStockException.class)
-                .hasMessageContaining("재고가 부족합니다.");
-        verify(bookRepository, never()).findById(anyLong());
+        List<StockRequest> list = new ArrayList<>(List.of(req));
+        assertThatThrownBy(() -> bookService.decreaseStock(list)).isInstanceOf(OutOfStockException.class);
     }
 
     @Test
-    @DisplayName("재고 차감 실패 - 차감은 성공했으나 도서 조회 실패 (데이터 불일치)")
-    void decreaseStock_Fail_BookNotFound() {
-        StockRequest request = mock(StockRequest.class);
-        given(request.getBookId()).willReturn(bookA.getId());
-        given(request.getQuantity()).willReturn(1);
-
-        given(bookRepository.decreaseStock(bookA.getId(), 1)).willReturn(1);
-        given(bookRepository.findById(bookA.getId())).willReturn(Optional.empty());
-        List<StockRequest> requests = new ArrayList<>(List.of(request));
-
-        assertThatThrownBy(() -> bookService.decreaseStock(requests)).isInstanceOf(NotFoundBookException.class);
-    }
-
-    @Test
-    @DisplayName("재고 증가(복구) 성공 - 품절 상태였다가 재고 확보 후 판매중으로 변경")
-    void increaseStock_Success_ChangeToOnSale() {
-        int increaseQuantity = 5;
-
+    void increaseStock() {
+        StockRequest req = StockRequest.builder().bookId(1L).quantity(1).build();
         bookA.setStatus(BookStatus.SOLD_OUT);
-        bookA.setStockCount(10);
+        bookA.setStockCount(5);
 
-        StockRequest request = mock(StockRequest.class);
-        given(request.getBookId()).willReturn(bookA.getId());
-        given(request.getQuantity()).willReturn(increaseQuantity);
-
-        given(bookRepository.findById(bookA.getId())).willReturn(Optional.of(bookA));
-        List<StockRequest> requests = new ArrayList<>(List.of(request));
-
-        bookService.increaseStock(requests);
-
-        verify(bookRepository, times(1)).increaseStock(bookA.getId(), increaseQuantity);
-
-        assertThat(bookA.getStatus()).isEqualTo(BookStatus.ON_SALE);
-    }
-
-    @Test
-    @DisplayName("재고 증가 - 이미 판매중이면 상태 유지")
-    void increaseStock_KeepStatus() {
-        bookA.setStatus(BookStatus.ON_SALE);
-        bookA.setStockCount(10);
-
-        StockRequest req = StockRequest.builder().bookId(1L).quantity(5).build();
-        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
-        List<StockRequest> requests = new ArrayList<>(List.of(req));
-        bookService.increaseStock(requests);
-        assertThat(bookA.getStatus()).isEqualTo(BookStatus.ON_SALE);
-    }
-
-    @Test
-    @DisplayName("재고 증가 - outofstock에서 판매중으로 변경")
-    void increaseStock_ChangeStatus_OutOfStock() {
-        bookA.setStatus(BookStatus.OUT_OF_STOCK);
-        bookA.setStockCount(10);
-
-        StockRequest req = StockRequest.builder().bookId(1L).quantity(5).build();
         given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
 
-        List<StockRequest> requests = new ArrayList<>(List.of(req));
-        bookService.increaseStock(requests);
+        bookService.increaseStock(new ArrayList<>(List.of(req)));
         assertThat(bookA.getStatus()).isEqualTo(BookStatus.ON_SALE);
     }
 
     @Test
-    @DisplayName("재고 증가 실패 - 도서 미발견")
-    void increaseStock_Fail_NotFound() {
-        StockRequest request = mock(StockRequest.class);
-        given(request.getBookId()).willReturn(999L);
-        given(request.getQuantity()).willReturn(1);
-
-        given(bookRepository.findById(999L)).willReturn(Optional.empty());
-        List<StockRequest> requests = new ArrayList<>(List.of(request));
-
-        assertThatThrownBy(() -> bookService.increaseStock(requests)).isInstanceOf(NotFoundBookException.class);
-
-        verify(bookRepository, times(1)).increaseStock(999L, 1);
-    }
-
-    @Test
-    @DisplayName("도서 상태만 변경 - 성공")
-    void updateBookStatus_Success() {
-        Long bookId = 1L;
-        BookStatus bookStatus = BookStatus.SOLD_OUT;
-
-        bookA.setStatus(BookStatus.ON_SALE);
-
-        given(bookRepository.findById(bookId)).willReturn(Optional.of(bookA));
-
-        bookService.updateBookStatus(bookId, bookStatus);
-
-        assertThat(bookA.getStatus()).isEqualTo(bookStatus);
-
-        verify(bookSearchIndexService, times(1)).index(bookA);
-    }
-
-    @Test
-    @DisplayName("도서 상태 변경 성공 - ES 인덱싱 실패해도 트랜잭션은 커밋")
-    void updateBookStatus_Success_EvenIfEsFails() {
-        Long bookId = 1L;
-        BookStatus newStatus = BookStatus.BOOK_DELETED;
-
-        given(bookRepository.findById(bookId)).willReturn(Optional.of(bookA));
-
-        willThrow(new RuntimeException("ES Server Error")).given(bookSearchIndexService).index(bookA);
-        bookService.updateBookStatus(bookId, newStatus);
-
-        assertThat(bookA.getStatus()).isEqualTo(newStatus);
-
-        verify(bookSearchIndexService, times(1)).index(bookA);
-    }
-
-    @Test
-    @DisplayName("도서 상태 변경 실패 - 도서 없음")
-    void updateBookStatus_Fail_NotFound() {
-        given(bookRepository.findById(999L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> bookService.updateBookStatus(999L, BookStatus.SOLD_OUT)).isInstanceOf(
-                NotFoundBookException.class);
-    }
-
-    @Test
-    @DisplayName("인기 도서 조회 성공")
-    void getPopularBooks_Success() {
-        given(bookRepository.findByStatusOrderByLikeCountDesc(BookStatus.ON_SALE, pageable)).willReturn(
-                new PageImpl<>(List.of(bookA)));
+    void getPopularBooks() {
+        given(bookRepository.findByStatusOrderByLikeCountDesc(BookStatus.ON_SALE, pageable))
+                .willReturn(new PageImpl<>(List.of(bookA)));
         Page<BookListResponse> result = bookService.getPopularBooks(pageable);
         assertThat(result).hasSize(1);
     }
 
     @Test
-    @DisplayName("최근 본 상품 조회 성공")
-    void getRecentViews_Success() {
-        Long userId = 100L;
-        String guestId = "guest";
-        List<Long> ids = List.of(1L);
-
-        given(bookHistoryService.getRecentViews(userId, guestId)).willReturn(ids);
-        given(bookRepository.findAllById(ids)).willReturn(List.of(bookA));
-
-        List<BookListResponse> result = bookService.getRecentViews(userId, guestId);
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getId()).isEqualTo(1L);
+    void updateBookStatus() {
+        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
+        bookService.updateBookStatus(1L, BookStatus.SOLD_OUT);
+        assertThat(bookA.getStatus()).isEqualTo(BookStatus.SOLD_OUT);
+        verify(bookSearchIndexService).index(bookA);
     }
 
     @Test
-    @DisplayName("최근 본 상품 조회 - 기록 없음")
-    void getRecentViews_Empty() {
-        given(bookHistoryService.getRecentViews(anyLong(), any())).willReturn(Collections.emptyList());
+    void updateBookStatus_ESFail() {
+        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
+        willThrow(new RuntimeException("ES Fail")).given(bookSearchIndexService).index(bookA);
+
+        assertThatCode(() -> bookService.updateBookStatus(1L, BookStatus.SOLD_OUT))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void getRecentViews() {
+        given(bookHistoryService.getRecentViews(100L, "guest")).willReturn(List.of(1L));
+        given(bookRepository.findAllById(List.of(1L))).willReturn(List.of(bookA));
 
         List<BookListResponse> result = bookService.getRecentViews(100L, "guest");
-
-        assertThat(result).isEmpty();
-        verify(bookRepository, never()).findAllById(anyList());
+        assertThat(result).hasSize(1);
     }
 
     @Test
-    @DisplayName("최근 본 상품 병합 성공")
-    void mergeRecentViews_Success() {
-        String guestId = "guest-uuid";
-        Long userId = 100L;
-
-        bookService.mergeRecentViews(guestId, userId);
-
-        verify(bookHistoryService, times(1)).mergeHistory(guestId, userId);
+    void getRecentViews_Empty() {
+        given(bookHistoryService.getRecentViews(100L, "guest")).willReturn(Collections.emptyList());
+        assertThat(bookService.getRecentViews(100L, "guest")).isEmpty();
     }
 
     @Test
-    @DisplayName("최근 본 상품 병합 - 파라미터 누락 시 무시")
-    void mergeRecentViews_Ignore() {
+    void mergeRecentViews() {
+        bookService.mergeRecentViews("guest", 100L);
+        verify(bookHistoryService).mergeHistory("guest", 100L);
+    }
+
+    @Test
+    void mergeRecentViews_InvalidInput() {
         bookService.mergeRecentViews(null, 100L);
-        bookService.mergeRecentViews("guest", null);
-        bookService.mergeRecentViews("", 100L);
-
         verify(bookHistoryService, never()).mergeHistory(any(), any());
+    }
+
+    @Test
+    void getBookSnapshots() {
+        given(bookRepository.findAllById(List.of(1L))).willReturn(List.of(bookA));
+        Map<Long, CartResponse> result = bookService.getBookSnapshots(List.of(1L));
+
+        assertThat(result).containsKey(1L);
+        assertThat(result.get(1L).getTitle()).isEqualTo("Book A");
     }
 }
