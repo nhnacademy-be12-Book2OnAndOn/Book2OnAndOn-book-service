@@ -110,7 +110,7 @@ class GroqApiClientTest {
 
         assertThatThrownBy(() -> groqApiClient.extractContent("Title", "Desc", "ISBN"))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessage("Groq Fail");
+                .hasMessage("Groq API Fail");
     }
 
     @Test
@@ -124,7 +124,7 @@ class GroqApiClientTest {
 
         assertThatThrownBy(() -> groqApiClient.extractContent("Title", "Desc", "ISBN"))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Groq Fail");
+                .hasMessageContaining("Groq API Fail");
     }
 
     @Test
@@ -146,6 +146,6 @@ class GroqApiClientTest {
 
         assertThatThrownBy(() -> groqApiClient.extractContent("Title", "Desc", "ISBN"))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessage("Groq Fail");
+                .hasMessage("Groq API Fail");
     }
 }

@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiResponse;
+import org.nhnacademy.book2onandonbookservice.exception.GeminiTagGenerationException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -139,8 +140,11 @@ class GeminiApiClientTest {
                 .thenThrow(new RestClientException("Internal Server Error"));
 
         assertThatThrownBy(() -> geminiApiClient.extractContent("T", "D", "I"))
-                .isInstanceOf(RestClientException.class)
-                .hasMessageContaining("Internal Server Error");
+                .isInstanceOf(GeminiTagGenerationException.class)
+
+                .hasMessage("Gemini API Call Failed")
+
+                .hasCauseInstanceOf(RestClientException.class);
     }
 
     @Test

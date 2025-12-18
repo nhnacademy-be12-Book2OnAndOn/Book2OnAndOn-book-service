@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiRequest;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiResponse;
+import org.nhnacademy.book2onandonbookservice.exception.GeminiQuotaExceededException;
+import org.nhnacademy.book2onandonbookservice.exception.GeminiTagGenerationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
@@ -32,7 +34,7 @@ public class GeminiBookCreateClient {
     @Value("${gemini.api.create-key}")
     private String apiCreateKey;
 
-    @Cacheable(value = "geminiCreateContent", key = "#isbn", unless = "#result == null", cacheManager = "RedisCacheManager")
+    @Cacheable(value = "geminiCreateContent", key = "#isbn", unless = "#result == null")
     public String generateChapter (String isbn, String title, String description){
         String safeDescription = (description != null) ? description : "";
         String prompt = """
@@ -54,10 +56,12 @@ public class GeminiBookCreateClient {
                 }
                 """.formatted(isbn, title, safeDescription);
 
-        try{
+        try {
             String rawText = callGeminiApi(prompt);
             return parseContentFromJson(rawText);
-        }catch (Exception e){
+        } catch (GeminiQuotaExceededException e) {
+            throw e;
+        } catch (Exception e) {
             log.error("Gemini 목차 생성 최종 실패 (ISBN: {}): {}", isbn, e.getMessage());
             return "";
         }
@@ -71,23 +75,21 @@ public class GeminiBookCreateClient {
         GeminiApiRequest rBody = new GeminiApiRequest(prompt);
         HttpEntity<GeminiApiRequest> entity = new HttpEntity<>(rBody, headers);
 
-        try{
+        try {
             GeminiApiResponse response = restTemplate.postForObject(url, entity, GeminiApiResponse.class);
-            if(response != null){
+            if (response != null) {
                 return response.getFirstCandidateText();
             }
-        }
-        catch (HttpClientErrorException e) {
+        } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 429) {
-                // 키 노출 방지 처리
                 log.warn("Gemini API Quota/Rate Limit 발생: {}", e.getMessage());
-                throw new RuntimeException("Gemini API Rate Limit Exceeded", e);
+                throw new GeminiQuotaExceededException("Gemini API Rate Limit Exceeded", e);
             }
             log.error("Gemini API HTTP 오류: {}", e.getMessage());
-        }
-        catch (Exception e){
+            throw new GeminiTagGenerationException("Gemini API HTTP Error", e);
+        } catch (Exception e) {
             log.error("Gemini API 호출 실패: {}", e.getMessage());
-            throw e;
+            throw new GeminiTagGenerationException("Gemini API Call Failed", e);
         }
 
         return null;

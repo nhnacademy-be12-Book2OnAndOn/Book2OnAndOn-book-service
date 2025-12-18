@@ -1,7 +1,6 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 

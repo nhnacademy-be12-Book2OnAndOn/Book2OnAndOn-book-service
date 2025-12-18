@@ -32,7 +32,7 @@ public class Publisher {
 
     // 출판사 이름
     @Setter
-    @Column(name = "publisher_name", length = 50, nullable = false)
+    @Column(name = "publisher_name", length = 50, nullable = false, unique = true)
     @Size(min = 1, max = 50)
     private String publisherName;
 

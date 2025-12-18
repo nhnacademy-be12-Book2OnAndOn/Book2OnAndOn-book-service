@@ -61,18 +61,17 @@ public class DlqRetryScheduler {
                 log.error("!!! [DLQ] 최대 재시도 횟수 초과! 메시지 폐기: {}", failedBody);
                 sendDoorayAlert(failedBody, retryCount);
                 //메시지 폐기 (rabbitTemplate.receive()는 Auto-Ack이므로 여기서 continue하면 삭제됨
-                continue;
+            }else{
+                headers.put(HEADER_DLQ_RETRY_COUNT, retryCount+1);
+
+                log.info("[DLQ] 메시지 재발송 (시도횟수: {}/{})", retryCount + 1, MAX_DLQ_RETRY);
+
+                rabbitTemplate.convertAndSend(
+                        RabbitMqConfig.SEARCH_SYNC_EXCHANGE,
+                        RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY,
+                        message
+                );
             }
-
-            headers.put(HEADER_DLQ_RETRY_COUNT, retryCount+1);
-
-            log.info("[DLQ] 메시지 재발송 (시도횟수: {}/{})", retryCount + 1, MAX_DLQ_RETRY);
-
-            rabbitTemplate.convertAndSend(
-                    RabbitMqConfig.SEARCH_SYNC_EXCHANGE,
-                    RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY,
-                    message
-            );
         }
     }
 

@@ -6,7 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.nhnacademy.book2onandonbookservice.exception.OllamaApiException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -17,9 +19,9 @@ import org.springframework.web.client.RestTemplate;
 public class OllamaApiClient {
     private final RestTemplate restTemplate;
     @Value("${ollama.embaddings.url}")
-    private String OLLAMA_URL;
+    private String ollamaUrl;
     @Value("${ollama.model.name}")
-    private String MODEL_NAME;
+    private String modelName;
 
     /*
     텍스트를 1024차원으로 변환
@@ -30,20 +32,21 @@ public class OllamaApiClient {
         }
 
         try{
-            OllamaRequest request = new OllamaRequest(MODEL_NAME, text);
-            OllamaResponse response = restTemplate.postForObject(OLLAMA_URL, request, OllamaResponse.class);
+            OllamaRequest request = new OllamaRequest(modelName, text);
+            OllamaResponse response = restTemplate.postForObject(ollamaUrl, request, OllamaResponse.class);
 
             if(response != null && response.getEmbedding() != null){
                 return response.getEmbedding();
             }
         }catch (Exception e){
             log.error("[Ollama] 임베딩 생성 실패: text={}, error={}", text,e.getMessage());
-            //TODO: 실패 시 빈 리스트를 반환 할지, 아니면 throw Exception을 할지 결정해야됨
+            throw new OllamaApiException("Ollma Embedding Fail");
         }
         return Collections.emptyList();
     }
 
     @Getter
+    @Setter
     @AllArgsConstructor
     @NoArgsConstructor
     static class OllamaRequest {
@@ -52,6 +55,7 @@ public class OllamaApiClient {
     }
 
     @Getter
+    @Setter
     @NoArgsConstructor
     static class OllamaResponse {
         private List<Float> embedding;
