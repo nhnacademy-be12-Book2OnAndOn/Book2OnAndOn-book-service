@@ -39,6 +39,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -263,6 +264,7 @@ public class BookServiceImpl implements BookService {
         List<Book> books = bookRepository.findAllById(bookIds); //bookId 리스트로 관련된 book 엔티티를 찾습니다.
 
         Map<Long, Book> bookMap = books.stream()
+                .filter(book -> book.getStatus() != BookStatus.BOOK_DELETED)
                 .collect(Collectors.toMap(Book::getId,
                         Function.identity())); //Function.identity: 스트림의 요소 그 자체를 값으로 사용하는 것 Book 객체 자체
 
@@ -285,12 +287,20 @@ public class BookServiceImpl implements BookService {
 
         // 1단계: Book + Category + Images 조회
         Page<Book> bookPage = fetchBooks(categoryId, pageable, startTime);
-
+        List<Book> filteredBooks = bookPage.getContent().stream()
+                .filter(book -> book.getStatus() != BookStatus.BOOK_DELETED)
+                .toList();
         // 2단계: Contributors, Publishers, Tags 조회 (Batch Fetch)
         fetchAdditionalDetails(bookPage.getContent(), startTime);
 
         // 3단계: DTO 변환
-        Page<BookListResponse> result = convertToResponse(bookPage, startTime);
+        Page<Book> filteredPage = new PageImpl<>(
+                filteredBooks,
+                pageable,
+                bookPage.getTotalElements() - (bookPage.getContent().size() - filteredBooks.size())
+        );
+
+        Page<BookListResponse> result = convertToResponse(filteredPage, startTime);
 
         long totalTime = System.currentTimeMillis() - startTime;
         log.info("신간도서 조회 완료 - 총 {}ms, {} 건 조회", totalTime, result.getTotalElements());

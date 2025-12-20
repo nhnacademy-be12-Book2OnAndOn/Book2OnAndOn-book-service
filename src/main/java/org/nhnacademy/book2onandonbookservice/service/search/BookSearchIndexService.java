@@ -79,8 +79,19 @@ public class BookSearchIndexService {
         String searchText = buildSearchText(book, contributorNames, tagNames);
 
         // Ollama를 통해 1024차원 벡터 생성
-        List<Float> embedding = ollamaApiClient.getEmbedding(searchText);
+        List<Float> embedding = null; // 기본값 null
+        try {
+            searchText = buildSearchText(book, contributorNames, tagNames);
+            List<Float> vector = ollamaApiClient.getEmbedding(searchText);
 
+            // 벡터가 존재하고 비어있지 않을 때만 할당
+            if (vector != null && !vector.isEmpty()) {
+                embedding = vector;
+            }
+        } catch (Exception e) {
+            log.warn("임베딩 생성 중 오류 발생 (BookId: {}): {}", book.getId(), e.getMessage());
+            // 실패하면 embedding은 null 상태 유지 -> ES가 에러 없이 넘어감
+        }
         double reviewRating = (book.getRating() != null) ? book.getRating() : 0.0;
         long reviewCount = (book.getReviews() != null) ? book.getReviews().size(): 0L;
 

@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,9 +27,12 @@ public class BookSearchController {
     // ES 기반 도서 검색
     @PostMapping("/search")
     public ResponseEntity<Page<BookListResponse>> searchBooks(
-            @ModelAttribute BookSearchCondition condition,
+            @RequestBody BookSearchCondition condition,
             @PageableDefault Pageable pageable
     ) {
+        log.info("Book Search Request: keyword='{}', aiMode={}, filterCategory='{}'",
+                condition.getKeyword(), condition.getUseAiSearch(), condition.getCategoryName());
+
         Page<BookListResponse> result = bookSearchService.search(condition, pageable);
         return ResponseEntity.ok(result);
     }

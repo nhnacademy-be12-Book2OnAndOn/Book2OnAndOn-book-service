@@ -16,6 +16,7 @@ import org.nhnacademy.book2onandonbookservice.entity.*;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
 import org.nhnacademy.book2onandonbookservice.repository.*;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
+import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ public class BookEnrichmentService {
     private final ContributorRepository contributorRepository;
     private final BookPublisherRepository bookPublisherRepository;
     private final BookContributorRepository bookContributorRepository;
+    private final BookSearchIndexService bookSearchIndexService;
 
     private static final Pattern CONTRIBUTOR_PATTERN = Pattern.compile("^([^(]*)\\s*\\(([^)]*)\\)$");
     private static final double DEFAULT_DISCOUNT_RATE = 0.1;
@@ -48,19 +50,40 @@ public class BookEnrichmentService {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(()-> new NotFoundBookException(bookId) );
 
+
         if(book.getStatus() == BookStatus.BOOK_DELETED){
             return;
         }
 
+        boolean needReindex = false;
+
         if(shouldProcessAladin(task)){
             processAladinEnrichment(task, book);
+            if(task.getAladinStatus() == EnrichmentStatus.DONE ||
+            task.getAladinStatus()==EnrichmentStatus.NOT_FOUND){
+                needReindex=true;
+            }
         }
 
         if(shouldProcessAi(task)){
             processAiEnrichment(task, book);
+            if(task.getAiStatus() == EnrichmentStatus.DONE ||
+                    task.getAiStatus()==EnrichmentStatus.NOT_FOUND){
+                needReindex=true;
+            }
         }
 
         taskRepository.save(task);
+
+        if(needReindex){
+            try{
+                bookSearchIndexService.index(book);
+                log.info("[ES Sync] 보강 결과 재색인 완료 (BookId: {}, Aladin:{}, AI:{}", bookId, task.getAladinStatus(), task.getAiStatus());
+            }catch (Exception e){
+                log.error("[ES Sync] 재색인 실패 (BookId:{})", bookId, e);
+                //로그만 찍고 넘어감
+            }
+        }
     }
 
     private void processAladinEnrichment(BookEnrichmentTask task, Book book){

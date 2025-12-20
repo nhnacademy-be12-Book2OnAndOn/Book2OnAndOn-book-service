@@ -137,7 +137,6 @@ public class GlobalExceptionHandler {
             AladinApiException.class,
             GeminiTagGenerationException.class, // 여기는 통신 오류 (호출 실패)
             GroqApiCallException.class,
-            OllamaApiException.class
     })
     public ResponseEntity<ErrorResponse> handleApiException(Exception e) {
         log.error("[EXTERNAL API ERROR] {}", e.getMessage());
@@ -165,6 +164,23 @@ public class GlobalExceptionHandler {
                 "일시적인 서비스 장애로 요청을 처리할 수 없습니다."
         );
         return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    /**
+     * [500] 검색 엔진 에러
+     */
+    @ExceptionHandler(SearchExecutionException.class)
+    public ResponseEntity<ErrorResponse> handleSearchExecutionException(SearchExecutionException e) {
+        log.error("[Search Error] 검색 엔진 오류 발생: {}", e.getMessage(), e);
+
+        ErrorResponse response = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "SEARCH_ENGINE_ERROR",
+                "검색 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요."
+        );
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     /**
