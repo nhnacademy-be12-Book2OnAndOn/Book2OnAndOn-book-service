@@ -511,17 +511,18 @@ public class BookServiceImpl implements BookService {
             return;
         }
 
-        List<Long> bookIds = books.stream()
-                .map(Book::getId)
-                .toList();
-
-        bookRepository.findBooksWithDetails(bookIds);
+        books.forEach(book -> {
+            // .size()를 호출하면 프록시가 초기화되면서 DB 조회가 발생함
+            book.getBookContributors().size();
+            book.getBookPublishers().size();
+            book.getBookTags().size();
+        });
         log.debug("2단계 쿼리 (상세정보): {}ms", System.currentTimeMillis() - startTime);
     }
 
     private Page<Book> fetchBooks(Long categoryId, Pageable pageable, long startTime) {
         Page<Book> bookPage;
-
+        log.info("fetchBooks 진입");
         if (categoryId != null) {
             // 카테고리 필터링
             List<Long> allCategoryIds = getAllCategoryIds(categoryId);
