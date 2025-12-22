@@ -26,13 +26,18 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     Optional<Book> findByIdWithRelations(Long bookId);
 
     /// 신간 도서 조회용 (정렬 O)
-    @Query("""
-        SELECT DISTINCT b FROM Book b
-        LEFT JOIN FETCH b.category
-        WHERE b.status = 'ON_SALE' 
-        AND b.category.id IN :categoryIds 
-        ORDER BY b.publishDate DESC
-        """)
+    @Query(value = """
+    SELECT DISTINCT b FROM Book b
+    LEFT JOIN FETCH b.category
+    WHERE b.status = 'ON_SALE' 
+    AND b.category.id IN :categoryIds 
+    ORDER BY b.publishDate DESC
+    """,
+            countQuery = """
+    SELECT count(b) FROM Book b
+    WHERE b.status = 'ON_SALE' 
+    AND b.category.id IN :categoryIds
+    """)
    Page<Book> findBooksByCategoryIdsSorted(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
     /// 검색 동기화용 (정렬 X)
@@ -52,26 +57,22 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     Page<Book> findByTagId(Long tagId, Pageable pageable);
 
 
-    @Query("""
-        SELECT b FROM Book b
-        LEFT JOIN FETCH b.category
-        WHERE b.status = 'ON_SALE'
-        ORDER BY b.publishDate DESC
-        """)
+    @Query(value = "SELECT b FROM Book b WHERE b.status = 'ON_SALE' ORDER BY b.publishDate DESC",
+            countQuery = "SELECT count(b) FROM Book b WHERE b.status = 'ON_SALE'")
     Page<Book> findAllByOrderByPublishDateDesc(Pageable pageable);
 
 
-    @Query("""
-        SELECT DISTINCT b FROM Book b
-        LEFT JOIN FETCH b.bookContributors bc
-        LEFT JOIN FETCH bc.contributor
-        LEFT JOIN FETCH b.bookPublishers bp
-        LEFT JOIN FETCH bp.publisher
-        LEFT JOIN FETCH b.bookTags bt
-        LEFT JOIN FETCH bt.tag
-        WHERE b.id IN :bookIds
-        """)
-    List<Book> findBooksWithDetails(@Param("bookIds") List<Long> bookIds);
+//    @Query("""
+//        SELECT DISTINCT b FROM Book b
+//        LEFT JOIN FETCH b.bookContributors bc
+//        LEFT JOIN FETCH bc.contributor
+//        LEFT JOIN FETCH b.bookPublishers bp
+//        LEFT JOIN FETCH bp.publisher
+//        LEFT JOIN FETCH b.bookTags bt
+//        LEFT JOIN FETCH bt.tag
+//        WHERE b.id IN :bookIds
+//        """)
+////    List<Book> findBooksWithDetails(@Param("bookIds") List<Long> bookIds);
 
     Page<Book> findByCategory_IdIn(List<Long> categoryIds, Pageable pageable);
 
