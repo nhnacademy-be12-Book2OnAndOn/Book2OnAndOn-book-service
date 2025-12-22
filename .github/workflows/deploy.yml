@@ -2,7 +2,7 @@ name: CI/CD for Book Service
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,6 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw clean verify sonar:sonar \
-            -DskipTests \
             -Dsonar.projectKey=Book2onandon-book-service \
             -Dsonar.projectName="Book2onandon-book-service" \
             -Dsonar.host.url=$SONAR_HOST_URL \
