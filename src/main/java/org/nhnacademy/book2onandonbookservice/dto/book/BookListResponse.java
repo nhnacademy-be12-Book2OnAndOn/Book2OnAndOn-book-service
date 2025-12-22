@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
@@ -15,6 +16,7 @@ import org.springframework.util.StringUtils;
 
 // 도서 검색 시 여러 권을 리스트로 보여주는(조회하는) DTO
 @Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

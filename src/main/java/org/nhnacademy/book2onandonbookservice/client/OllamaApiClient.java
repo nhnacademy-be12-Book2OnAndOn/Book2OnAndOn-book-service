@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.nhnacademy.book2onandonbookservice.exception.OllamaApiException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -40,7 +39,7 @@ public class OllamaApiClient {
             }
         }catch (Exception e){
             log.error("[Ollama] 임베딩 생성 실패: text={}, error={}", text,e.getMessage());
-            throw new OllamaApiException("Ollma Embedding Fail");
+            //예외를 삼킴 -> 임베딩 서버가 잠깐 꺼져도 서비스 전체가 멈추지 않도록(Graceful Degradation)
         }
         return Collections.emptyList();
     }
