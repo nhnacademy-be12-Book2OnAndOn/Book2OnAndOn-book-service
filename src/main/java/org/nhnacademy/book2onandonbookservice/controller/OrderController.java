@@ -42,35 +42,12 @@ public class OrderController {
      * Redis에서 재고를 임시 차감하고 선점 기록을 남김
      */
     @PostMapping("/stock/decrease")
-    public ResponseEntity<Void> decreaseStock(@RequestBody List<StockRequest> requests) {
-        log.info("재고 선점 요청: {}건", requests.size());
+    public ResponseEntity<Void> decreaseStock(@RequestBody StockRequest requests) {
+        log.info("재고 선점 요청: {}건", requests.getBookInfoDtoList().size());
         stockService.decreaseStock(requests);
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * 재고 확정 요청
-     * 결제 성공 시 호출
-     * 실제 DB 재고를 차감하고 Redis 선점 기록을 삭제함.
-     */
-    @PostMapping("/stock/confirm")
-    public ResponseEntity<Void> confirmStock(@RequestBody List<StockRequest> requests) {
-        log.info("재고 확정 요청: {}건", requests.size());
-        stockService.confirmStock(requests);
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * 재고 복구 요청
-     * 결제 실패 또는 중도 취소시 호출(보상 트랜잭션)
-     * Redis에서 차감했던 재고를 다시 원상 복구함
-     */
-    @PostMapping("/stock/cancel")
-    public ResponseEntity<Void> cancelStock(@RequestBody List<StockRequest> requests){
-        log.info("재고 복구(취소) 요청: {}건", requests.size());
-        stockService.cancelStock(requests);
-        return ResponseEntity.ok().build();
-    }
     @PostMapping("/bulk")
     public ResponseEntity<Map<Long, CartResponse>> getBookSnapshots(@RequestBody List<Long> bookIds){
         Map<Long, CartResponse> result = bookService.getBookSnapshots(bookIds);

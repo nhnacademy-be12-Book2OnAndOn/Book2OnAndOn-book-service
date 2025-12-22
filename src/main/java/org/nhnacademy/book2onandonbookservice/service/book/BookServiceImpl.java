@@ -112,28 +112,26 @@ public class BookServiceImpl implements BookService {
     public void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> newImages) {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
+        int oldStock = book.getStockCount();
+        // 1. 단순 필드 업데이트
+        bookFactory.updateFields(book, request);
 
         //재고 변경 감지 및 Redis 동기화
         if(request.getStockCount() != null){
-            int oldStock = book.getStockCount();
             int newStock = request.getStockCount();
 
             int diff = newStock - oldStock;
 
             if(diff != 0){
-                book.setStockCount(newStock);
-
                 stockService.increaseStock(bookId, diff);
-
-                if(newStock>0 && book.getStatus() == BookStatus.SOLD_OUT){
-                    book.setStatus(BookStatus.ON_SALE);
-                }else if(newStock <= 0){
-                    book.setStatus(BookStatus.SOLD_OUT);
-                }
+            }
+            if(newStock<=0 && book.getStatus() != BookStatus.BOOK_DELETED){
+                book.setStatus(BookStatus.SOLD_OUT);
+            }else if (newStock > 0 && book.getStatus() == BookStatus.SOLD_OUT){
+                book.setStatus(BookStatus.ON_SALE);
             }
         }
-        // 1. 단순 필드 업데이트
-        bookFactory.updateFields(book, request);
+
 
         // 2. 이미지 삭제 처리 (삭제된 파일 경로 반환)
         List<String> pathsToDelete = deleteRequestedImages(book, request.getDeleteImageIds());
@@ -146,7 +144,12 @@ public class BookServiceImpl implements BookService {
 
         // 5. 연관관계 및 인덱싱 업데이트
         bookRelationService.applyRelationsForUpdate(book, request);
-        bookSearchIndexService.index(book);
+
+        try{
+            bookSearchIndexService.index(book);
+        }catch(Exception e){
+            log.error("도서 수정 후 ES 인덱싱 실패 (DB는 반영됨) - bookId={}", bookId, e);
+        }
 
         // 6. 물리 파일 삭제 (마지막에 수행)
         deletePhysicalFiles(pathsToDelete);

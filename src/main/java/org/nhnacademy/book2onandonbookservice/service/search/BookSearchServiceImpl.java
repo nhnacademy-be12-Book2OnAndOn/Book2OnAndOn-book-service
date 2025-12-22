@@ -4,6 +4,7 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
@@ -52,18 +53,19 @@ public class BookSearchServiceImpl implements BookSearchService {
 
     // 검색 대상 필드 및 가중치
     private static final String[] SEARCH_FIELDS_WITH_BOOST = {
-            "title^3.0",            // 제목
-            "tagNames^2.0",         // 태그
-            "categoryNames^1.5",    // 카테고리명
-            "contributorNames^1.0", // 저자
-            "publisherNames^1.0"   // 출판사
+            "title^80.0",            // 제목
+            "tagNames^20.0",         // 태그
+            "categoryNames^10.0",    // 카테고리명
+            "contributorNames^5.0", // 저자
+            "publisherNames^5.0"   // 출판사
+
     };
 
     private static final int GEMINI_INPUT_SIZE = 5;
-    private static final int VECTOR_K = 50;
-    private static final int VECTOR_NUM_CANDIDATES = 100;
+    private static final int VECTOR_K = 30;
+    private static final int VECTOR_NUM_CANDIDATES = 50;
     private static final int MAX_CACHE_SIZE = 1000;
-    private static final int EMBEDDING_TIMEOUT_SECONDS = 3; // 타임아웃 3초
+    private static final int EMBEDDING_TIMEOUT_SECONDS = 2; // 타임아웃 3초
 
 
 
@@ -129,12 +131,15 @@ public class BookSearchServiceImpl implements BookSearchService {
                                 .queryVector(vector)
                                 .k(VECTOR_K)
                                 .numCandidates(VECTOR_NUM_CANDIDATES)
-                                .boost(2.0f);
+                                .boost(0.5f);
                         if (hasFilter) {
                             k.filter(f -> f.bool(filterQuery));
                         }
                         return k;
                     });
+                }
+                if(StringUtils.hasText(condition.getKeyword())){
+                    s.minScore(0.3d);
                 }
 
                 s.from((int) pageable.getOffset())
@@ -149,7 +154,7 @@ public class BookSearchServiceImpl implements BookSearchService {
 
             List<BookSearchDocument> content = response.hits().hits().stream()
                     .map(Hit::source)
-                    .collect(Collectors.toList());
+                    .toList();
 
             long total = response.hits().total() != null ? response.hits().total().value() : 0;
             return new PageImpl<>(content, pageable, total);
@@ -170,6 +175,8 @@ public class BookSearchServiceImpl implements BookSearchService {
                     .query(condition.getKeyword())
                     .fields(List.of(SEARCH_FIELDS_WITH_BOOST))
                     .type(TextQueryType.BestFields)
+                    .operator(Operator.And)
+                    .minimumShouldMatch("1<50%")
             ));
         } else {
             builder.must(m -> m.matchAll(ma -> ma));
@@ -265,16 +272,33 @@ public class BookSearchServiceImpl implements BookSearchService {
     }
 
     private Page<BookListResponse> applyAiRecommendation(String keyword, List<BookSearchDocument> docs, Pageable pageable) {
-        int cutSize = Math.min(docs.size(), GEMINI_INPUT_SIZE);
-        List<BookSearchDocument> candidates = docs.subList(0, cutSize);
-        List<AiRecommendation> recommendations = geminiSearchClient.selectBestBooks(keyword, candidates);
-        Map<Long, String> reasonMap = recommendations.stream().collect(Collectors.toMap(AiRecommendation::getId, AiRecommendation::getReason, (a, b) -> a));
-        List<BookListResponse> responses = docs.stream().map(doc -> {
-            BookListResponse res = bookListResponseMapper.fromDocument(doc);
-            if (reasonMap.containsKey(doc.getId())) res.setAiRecommendation(reasonMap.get(doc.getId()));
-            return res;
-        }).toList();
-        return new PageImpl<>(responses, pageable, docs.size());
+        try {
+            int cutSize = Math.min(docs.size(), GEMINI_INPUT_SIZE);
+            if (cutSize == 0) return new PageImpl<>(Collections.emptyList(), pageable, 0);
+
+            List<BookSearchDocument> candidates = docs.subList(0, cutSize);
+
+            List<AiRecommendation> recommendations = geminiSearchClient.selectBestBooks(keyword, candidates);
+
+            Map<Long, String> reasonMap = recommendations.stream()
+                    .collect(Collectors.toMap(AiRecommendation::getId, AiRecommendation::getReason, (a, b) -> a));
+
+            List<BookListResponse> responses = docs.stream().map(doc -> {
+                BookListResponse res = bookListResponseMapper.fromDocument(doc);
+                if (reasonMap.containsKey(doc.getId())) {
+                    res.setAiRecommendation(reasonMap.get(doc.getId()));
+                }
+                return res;
+            }).toList();
+
+            return new PageImpl<>(responses, pageable, docs.size());
+
+        } catch (Exception e) {
+            // AI가 터져도(429 Error) 검색 결과는 정상적으로 리턴해야 함!
+            log.error("[Gemini] AI 추천 실패 (API Quota 초과 등) - 기본 결과 반환. 이유: {}", e.getMessage());
+            // 원본 그대로 반환
+            return mapToPageResponse(docs, pageable, docs.size());
+        }
     }
 
     private String formatDocumentForRerank(BookSearchDocument doc) {

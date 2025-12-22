@@ -1,10 +1,8 @@
 package org.nhnacademy.book2onandonbookservice.event;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
-import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.service.book.StockService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -21,10 +19,10 @@ public class StockEventListener {
      * Feign 호출 실패 시, Order 서비스가 보낸 RabbitMQ 메시지를 처리
      */
     @RabbitListener(queues = RabbitMqConfig.QUEUE_STOCK_CONFIRM)
-    public void handleStockConfirm(List<StockRequest> requests) {
-        log.info("[RabbitMQ] 재고 확정 메시지 수신 - requests: {}", requests);
+    public void handleStockConfirm(String orderNumber) {
+        log.info("[RabbitMQ] 재고 확정 메시지 수신 - orderNumber: {}", orderNumber);
         try {
-            stockService.confirmStock(requests);
+            stockService.confirmStock(orderNumber);
         } catch (Exception e) {
             log.error("[RabbitMQ] 재고 확정 처리 실패 -> DLQ로 이동", e);
             // 예외를 던져야 RabbitMQ가 실패로 처리하고 DLQ로 보냄
@@ -37,10 +35,10 @@ public class StockEventListener {
      * 결제 취소/실패 시 RabbitMQ 메시지 처리
      */
     @RabbitListener(queues = RabbitMqConfig.QUEUE_STOCK_CANCEL)
-    public void handleStockCancel(List<StockRequest> requests) {
-        log.info("[RabbitMQ] 재고 취소 메시지 수신 - requests: {}", requests);
+    public void handleStockCancel(String orderNumber) {
+        log.info("[RabbitMQ] 재고 취소 메시지 수신 - orderNumber: {}", orderNumber);
         try {
-            stockService.cancelStock(requests);
+            stockService.cancelStock(orderNumber);
         } catch (Exception e) {
             log.error("[RabbitMQ] 재고 취소 처리 실패 -> DLQ로 이동", e);
             throw e;
