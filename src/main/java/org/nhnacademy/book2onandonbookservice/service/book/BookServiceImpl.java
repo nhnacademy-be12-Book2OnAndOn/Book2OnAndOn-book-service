@@ -64,6 +64,7 @@ public class BookServiceImpl implements BookService {
     private final OrderServiceClient orderServiceClient;
     private final BookHistoryService bookHistoryService;
     private final ImageUploadService imageUploadService;
+    private final StockService stockService;
 
     // 도서 등록
     @Override
@@ -112,6 +113,25 @@ public class BookServiceImpl implements BookService {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
 
+        //재고 변경 감지 및 Redis 동기화
+        if(request.getStockCount() != null){
+            int oldStock = book.getStockCount();
+            int newStock = request.getStockCount();
+
+            int diff = newStock - oldStock;
+
+            if(diff != 0){
+                book.setStockCount(newStock);
+
+                stockService.increaseStock(bookId, diff);
+
+                if(newStock>0 && book.getStatus() == BookStatus.SOLD_OUT){
+                    book.setStatus(BookStatus.ON_SALE);
+                }else if(newStock <= 0){
+                    book.setStatus(BookStatus.SOLD_OUT);
+                }
+            }
+        }
         // 1. 단순 필드 업데이트
         bookFactory.updateFields(book, request);
 
@@ -321,44 +341,6 @@ public class BookServiceImpl implements BookService {
         return books.stream().map(BookOrderResponse::from).toList();
     }
 
-    /// 재고 감소
-    @Override
-    @Transactional
-    public void decreaseStock(List<StockRequest> requests) {
-        requests.sort(Comparator.comparing(StockRequest::getBookId)); //데드락 방지
-        for (StockRequest req : requests) {
-            int result = bookRepository.decreaseStock(req.getBookId(), req.getQuantity());
-
-            if (result == 0) {
-                throw new OutOfStockException("재고가 부족합니다. BookId: " + req.getBookId());
-            }
-
-            Book book = bookRepository.findById(req.getBookId())
-                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
-
-            if (book.getStockCount() <= 0) {
-                book.setStatus(BookStatus.SOLD_OUT);
-            }
-
-        }
-    }
-
-    /// 재고 증가
-    @Override
-    @Transactional
-    public void increaseStock(List<StockRequest> requests) {
-        requests.sort(Comparator.comparing(StockRequest::getBookId)); //데드락 방지
-        for (StockRequest req : requests) {
-            bookRepository.increaseStock(req.getBookId(), req.getQuantity());
-
-            Book book = bookRepository.findById(req.getBookId())
-                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
-
-            if (book.getStockCount() > 0 && isSoldOut(book.getStatus())) {
-                book.setStatus(BookStatus.ON_SALE);
-            }
-        }
-    }
 
     /// 인기 도서 조회(좋아요순)
     @Override

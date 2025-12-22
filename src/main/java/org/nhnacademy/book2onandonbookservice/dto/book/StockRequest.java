@@ -6,6 +6,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class StockRequest {
+    private Long orderId;
     private Long bookId;
     private Integer quantity;
 

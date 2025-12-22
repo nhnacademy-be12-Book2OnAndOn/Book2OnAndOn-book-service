@@ -89,16 +89,15 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     // 판매중 + 좋아요순 + 페이징
     Page<Book> findByStatusOrderByLikeCountDesc(BookStatus status, Pageable pageable);
 
-    //주문 취소 후 재고 증감 로직
-    @Modifying(clearAutomatically = true) // 쿼리 실행 후 영속성 컨텍스트 초기화 (데이터 동기화)
-    @Query("UPDATE Book b SET b.stockCount = b.stockCount + :quantity " +
-            "WHERE b.id = :id")
-    int increaseStock(@Param("id") Long id, @Param("quantity") Integer quantity);
 
     //판매 중 이거나 재고 없음인 책만 조회 (삭제된 책 제외)
     Page<Book> findByStatusNot(BookStatus status, Pageable pageable);
 
     List<Book> findAllByIdGreaterThan(Long idIsGreaterThan, Pageable limit);
+
+    // 재고만 쏙 가져오는 쿼리
+    @Query("SELECT b.stockCount From Book b where b.id = :id")
+    Integer findStockCountById(@Param("id") Long id);
 
     interface BookIdAndIsbn {
         Long getId();

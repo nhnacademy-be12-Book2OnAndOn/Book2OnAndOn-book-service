@@ -36,12 +36,18 @@ public class DlqRetryScheduler {
      * 매일 자정에 실행
      * DLQ에 있는 메시지를 꺼내서 원래 큐로 다시 보냄
      */
-    @Scheduled(cron="0 0 0 * * *")
+    @Scheduled(cron="0 */5 * * * *")
     public void retryDlqMessage(){
         log.info("=== [Scheduler] DLQ 재처리 작업 시작 ===");
 
+        processDlq(RabbitMqConfig.SEARCH_SYNC_DLQ, RabbitMqConfig.SEARCH_SYNC_EXCHANGE, RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY, "검색 인덱싱");
+        processDlq(RabbitMqConfig.QUEUE_STOCK_CONFIRM_DLQ, RabbitMqConfig.ORDER_EXCHANGE, RabbitMqConfig.ROUTING_KEY_CONFIRM, "재고 확정");
+        processDlq(RabbitMqConfig.QUEUE_STOCK_CANCEL_DLQ, RabbitMqConfig.ORDER_EXCHANGE, RabbitMqConfig.ROUTING_KEY_CANCEL, "재고 취소");
+    }
+
+    private void processDlq(String dlqName, String originalExchange, String originalRoutingKey, String jobName){
         while(true){
-            Message message = rabbitTemplate.receive(RabbitMqConfig.SEARCH_SYNC_DLQ );
+            Message message = rabbitTemplate.receive(dlqName);
 
             if(message == null){
                 log.info("DLQ가 비어있습니다. 작업종료");
@@ -58,8 +64,8 @@ public class DlqRetryScheduler {
 
             if(retryCount >= MAX_DLQ_RETRY){
                 String failedBody= new String(message.getBody());
-                log.error("!!! [DLQ] 최대 재시도 횟수 초과! 메시지 폐기: {}", failedBody);
-                sendDoorayAlert(failedBody, retryCount);
+                log.error("!!! [DLQ] 최대 재시도 횟수 초과! -> Dooray 알림{}", jobName);
+                sendDoorayAlert(jobName,failedBody, retryCount);
                 //메시지 폐기 (rabbitTemplate.receive()는 Auto-Ack이므로 여기서 continue하면 삭제됨
             }else{
                 headers.put(HEADER_DLQ_RETRY_COUNT, retryCount+1);
@@ -67,19 +73,18 @@ public class DlqRetryScheduler {
                 log.info("[DLQ] 메시지 재발송 (시도횟수: {}/{})", retryCount + 1, MAX_DLQ_RETRY);
 
                 rabbitTemplate.convertAndSend(
-                        RabbitMqConfig.SEARCH_SYNC_EXCHANGE,
-                        RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY,
+                        originalExchange,
+                        originalRoutingKey,
                         message
                 );
             }
         }
     }
-
-    private void sendDoorayAlert(String failedMessageBody, int retryCount){
+    private void sendDoorayAlert(String jobName, String failedMessageBody, int retryCount){
         try{
             DoorayMessagePayload payload = DoorayMessagePayload.builder()
                     .botName("Book-Service-Alarm")
-                    .text("[긴급] 검색 인덱싱 동기화 실패 (DLQ)")
+                    .text("[긴급] "+ jobName +"실패 (DLQ 폐기, 관리자 직접 확인 요망)")
                     .attachments(Collections.singletonList(
                             DoorayMessagePayload.Attachment.builder()
                                     .title("최대 재시도 횟수("+retryCount+"회) 초과")

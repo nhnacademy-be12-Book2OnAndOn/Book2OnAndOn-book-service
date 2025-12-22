@@ -64,10 +64,7 @@ public class BookFactory {
         if (req.getPriceSales() != null) {
             book.setPriceSales(req.getPriceSales());
         }
-
-        if (req.getStockCount() != null) {
-            book.setStockCount(req.getStockCount());
-        }
+        // 재고는 service에서 명시적으로 처리하도록 해야됨 (재고 관리는 redis를 이용해서 해야함)
 
         if (req.getStatus() != null) {
             book.setStatus(req.getStatus());
