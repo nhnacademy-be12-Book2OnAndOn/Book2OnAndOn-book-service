@@ -2,8 +2,10 @@ package org.nhnacademy.book2onandonbookservice.controller;
 
 
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
@@ -44,5 +46,10 @@ public class OrderController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<Map<Long, CartResponse>> getBookSnapshots(@RequestBody List<Long> bookIds){
+        Map<Long, CartResponse> result = bookService.getBookSnapshots(bookIds);
+        return ResponseEntity.ok(result);
+    }
 
 }

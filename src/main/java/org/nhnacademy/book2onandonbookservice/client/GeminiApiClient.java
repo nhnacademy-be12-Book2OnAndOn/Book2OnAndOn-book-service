@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiRequest;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiResponse;
+import org.nhnacademy.book2onandonbookservice.exception.GeminiQuotaExceededException;
+import org.nhnacademy.book2onandonbookservice.exception.GeminiTagGenerationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
@@ -39,7 +41,7 @@ public class GeminiApiClient {
             """;
 
 
-    @Cacheable(value = "geminiSearchContent", key = "#isbn", unless = "#result == null", cacheManager = "RedisCacheManager")
+    @Cacheable(value = "geminiSearchContent", key = "#isbn", unless = "#result == null")
     public BookContentDto extractContent(String title, String description, String isbn){
         String safeDescription = (description != null) ? description : "";
 
@@ -88,15 +90,15 @@ public class GeminiApiClient {
         }
         catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 429) {
-                // 키 노출 방지 처리
                 log.warn("Gemini API Quota/Rate Limit 발생: {}", e.getMessage());
-                throw new RuntimeException("Gemini API Rate Limit Exceeded", e);
+                throw new GeminiQuotaExceededException("Gemini API Rate Limit Exceeded", e);
             }
             log.error("Gemini API HTTP 오류: {}", e.getMessage());
+            throw new GeminiTagGenerationException("Gemini API HTTP Error: " + e.getStatusCode(), e);
         }
-        catch (Exception e){
+        catch (Exception e) {
             log.error("Gemini API 호출 실패: {}", e.getMessage());
-            throw e;
+            throw new GeminiTagGenerationException("Gemini API Call Failed", e);
         }
 
         return null;

@@ -20,6 +20,7 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
+import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
@@ -36,7 +37,9 @@ import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMap
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +67,13 @@ public class BookServiceImpl implements BookService {
 
     // 도서 등록
     @Override
-    @CacheEvict(value={"newArrivals","bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
+    @Caching(evict = {
+            // 1. 기본 매니저(7일)를 사용하는 'newArrivals' 삭제
+            @CacheEvict(value = "newArrivals", allEntries = true, cacheManager = "redisCacheManager"),
+
+            // 2. 전용 매니저(12시간)를 사용하는 'bestsellers' 삭제
+            @CacheEvict(value = "bestsellers", allEntries = true, cacheManager = "bestsellersCacheManager")
+    })
     public Long createBook(BookSaveRequest request, List<MultipartFile> images) {
         bookValidator.validateForCreate(request);
 
@@ -93,7 +102,12 @@ public class BookServiceImpl implements BookService {
     // 도서 수정
     @Override
     @Transactional
-    @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
+    @Caching(evict = {
+            // 1. 기본 매니저(7일)를 사용하는 'newArrivals' 삭제
+            @CacheEvict(value = "newArrivals", allEntries = true, cacheManager = "redisCacheManager"),
+            // 2. 전용 매니저(12시간)를 사용하는 'bestsellers' 삭제
+            @CacheEvict(value = "bestsellers", allEntries = true, cacheManager = "bestsellersCacheManager")
+    })
     public void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> newImages) {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
@@ -101,74 +115,33 @@ public class BookServiceImpl implements BookService {
         // 1. 단순 필드 업데이트
         bookFactory.updateFields(book, request);
 
-        // 2. 이미지 삭제 로직 (썸네일 삭제 여부 체크가 핵심)
-        List<String> pathsToDelete = new ArrayList<>();
-        boolean thumbnailDeleted = false;
+        // 2. 이미지 삭제 처리 (삭제된 파일 경로 반환)
+        List<String> pathsToDelete = deleteRequestedImages(book, request.getDeleteImageIds());
 
-        if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty()) {
-            Iterator<BookImage> iterator = book.getImages().iterator();
-            while (iterator.hasNext()) {
-                BookImage img = iterator.next();
-                if (request.getDeleteImageIds().contains(img.getId())) {
-                    // 삭제 대상 수집
-                    pathsToDelete.add(img.getImagePath());
-                    // 만약 썸네일이 삭제되는 거라면 플래그 ON
-                    if (img.isThumbnail()) {
-                        thumbnailDeleted = true;
-                    }
-                    iterator.remove(); // 컬렉션에서 제거 (DB 반영 예정)
-                }
-            }
-        }
+        // 3. 새 이미지 업로드 및 추가
+        uploadNewImages(book, newImages);
 
-        // 3. 새 이미지 추가
-        if (newImages != null && !newImages.isEmpty()) {
-            for (MultipartFile file : newImages) {
-                if (!file.isEmpty()) {
-                    String url = imageUploadService.uploadBookImage(file);
-                    book.getImages().add(BookImage.builder()
-                            .book(book)
-                            .imagePath(url)
-                            .isThumbnail(false) // 일단 false로 넣고 아래에서 재조정
-                            .build());
-                }
-            }
-        }
+        // 4. 썸네일 유효성 검사 및 재설정
+        ensureValidThumbnail(book);
 
-        // 4. 썸네일 재조정 (삭제됐거나, 원래 없었거나)
-        // 로직: 썸네일이 지워졌거나 현재 썸네일 설정이 없다면 -> 남은 이미지 중 하나를 썸네일로 승격
-        if (thumbnailDeleted || book.getThumbnail() == null) {
-            if (!book.getImages().isEmpty()) {
-                // Set이라 순서는 보장 안 되지만 하나를 꺼냄
-                BookImage newThumb = book.getImages().iterator().next();
-                newThumb.setThumbnail(true);
-                book.setThumbnail(newThumb.getImagePath()); // Book 엔티티 동기화
-            } else {
-                // 이미지가 아예 없으면 썸네일 제거
-                book.setThumbnail(null);
-            }
-        }
-
-        // 5. 연관관계 업데이트
+        // 5. 연관관계 및 인덱싱 업데이트
         bookRelationService.applyRelationsForUpdate(book, request);
-
-        // 6. ES 인덱싱
         bookSearchIndexService.index(book);
 
-        // 7. 실제 파일 삭제 (DB 로직이 다 끝나갈 때 쯤 수행)
-        for (String path : pathsToDelete) {
-            try {
-                imageUploadService.remove(path);
-            } catch (Exception e) {
-                log.warn("이미지 파일 삭제 실패 (DB는 처리됨): {}", path);
-            }
-        }
+        // 6. 물리 파일 삭제 (마지막에 수행)
+        deletePhysicalFiles(pathsToDelete);
     }
 
     
     @Override
     @Transactional
-    @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
+    @Caching(evict = {
+            // 1. 기본 매니저(7일)를 사용하는 'newArrivals' 삭제
+            @CacheEvict(value = "newArrivals", allEntries = true, cacheManager = "redisCacheManager"),
+
+            // 2. 전용 매니저(12시간)를 사용하는 'bestsellers' 삭제
+            @CacheEvict(value = "bestsellers", allEntries = true, cacheManager = "bestsellersCacheManager")
+    })
     public void updateThumbnail(Long bookId, Long bookImageId) {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(()-> new NotFoundBookException(bookId));
@@ -181,6 +154,7 @@ public class BookServiceImpl implements BookService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("해당 책에 존재하지 않는 이미지 입니다."));
 
+        book.setThumbnail(targetImage.getImagePath());
         // 전체 순회하며 플래그 재설정 (하나만 true, 나머지 false)
         for(BookImage image : images){
             if(image.getId().equals(bookImageId)){
@@ -201,7 +175,13 @@ public class BookServiceImpl implements BookService {
     // 도서 삭제
     @Override
     @Transactional
-    @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
+    @Caching(evict = {
+            // 1. 기본 매니저(7일)를 사용하는 'newArrivals' 삭제
+            @CacheEvict(value = "newArrivals", allEntries = true, cacheManager = "redisCacheManager"),
+
+            // 2. 전용 매니저(12시간)를 사용하는 'bestsellers' 삭제
+            @CacheEvict(value = "bestsellers", allEntries = true, cacheManager = "bestsellersCacheManager")
+    })
     public void deleteBook(Long bookId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
@@ -240,27 +220,6 @@ public class BookServiceImpl implements BookService {
         return bookRepository.count();
     }
 
-    @Override
-    public Page<BookListResponse> getBooksByCategory(Long categoryId, Pageable pageable) {
-        Category rootCategory = categoryRepository.findById(categoryId)
-                .orElseThrow(()-> new NotFoundCategoryException(categoryId));
-
-        List<Long> allCategoryIds = new ArrayList<>();
-        collectSubCategoryIds(rootCategory, allCategoryIds);
-
-        Page<Book> books = bookRepository.findByCategory_IdIn(allCategoryIds, pageable);
-
-        return books.map(BookListResponse::from);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = "categoryInfo", key = "#categoryId", cacheManager = "RedisCacheManager")
-    public CategoryDto getCategory(Long categoryId){
-        Category category = categoryRepository.findById(categoryId).orElseThrow(()-> new NotFoundCategoryException(categoryId)  );
-
-        return CategoryToDto(category);
-    }
 
     // 공통 mapper 사용 -> 리스트용 DTO 매핑
     @Override
@@ -291,29 +250,8 @@ public class BookServiceImpl implements BookService {
         return BookDetailResponse.from(book, likeCount, likedByCurrentUser);
     }
 
-
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
-    public List<CategoryDto> getCategories() {
-        List<Category> entities = categoryRepository.findAll();
-        List<CategoryDto> allDtos = entities.stream().map(this::CategoryToDto).toList();
-        Map<Long, List<CategoryDto>> childrenMap = allDtos.stream()
-                .collect(Collectors.groupingBy(dto -> dto.getParentId() != null ? dto.getParentId() : 0L));
-
-        allDtos.forEach(dto -> {
-            List<CategoryDto> children = childrenMap.get(dto.getId());
-            if (children != null) {
-                dto.getChildren().addAll(children);
-            }
-        });
-        return childrenMap.getOrDefault(0L, Collections.emptyList());
-    }
-
-    //카테고리 생성/수정/삭제 로직이 있을 경우 @CacheEvict(value="categories", allEntries=true)를 붙여줘야함
-
     /// 베스트셀러 조회 및 캐싱
-    @Cacheable(value = "bestsellers", key = "#period", cacheManager = "RedisCacheManager") //redis
+    @Cacheable(value = "bestsellers", key = "#period", cacheManager = "bestsellersCacheManager") //redis
     @Override
     public List<BookListResponse> getBestsellers(String period) {
         List<Long> bookIds = orderServiceClient.getBestSellersBookIds(period);
@@ -326,6 +264,7 @@ public class BookServiceImpl implements BookService {
         List<Book> books = bookRepository.findAllById(bookIds); //bookId 리스트로 관련된 book 엔티티를 찾습니다.
 
         Map<Long, Book> bookMap = books.stream()
+                .filter(book -> book.getStatus() != BookStatus.BOOK_DELETED)
                 .collect(Collectors.toMap(Book::getId,
                         Function.identity())); //Function.identity: 스트림의 요소 그 자체를 값으로 사용하는 것 Book 객체 자체
 
@@ -339,8 +278,7 @@ public class BookServiceImpl implements BookService {
     @Override
     @Cacheable(
             value = "newArrivals",
-            key = "#categoryId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize",
-            cacheManager = "RedisCacheManager"
+            key = "#categoryId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize"
     )
     public Page<BookListResponse> getNewArrivals(Long categoryId, Pageable pageable) {
         long startTime = System.currentTimeMillis();
@@ -349,21 +287,26 @@ public class BookServiceImpl implements BookService {
 
         // 1단계: Book + Category + Images 조회
         Page<Book> bookPage = fetchBooks(categoryId, pageable, startTime);
-
+        List<Book> filteredBooks = bookPage.getContent().stream()
+                .filter(book -> book.getStatus() != BookStatus.BOOK_DELETED)
+                .toList();
         // 2단계: Contributors, Publishers, Tags 조회 (Batch Fetch)
         fetchAdditionalDetails(bookPage.getContent(), startTime);
 
         // 3단계: DTO 변환
-        Page<BookListResponse> result = convertToResponse(bookPage, startTime);
+        Page<Book> filteredPage = new PageImpl<>(
+                filteredBooks,
+                pageable,
+                bookPage.getTotalElements() - (bookPage.getContent().size() - filteredBooks.size())
+        );
+
+        Page<BookListResponse> result = convertToResponse(filteredPage, startTime);
 
         long totalTime = System.currentTimeMillis() - startTime;
         log.info("신간도서 조회 완료 - 총 {}ms, {} 건 조회", totalTime, result.getTotalElements());
 
         return result;
     }
-
-
-
 
     /// 내부 통신용 주문서 생성 및 결제 검증을 위한 도서 정보 다건 조회
     @Override
@@ -430,7 +373,13 @@ public class BookServiceImpl implements BookService {
 
     /// 도서 상태변경
     @Override
-    @CacheEvict(value = {"newArrivals", "bestsellers"}, allEntries = true, cacheManager = "RedisCacheManager")
+    @Caching(evict = {
+            // 1. 기본 매니저(7일)를 사용하는 'newArrivals' 삭제
+            @CacheEvict(value = "newArrivals", allEntries = true, cacheManager = "redisCacheManager"),
+
+            // 2. 전용 매니저(12시간)를 사용하는 'bestsellers' 삭제
+            @CacheEvict(value = "bestsellers", allEntries = true, cacheManager = "bestsellersCacheManager")
+    })
     public void updateBookStatus(Long bookId, BookStatus status) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
@@ -473,14 +422,19 @@ public class BookServiceImpl implements BookService {
         bookHistoryService.mergeHistory(guestId, userId);
     }
 
-    ///    내부 로직
-    private CategoryDto CategoryToDto(Category category) {
-        return CategoryDto.builder()
-                .id(category.getId())
-                .name(category.getCategoryName())
-                .parentId(category.getParent() != null ? category.getParent().getId() : null)
-                .build();
+    @Override
+    public Map<Long, CartResponse> getBookSnapshots(List<Long> bookIds) {
+        List<Book> books = bookRepository.findAllById(bookIds);
+
+        return books.stream()
+                .map(CartResponse::from)
+                .collect(Collectors.toMap(
+                        CartResponse::getBookId,
+                        Function.identity()
+                ));
     }
+
+    ///    내부 로직
 
     private boolean isSoldOut(BookStatus status) {
         return status == BookStatus.SOLD_OUT || status == BookStatus.OUT_OF_STOCK;
@@ -527,14 +481,17 @@ public class BookServiceImpl implements BookService {
 
         // 2. 파일이 없고 외부 URL만 있는 경우 (알라딘 등)
         if (!thumbnailSet && StringUtils.hasText(externalUrl)) {
+            String uploadedUrl = imageUploadService.uploadImageFromUrl(externalUrl);
+            String finalUrl = (uploadedUrl != null) ? uploadedUrl : externalUrl;
+
             BookImage externalImage = BookImage.builder()
                     .book(book)
-                    .imagePath(externalUrl)
+                    .imagePath(finalUrl)
                     .isThumbnail(true)
                     .build();
 
             book.getImages().add(externalImage);
-            book.setThumbnail(externalUrl); // Book 엔티티 동기화
+            book.setThumbnail(finalUrl); // Book 엔티티 동기화
         }
     }
 
@@ -554,13 +511,12 @@ public class BookServiceImpl implements BookService {
             return;
         }
 
-        long t3 = System.currentTimeMillis();
         List<Long> bookIds = books.stream()
                 .map(Book::getId)
                 .toList();
 
         bookRepository.findBooksWithDetails(bookIds);
-        log.debug("2단계 쿼리 (상세정보): {}ms", System.currentTimeMillis() - t3);
+        log.debug("2단계 쿼리 (상세정보): {}ms", System.currentTimeMillis() - startTime);
     }
 
     private Page<Book> fetchBooks(Long categoryId, Pageable pageable, long startTime) {
@@ -568,10 +524,9 @@ public class BookServiceImpl implements BookService {
 
         if (categoryId != null) {
             // 카테고리 필터링
-            long t1 = System.currentTimeMillis();
             List<Long> allCategoryIds = getAllCategoryIds(categoryId);
             log.debug(" 카테고리 ID 수집: {}ms ({} 개)",
-                    System.currentTimeMillis() - t1, allCategoryIds.size());
+                    System.currentTimeMillis() - startTime, allCategoryIds.size());
 
             long t2 = System.currentTimeMillis();
             bookPage = bookRepository.findBooksByCategoryIdsSorted(allCategoryIds, pageable);
@@ -588,29 +543,72 @@ public class BookServiceImpl implements BookService {
         return bookPage;
     }
     private Page<BookListResponse> convertToResponse(Page<Book> bookPage, long startTime) {
-        long t4 = System.currentTimeMillis();
         Page<BookListResponse> result = bookPage.map(BookListResponse::from);
-        log.debug("DTO 변환: {}ms", System.currentTimeMillis() - t4);
+        log.debug("DTO 변환: {}ms", System.currentTimeMillis() - startTime);
         return result;
     }
-    private void processImages(Book book, List<MultipartFile> images) {
-        if (images == null || images.isEmpty()) return;
 
-        boolean hasThumbnail = book.getImages().stream().anyMatch(BookImage::isThumbnail);
 
-        for (MultipartFile file : images) {
+    // 1. 이미지 삭제 로직 추출
+    private List<String> deleteRequestedImages(Book book, List<Long> deleteImageIds) {
+        if (deleteImageIds == null || deleteImageIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<String> pathsToDelete = new ArrayList<>();
+        Iterator<BookImage> iterator = book.getImages().iterator();
+
+        while (iterator.hasNext()) {
+            BookImage img = iterator.next();
+            if (deleteImageIds.contains(img.getId())) {
+                pathsToDelete.add(img.getImagePath());
+                iterator.remove();
+            }
+        }
+        return pathsToDelete;
+    }
+
+    // 2. 새 이미지 업로드 로직 추출
+    private void uploadNewImages(Book book, List<MultipartFile> newImages) {
+        if (newImages == null || newImages.isEmpty()) {
+            return;
+        }
+
+        for (MultipartFile file : newImages) {
             if (!file.isEmpty()) {
-                String minioUrl = imageUploadService.uploadBookImage(file);
-
-                // 썸네일이 없으면 현재 이미지를 썸네일로 지정
-                boolean isThisThumbnail = !hasThumbnail;
-                if (isThisThumbnail) hasThumbnail = true;
-
+                String url = imageUploadService.uploadBookImage(file);
                 book.getImages().add(BookImage.builder()
                         .book(book)
-                        .imagePath(minioUrl)
-                        .isThumbnail(isThisThumbnail)
+                        .imagePath(url)
+                        .isThumbnail(false) // 썸네일 여부는 ensureValidThumbnail에서 최종 결정
                         .build());
+            }
+        }
+    }
+
+    // 3. 썸네일 유효성 보장 로직 추출
+    private void ensureValidThumbnail(Book book) {
+        boolean thumbnailExists = book.getImages().stream().anyMatch(BookImage::isThumbnail);
+
+        // 썸네일이 없는데 이미지가 남아있다면, 첫 번째 이미지를 썸네일로 승격
+        if (!thumbnailExists && !book.getImages().isEmpty()) {
+            BookImage newThumb = book.getImages().iterator().next();
+            newThumb.setThumbnail(true);
+            book.setThumbnail(newThumb.getImagePath());
+        } else if (book.getImages().isEmpty()) {
+            // 이미지가 아예 없으면 썸네일 제거
+            book.setThumbnail(null);
+        }
+        // 이미 썸네일이 있으면 건드리지 않음
+    }
+
+    // 4. 물리 파일 삭제 로직 추출
+    private void deletePhysicalFiles(List<String> paths) {
+        for (String path : paths) {
+            try {
+                imageUploadService.remove(path);
+            } catch (Exception e) {
+                log.warn("이미지 파일 삭제 실패 (DB는 처리됨): {}", path);
             }
         }
     }

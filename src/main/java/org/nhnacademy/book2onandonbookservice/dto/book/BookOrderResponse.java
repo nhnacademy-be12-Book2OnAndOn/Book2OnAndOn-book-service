@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.dto.book;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
@@ -9,6 +10,7 @@ import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.springframework.util.StringUtils;
 
 @Getter
+@Setter
 @Builder
 public class BookOrderResponse {
     private Long bookId;

@@ -8,6 +8,8 @@ import org.nhnacademy.book2onandonbookservice.client.AladinCreateClient;
 import org.nhnacademy.book2onandonbookservice.client.GeminiBookCreateClient;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
+import org.nhnacademy.book2onandonbookservice.exception.AladinApiException;
+import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -28,11 +30,11 @@ public class AladinService {
             item = aladinClient.searchByIsbn(isbn);
         } catch (Exception e) {
             log.error("알라딘 검색 실패: {}", e.getMessage());
-            throw new RuntimeException("도서 정보를 불러오는 데 실패했습니다 (알라딘 API 오류).");
+            throw new AladinApiException("도서 정보를 불러오는 데 실패했습니다 (알라딘 API 오류).");
         }
 
         if (item == null) {
-            throw new RuntimeException("해당 ISBN으로 검색된 도서가 없습니다 (알라딘): " + isbn);
+            throw new NotFoundBookException("해당 ISBN으로 검색된 도서가 없습니다 (알라딘): " + isbn);
         }
 
 
@@ -80,8 +82,9 @@ public class AladinService {
                 if (dateStr.length() == 4) {
                     return LocalDate.of(Integer.parseInt(dateStr), 1, 1);
                 }
-            } catch (NumberFormatException ignored) {}
-            log.warn("날짜 파싱 실패 ({}): {}", dateStr, e.getMessage());
+            } catch (NumberFormatException ignored) {
+                log.warn("날짜 파싱 실패 ({}): {}", dateStr, e.getMessage());
+            }
             return LocalDate.now();
         }
     }

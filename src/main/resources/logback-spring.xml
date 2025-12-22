@@ -38,7 +38,7 @@
         <appender-ref ref="PARSING_FILE"/>
     </logger>
 
-    <logger name="org.nhnacademy.book2onandonbookservice.service.BookEnrichmentService" level="INFO" additivity="false">
+    <logger name="org.nhnacademy.book2onandonbookservice.service.enrichment.BookEnrichmentService" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
     </logger>
 

@@ -5,6 +5,7 @@ import co.elastic.clients.elasticsearch.indices.ExistsRequest;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.nhnacademy.book2onandonbookservice.exception.ElasticsearchInitializationException;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
@@ -50,7 +51,7 @@ public class ElasticsearchIndexConfig {
 
         } catch (IOException e) {
             log.error("인덱스 생성 실패", e);
-            throw new RuntimeException("Failed to initialize Elasticsearch index", e);
+            throw new ElasticsearchInitializationException("Failed to initialize Elasticsearch index", e);
         }
     }
 }

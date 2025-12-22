@@ -33,8 +33,7 @@ import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.web.multipart.MultipartFile;
+
 
 @ExtendWith(MockitoExtension.class)
 class BookRelationServiceTest {

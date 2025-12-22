@@ -6,6 +6,7 @@ import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
+import org.nhnacademy.book2onandonbookservice.exception.AladinApiException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +30,7 @@ public class AladinApiClient {
     private String ttbKey;
 
 
-    @Cacheable(value = "aladinBook", key = "#isbn", unless = "#result == null", cacheManager = "RedisCacheManager")
+    @Cacheable(value = "aladinBook", key = "#isbn", unless = "#result == null")
     public AladinApiResponse.Item searchByIsbn(String isbn) throws JsonProcessingException {
         if (isbn == null || isbn.isBlank()) {
             return null;
@@ -56,7 +57,7 @@ public class AladinApiClient {
             }
             if (rawJson.contains("errorCode") || rawJson.contains("errorMessage")) {
                 log.error("알라딘 API 에러 응답 감지 (ISBN: {}): {}", isbn, rawJson);
-                throw new RuntimeException("Aladin API Error Response: " + rawJson);
+                throw new AladinApiException("Aladin API Error Response: " + rawJson);
             }
 
             AladinApiResponse response = objectMapper.readValue(rawJson, AladinApiResponse.class);
@@ -67,13 +68,11 @@ public class AladinApiClient {
                 log.warn("알라딘 API: ISBN {}에 대한 검색 결과가 없습니다.", isbn);
                 return null;
             }
-        }catch (Exception e) { // RuntimeException 포함 모든 예외 잡기
-            // 예외를 로그만 찍고 끝내면 안됨! 반드시 던져야 함!
-            if (e.getMessage() != null && e.getMessage().contains("Aladin API Error Response")) {
-                throw e;
-            }
-            log.error("알라딘 API 호출 중 치명적 오류 (ISBN: {}): {}", isbn, e.getMessage());
-            throw new RuntimeException("Aladin API Fail", e);
+        } catch (AladinApiException e) {
+            throw e;
+        } catch (Exception ex) {
+            log.error("알라딘 API 호출 중 치명적 오류 (ISBN: {}): {}", isbn, ex.getMessage());
+            throw new AladinApiException("Aladin API Fail during processing",ex);
         }
     }
 }

@@ -15,7 +15,6 @@ import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiRequest;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiResponse;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchDocument;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.graphql.GraphQlProperties.Http;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -38,7 +37,7 @@ public class GeminiSearchClient {
     private String apiSearchKey;
 
     @Cacheable(value = "ai-search-recommendations", key = "#userQuery",
-            unless = "#result == null || #result.isEmpty()", cacheManager = "RedisCacheManager")
+            unless = "#result == null || #result.isEmpty()")
     public List<AiRecommendation> selectBestBooks(String userQuery, List<BookSearchDocument> candidate){
         if(candidate.isEmpty()) return Collections.emptyList();
 
@@ -99,7 +98,7 @@ public class GeminiSearchClient {
 
         try {
             // 1. 마크다운 제거
-            String cleanJson = text.replaceAll("```json", "").replaceAll("```", "").trim();
+            String cleanJson = text.replace("```json", "").replace("```", "").trim();
 
             // 2. 대괄호 '[' 부터 ']' 까지만 추출 (앞뒤 잡설 제거)
             int startIndex = cleanJson.indexOf("[");

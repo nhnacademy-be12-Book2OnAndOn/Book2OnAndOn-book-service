@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
@@ -15,6 +16,7 @@ import org.springframework.util.StringUtils;
 
 // 도서 검색 시 여러 권을 리스트로 보여주는(조회하는) DTO
 @Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -65,16 +67,16 @@ public class BookListResponse {
                 .thumbnail(resolvedImage)
                 .contributorNames(book.getBookContributors().stream()
                         .map(bc -> bc.getContributor().getContributorName())
-                        .collect(Collectors.toList())
+                        .toList()
                 )
                 .publisherNames(book.getBookPublishers().stream()
                         .map(bp -> bp.getPublisher().getPublisherName())
-                        .collect(Collectors.toList())
+                        .toList()
                 )
                 .categoryNames(categoryNamesList)
                 .tagNames(book.getBookTags().stream()
                         .map(bt -> bt.getTag().getTagName())
-                        .collect(Collectors.toList())
+                        .toList()
                 ).build();
     }
 

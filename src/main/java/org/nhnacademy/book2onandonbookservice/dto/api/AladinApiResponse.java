@@ -19,8 +19,8 @@ public class AladinApiResponse {
         private String title;
         private String author;
         private String pubDate;
-        private long priceStandard;
-        private long priceSales;
+        private Long priceStandard;
+        private Long priceSales;
         private String publisher;
         private String description;
         private String categoryName;

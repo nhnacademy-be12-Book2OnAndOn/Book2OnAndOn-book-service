@@ -100,8 +100,8 @@ public class BookAdminController {
     }
 
     /// 도서 개수 반환
-    @AuthCheck(Role.BOOK_ADMIN)
-    @GetMapping("/count")
+    @AuthCheck({Role.BOOK_ADMIN, Role.COUPON_ADMIN, Role.MEMBER_ADMIN, Role.ORDER_ADMIN})
+    @GetMapping("/total-count")
     public ResponseEntity<Long> getBookCount(){
         long count = bookService.getBookCount();
         return ResponseEntity.ok(count);
