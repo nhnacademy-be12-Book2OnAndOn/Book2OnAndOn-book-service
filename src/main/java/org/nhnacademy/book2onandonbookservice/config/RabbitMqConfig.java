@@ -22,6 +22,9 @@ public class RabbitMqConfig {
     public static final String SEARCH_SYNC_EXCHANGE = "book2.search.sync.exchange.test";
     public static final String SEARCH_SYNC_ROUTING_KEY = "book2.search.sync.test";
     public static final String SEARCH_SYNC_DLQ_ROUTING_KEY="book2.search.sync.cancel.dlq.test";
+    public static final String SEARCH_WARMUP_QUEUE = "book2.search.warmup.queue";
+    public static final String SEARCH_WARMUP_EXCHANGE = "book2.search.warmup.exchange";
+    public static final String SEARCH_WARMUP_ROUTING_KEY = "book2.search.warmup.key";
 
     public static final String SEARCH_SYNC_DLQ = "book2.search.sync.dlq.test";
     public static final String SEARCH_SYNC_DLX = "book2.search.sync.dlx.test";
@@ -36,6 +39,8 @@ public class RabbitMqConfig {
     public static final String QUEUE_STOCK_CANCEL_DLQ = "book2.dev.stock.cancel.dlq";
     public static final String ROUTING_KEY_CONFIRM_DLQ = "book.confirm.dlq";
     public static final String ROUTING_KEY_CANCEL_DLQ = "book.cancel.dlq";
+
+
 
     /*
     기본 인덱싱 시 큐
@@ -56,6 +61,24 @@ public class RabbitMqConfig {
     @Bean
     public Binding searchSyncBinding(Queue searchSyncQueue, DirectExchange searchSyncExchange) {
         return BindingBuilder.bind(searchSyncQueue).to(searchSyncExchange).with(SEARCH_SYNC_ROUTING_KEY);
+    }
+
+    /*
+    엘라스틱 (Reranking + gemini)
+     */
+    @Bean
+    public Queue searchWarmupQueue(){
+        return QueueBuilder.durable(SEARCH_WARMUP_QUEUE).build();
+    }
+
+    @Bean
+    public DirectExchange searchWarmupExchange(){
+        return new DirectExchange(SEARCH_WARMUP_EXCHANGE);
+    }
+
+    @Bean
+    public Binding searchWarmupBinding(Queue searchWarmupQueue, DirectExchange searchWarmupExchange){
+        return BindingBuilder.bind(searchWarmupQueue).to(searchWarmupExchange).with(SEARCH_WARMUP_ROUTING_KEY);
     }
 
     /*

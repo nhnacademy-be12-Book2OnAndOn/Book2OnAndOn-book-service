@@ -115,7 +115,7 @@ public class BookAdminController {
     @PostMapping("/sync/{bookId}")
     public ResponseEntity<String> syncStock(@PathVariable Long bookId){
         stockService.synchronizeStock(bookId);
-        return ResponseEntity.ok("BookId "+ bookId + " 재고 동기화 완료");
+        return ResponseEntity.ok("BookId: "+ bookId + " 재고 동기화 완료");
     }
 
 }
