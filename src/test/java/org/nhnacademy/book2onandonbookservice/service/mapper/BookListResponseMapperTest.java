@@ -1,93 +1,77 @@
 package org.nhnacademy.book2onandonbookservice.service.mapper;
 
-import org.junit.jupiter.api.BeforeEach;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
-import org.nhnacademy.book2onandonbookservice.entity.*;
+import org.nhnacademy.book2onandonbookservice.entity.Book;
+import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
+import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
+import org.nhnacademy.book2onandonbookservice.entity.BookTag;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
+import org.nhnacademy.book2onandonbookservice.entity.Contributor;
+import org.nhnacademy.book2onandonbookservice.entity.Publisher;
+import org.nhnacademy.book2onandonbookservice.entity.Tag;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchDocument;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class BookListResponseMapperTest {
 
-    private BookListResponseMapper mapper;
-
-    @BeforeEach
-    void setUp() {
-        mapper = new BookListResponseMapper();
-    }
+    private final BookListResponseMapper mapper = new BookListResponseMapper();
 
     @Test
-    @DisplayName("성공: Entity -> DTO 변환 (모든 필드 데이터 존재)")
+    @DisplayName("fromEntity: 모든 연관관계(작가, 출판사, 카테고리, 태그)가 포함된 변환")
     void fromEntity_FullData() {
-        Book book = mock(Book.class);
-        when(book.getId()).thenReturn(1L);
-        when(book.getTitle()).thenReturn("JPA Book");
-        when(book.getVolume()).thenReturn("Vol.1");
-        when(book.getPriceStandard()).thenReturn(20000L);
-        when(book.getPriceSales()).thenReturn(18000L);
-        when(book.getThumbnail()).thenReturn("thumb.jpg");
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", 1L);
+        book.setTitle("Test Title");
+        book.setVolume("1");
+        book.setPriceStandard(10000L);
+        book.setPriceSales(9000L);
+        book.setThumbnail("thumb.jpg");
 
-        Contributor contributor = mock(Contributor.class);
-        when(contributor.getContributorName()).thenReturn("Author Lee");
-        BookContributor bc = mock(BookContributor.class);
-        when(bc.getContributor()).thenReturn(contributor);
-        when(book.getBookContributors()).thenReturn(Set.of(bc));
+        Contributor contributor = Contributor.builder().contributorName("Author Kim").build();
+        BookContributor bookContributor = BookContributor.builder().contributor(contributor).build();
+        book.setBookContributors(new HashSet<>(List.of(bookContributor)));
 
-        Publisher publisher = mock(Publisher.class);
-        when(publisher.getPublisherName()).thenReturn("NHN Press");
-        BookPublisher bp = mock(BookPublisher.class);
-        when(bp.getPublisher()).thenReturn(publisher);
-        when(book.getBookPublishers()).thenReturn(Set.of(bp));
+        Publisher publisher = Publisher.builder().publisherName("Test Pub").build();
+        BookPublisher bookPublisher = BookPublisher.builder().publisher(publisher).build();
+        book.setBookPublishers(new HashSet<>(List.of(bookPublisher)));
 
-        Category root = mock(Category.class);
-        when(root.getCategoryName()).thenReturn("IT");
-        when(root.getParent()).thenReturn(null);
+        Category root = Category.builder().categoryName("Root").parent(null).build();
+        Category child = Category.builder().categoryName("Child").parent(root).build();
+        book.setCategory(child);
 
-        Category sub = mock(Category.class);
-        when(sub.getCategoryName()).thenReturn("Backend");
-        when(sub.getParent()).thenReturn(root);
-        when(book.getCategory()).thenReturn(sub);
-
-        Tag tag = mock(Tag.class);
-        when(tag.getTagName()).thenReturn("Java");
-        BookTag bt = mock(BookTag.class);
-        when(bt.getTag()).thenReturn(tag);
-        when(book.getBookTags()).thenReturn(Set.of(bt));
+        Tag tag = Tag.builder().tagName("Java").build();
+        BookTag bookTag = BookTag.builder().tag(tag).build();
+        book.setBookTags(new HashSet<>(List.of(bookTag)));
 
         BookListResponse result = mapper.fromEntity(book);
 
         assertThat(result.getId()).isEqualTo(1L);
-        assertThat(result.getTitle()).isEqualTo("JPA Book");
-        assertThat(result.getContributorNames()).containsExactly("Author Lee");
-        assertThat(result.getPublisherNames()).containsExactly("NHN Press");
-        assertThat(result.getCategoryNames()).containsExactly("IT", "Backend");
+        assertThat(result.getTitle()).isEqualTo("Test Title");
+        assertThat(result.getContributorNames()).containsExactly("Author Kim");
+        assertThat(result.getPublisherNames()).containsExactly("Test Pub");
+        assertThat(result.getCategoryNames()).containsExactly("Root", "Child");
         assertThat(result.getTagNames()).containsExactly("Java");
-        assertThat(result.getThumbnail()).isEqualTo("thumb.jpg");
+        assertThat(result.getPriceSales()).isEqualTo(9000L);
     }
 
     @Test
-    @DisplayName("성공: Entity -> DTO 변환 (연관 관계 데이터 없음)")
-    void fromEntity_MinimalData() {
-        Book book = mock(Book.class);
-        when(book.getId()).thenReturn(2L);
-        when(book.getTitle()).thenReturn("Empty Book");
-
-        when(book.getBookContributors()).thenReturn(Collections.emptySet());
-        when(book.getBookPublishers()).thenReturn(Collections.emptySet());
-        when(book.getCategory()).thenReturn(null);
-        when(book.getBookTags()).thenReturn(Collections.emptySet());
+    @DisplayName("fromEntity: 연관관계가 비어있고 카테고리가 없는 경우")
+    void fromEntity_EmptyRelations() {
+        Book book = new Book();
+        book.setBookContributors(new HashSet<>());
+        book.setBookPublishers(new HashSet<>());
+        book.setBookTags(new HashSet<>());
+        book.setCategory(null);
 
         BookListResponse result = mapper.fromEntity(book);
 
-        assertThat(result.getId()).isEqualTo(2L);
         assertThat(result.getContributorNames()).isEmpty();
         assertThat(result.getPublisherNames()).isEmpty();
         assertThat(result.getCategoryNames()).isEmpty();
@@ -95,43 +79,28 @@ class BookListResponseMapperTest {
     }
 
     @Test
-    @DisplayName("성공: Document -> DTO 변환")
-    void fromDocument_Success() {
-        BookSearchDocument doc = mock(BookSearchDocument.class);
-        when(doc.getId()).thenReturn(10L);
-        when(doc.getTitle()).thenReturn("Elasticsearch Guide");
-        when(doc.getVolume()).thenReturn("Edition 2");
-        when(doc.getPriceStandard()).thenReturn(30000L);
-        when(doc.getPriceSales()).thenReturn(27000L);
-        when(doc.getImagePath()).thenReturn("es.png");
-        when(doc.getContributorNames()).thenReturn(List.of("Kim"));
-        when(doc.getPublisherNames()).thenReturn(List.of("TechPub"));
-        when(doc.getCategoryNames()).thenReturn(List.of("Database"));
-        when(doc.getTagNames()).thenReturn(List.of("Search"));
+    @DisplayName("fromDocument: ES 문서 객체에서 DTO 변환")
+    void fromDocument_FullData() {
+        BookSearchDocument doc = new BookSearchDocument();
+        ReflectionTestUtils.setField(doc, "id", 100L);
+        ReflectionTestUtils.setField(doc, "title", "Search Title");
+        ReflectionTestUtils.setField(doc, "volume", "2");
+        ReflectionTestUtils.setField(doc, "priceStandard", 20000L);
+        ReflectionTestUtils.setField(doc, "priceSales", 18000L);
+        ReflectionTestUtils.setField(doc, "imagePath", "img.png");
+        ReflectionTestUtils.setField(doc, "contributorNames", List.of("Author Lee"));
+        ReflectionTestUtils.setField(doc, "publisherNames", List.of("Pub A"));
+        ReflectionTestUtils.setField(doc, "categoryNames", List.of("Cat A", "Cat B"));
+        ReflectionTestUtils.setField(doc, "tagNames", List.of("Tag A"));
 
         BookListResponse result = mapper.fromDocument(doc);
 
-        assertThat(result.getId()).isEqualTo(10L);
-        assertThat(result.getTitle()).isEqualTo("Elasticsearch Guide");
-        assertThat(result.getThumbnail()).isEqualTo("es.png");
-        assertThat(result.getContributorNames()).containsExactly("Kim");
-        assertThat(result.getPublisherNames()).containsExactly("TechPub");
-        assertThat(result.getCategoryNames()).containsExactly("Database");
-        assertThat(result.getTagNames()).containsExactly("Search");
-    }
-
-    @Test
-    @DisplayName("성공: Document -> DTO 변환 (Null Fields)")
-    void fromDocument_NullFields() {
-        BookSearchDocument doc = mock(BookSearchDocument.class);
-        when(doc.getId()).thenReturn(20L);
-        when(doc.getImagePath()).thenReturn(null);
-        when(doc.getContributorNames()).thenReturn(null);
-
-        BookListResponse result = mapper.fromDocument(doc);
-
-        assertThat(result.getId()).isEqualTo(20L);
-        assertThat(result.getThumbnail()).isNull();
-        assertThat(result.getContributorNames()).isNull();
+        assertThat(result.getId()).isEqualTo(100L);
+        assertThat(result.getTitle()).isEqualTo("Search Title");
+        assertThat(result.getThumbnail()).isEqualTo("img.png");
+        assertThat(result.getContributorNames()).contains("Author Lee");
+        assertThat(result.getPublisherNames()).contains("Pub A");
+        assertThat(result.getCategoryNames()).contains("Cat A", "Cat B");
+        assertThat(result.getTagNames()).contains("Tag A");
     }
 }
