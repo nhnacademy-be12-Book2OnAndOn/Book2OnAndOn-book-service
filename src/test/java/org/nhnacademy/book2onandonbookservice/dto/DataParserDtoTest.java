@@ -117,27 +117,16 @@ class DataParserDtoTest {
             "2024-05-05, 2024-05-05",  // yyyy-MM-dd
             "20240505, 2024-05-05",    // yyyyMMdd
             "202405, 2024-05-01",      // yyyyMM
-            "2024, 2024-01-01"         // yyyy
-    })
-    @DisplayName("성공: 표준 날짜 포맷 파싱")
-    void parseDate_StandardPatterns(String input, String expected) {
-        DataParserDto dto = new DataParserDto(
-                "1", "isbn", "title", "auth", "pub",
-                "1000", input, "desc", "img", "vol"
-        );
-        assertThat(dto.getPublishedAt()).isEqualTo(LocalDate.parse(expected));
-    }
+            "2024, 2024-01-01",        // yyyy
 
-    @ParameterizedTest
-    @CsvSource({
             "2024-05-00, 2024-05-01",
             "2024-00-15, 2024-01-15",
             "20240500, 2024-05-01",
             "20240015, 2024-01-15",
             "202400, 2024-01-01"
     })
-    @DisplayName("성공: 날짜/월이 00인 경우 01로 보정하여 파싱")
-    void parseDate_ZeroCorrection(String input, String expected) {
+    @DisplayName("성공: 날짜 포맷 파싱 및 00일/00월 자동 보정")
+    void parseDate_AllPatterns(String input, String expected) {
         DataParserDto dto = new DataParserDto(
                 "1", "isbn", "title", "auth", "pub",
                 "1000", input, "desc", "img", "vol"

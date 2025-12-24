@@ -38,8 +38,8 @@ class AladinCreateClientTest {
     @InjectMocks
     private AladinCreateClient aladinCreateClient;
 
-    private final String BASE_URL = "http://test-aladin.com";
-    private final String TTB_KEY = "test-create-ttb-key";
+    private static final String BASE_URL = "http://test-aladin.com";
+    private static final String TTB_KEY = "test-create-ttb-key";
 
     @BeforeEach
     void setUp() {
@@ -65,8 +65,7 @@ class AladinCreateClientTest {
 
         AladinApiResponse.Item result = aladinCreateClient.searchByIsbn(isbn);
 
-        assertThat(result).isNotNull();
-        assertThat(result).isEqualTo(mockItem);
+        assertThat(result).isNotNull().isEqualTo(mockItem);
     }
 
     @Test

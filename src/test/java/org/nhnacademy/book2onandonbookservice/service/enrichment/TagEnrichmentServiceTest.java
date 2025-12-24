@@ -4,14 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -92,7 +89,8 @@ class TagEnrichmentServiceTest {
     void enrich_GroqQuotaExceeded() {
         when(rateLimiter.tryAcquireGroq()).thenReturn(false);
 
-        assertThatThrownBy(() -> tagEnrichmentService.enrich(new Book(), "t", "d", "i"))
+        Book book = new Book();
+        assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
                 .isInstanceOf(GroqQuotaExceededException.class);
     }
 
@@ -134,7 +132,8 @@ class TagEnrichmentServiceTest {
 
         when(rateLimiter.tryAcquireGemini()).thenReturn(false);
 
-        assertThatThrownBy(() -> tagEnrichmentService.enrich(new Book(), "t", "d", "i"))
+        Book book = new Book();
+        assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
                 .isInstanceOf(GeminiQuotaExceededException.class);
     }
 
@@ -149,7 +148,8 @@ class TagEnrichmentServiceTest {
         when(geminiApiClient.extractContent(anyString(), anyString(), anyString()))
                 .thenThrow(new RuntimeException("Gemini Fail"));
 
-        assertThatThrownBy(() -> tagEnrichmentService.enrich(new Book(), "t", "d", "i"))
+        Book book = new Book();
+        assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
                 .isInstanceOf(GeminiTagGenerationException.class);
     }
 
@@ -159,7 +159,8 @@ class TagEnrichmentServiceTest {
         when(rateLimiter.tryAcquireGroq()).thenReturn(true);
         when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(null);
 
-        assertThatThrownBy(() -> tagEnrichmentService.enrich(new Book(), "t", "d", "i"))
+        Book book = new Book();
+        assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
                 .isInstanceOf(TagGenerationFailedException.class)
                 .hasMessageContaining("null");
     }
@@ -172,8 +173,8 @@ class TagEnrichmentServiceTest {
 
         when(rateLimiter.tryAcquireGroq()).thenReturn(true);
         when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-
-        assertThatThrownBy(() -> tagEnrichmentService.enrich(new Book(), "t", "d", "i"))
+        Book book = new Book();
+        assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
                 .isInstanceOf(TagGenerationFailedException.class)
                 .hasMessageContaining("태그");
     }
@@ -187,8 +188,8 @@ class TagEnrichmentServiceTest {
 
         when(rateLimiter.tryAcquireGroq()).thenReturn(true);
         when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-
-        assertThatThrownBy(() -> tagEnrichmentService.enrich(new Book(), "t", "d", "i"))
+        Book book = new Book();
+        assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
                 .isInstanceOf(TagGenerationFailedException.class)
                 .hasMessageContaining("챕터");
     }

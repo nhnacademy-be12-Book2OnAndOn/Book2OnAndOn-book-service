@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -25,7 +24,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -73,7 +71,7 @@ class BookSearchServiceImplTest {
 
         BookSearchDocument doc = mock(BookSearchDocument.class);
         Page<BookSearchDocument> searchResult = new PageImpl<>(List.of(doc));
-        when(bookSearchQueryClient.search(eq(condition), eq(pageable), eq(mockVector)))
+        when(bookSearchQueryClient.search(condition, pageable, mockVector))
                 .thenReturn(searchResult);
 
         when(bookListResponseMapper.fromDocument(doc)).thenReturn(mock(BookListResponse.class));
@@ -130,6 +128,7 @@ class BookSearchServiceImplTest {
 
     @Test
     @DisplayName("실패: 임베딩 생성 타임아웃 발생 -> 빈 벡터로 검색 수행 (Fallback)")
+    @SuppressWarnings("java:S2925") // SonarQube 경고 무시: 타임아웃 테스트를 위해 의도된 Thread.sleep 사용
     void search_EmbeddingTimeout() {
         String keyword = "Slow Keyword";
         BookSearchCondition condition = new BookSearchCondition();
@@ -193,8 +192,7 @@ class BookSearchServiceImplTest {
         bookSearchService.search(condition, pageable);
 
 
-        assertThat(embeddingCache).hasSize(1000);
-        assertThat(embeddingCache).doesNotContainKey(newKeyword);
+        assertThat(embeddingCache).hasSize(1000).doesNotContainKey(newKeyword);
     }
 
     @Test

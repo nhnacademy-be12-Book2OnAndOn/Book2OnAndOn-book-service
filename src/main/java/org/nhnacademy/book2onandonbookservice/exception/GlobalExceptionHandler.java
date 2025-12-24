@@ -129,6 +129,21 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    @ExceptionHandler(EmbeddingGenerationException.class)
+    public ResponseEntity<ErrorResponse> handleEmbeddingException(EmbeddingGenerationException e) {
+        log.error("Embedding Generation Error: {}", e.getMessage(), e); // 에러 로그 기록
+
+        // 클라이언트에게는 상세 내용보다는 "검색 처리 중 오류" 정도로 알림
+        ErrorResponse response = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "EMBEDDING_ERROR",
+                e.getMessage()
+        );
+
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     /**
      * [502 Bad Gateway] 외부 API 통신 실패
      * (알라딘, Gemini/Groq API 네트워크 오류)

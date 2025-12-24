@@ -57,12 +57,12 @@ public class StockService {
 
             Long result = executeDecreaseScript(stockKey, req.getQuantity());
 
-            if (result == -1) { // 키 없음 -> DB 로딩 후 재시도
+            if (result != null && result == -1) { // 키 없음 -> DB 로딩 후 재시도
                 initializeStockFromDb(req.getBookId());
                 result = executeDecreaseScript(stockKey, req.getQuantity());
             }
 
-            if (result == 1) { // 재고 부족
+            if (result == null || result == 1) { // 재고 부족
                 throw new OutOfStockException("재고 부족 BookId: " + req.getBookId());
             }
 
@@ -203,7 +203,7 @@ public class StockService {
     private boolean hasKeyPattern(String pattern){
         return Boolean.TRUE.equals(redisTemplate.execute((RedisCallback<Boolean>) connection -> {
             ScanOptions options = ScanOptions.scanOptions().match(pattern).count(10).build();
-            try (Cursor<byte[]> cursor = connection.scan(options)) {
+            try (Cursor<byte[]> cursor = connection.keyCommands().scan(options)) {
                 // 하나라도 있으면 true 반환
                 return cursor.hasNext();
             } catch (Exception e) {

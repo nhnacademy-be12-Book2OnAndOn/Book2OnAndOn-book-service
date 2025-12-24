@@ -4,8 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -185,8 +183,8 @@ class CategoryServiceTest {
     @DisplayName("카테고리별 도서 조회 - 카테고리 없음 예외")
     void getBooksByCategory_NotFound() {
         when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> categoryService.getBooksByCategory(1L, PageRequest.of(0, 10)))
+        Pageable pageable = PageRequest.of(0, 10);
+        assertThatThrownBy(() -> categoryService.getBooksByCategory(1L, pageable))
                 .isInstanceOf(NotFoundCategoryException.class);
     }
 }

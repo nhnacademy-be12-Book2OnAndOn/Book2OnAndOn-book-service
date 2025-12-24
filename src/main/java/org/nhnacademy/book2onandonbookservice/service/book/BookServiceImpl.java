@@ -2,7 +2,6 @@ package org.nhnacademy.book2onandonbookservice.service.book;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -21,14 +20,11 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
-import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
-import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
 import org.nhnacademy.book2onandonbookservice.exception.NotFoundCategoryException;
-import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
@@ -420,10 +416,6 @@ public class BookServiceImpl implements BookService {
     }
 
     ///    내부 로직
-
-    private boolean isSoldOut(BookStatus status) {
-        return status == BookStatus.SOLD_OUT || status == BookStatus.OUT_OF_STOCK;
-    }
 
     private List<Long> getAllCategoryIds(Long categoryId) {
         // 1. 여기서 딱 한 번만 DB 조회!

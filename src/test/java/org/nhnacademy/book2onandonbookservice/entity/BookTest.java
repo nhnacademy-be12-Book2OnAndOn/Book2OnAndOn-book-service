@@ -32,7 +32,7 @@ class BookTest {
         assertThat(book.getTitle()).isEqualTo(title);
         assertThat(book.getIsbn()).isEqualTo(isbn);
         assertThat(book.getRating()).isEqualTo(0.0);
-        assertThat(book.getLikeCount()).isEqualTo(0L);
+        assertThat(book.getLikeCount()).isZero();
         assertThat(book.getImages()).isNotNull().isEmpty();
     }
 

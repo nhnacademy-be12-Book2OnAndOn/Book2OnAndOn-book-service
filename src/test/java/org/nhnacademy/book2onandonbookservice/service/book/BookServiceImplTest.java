@@ -139,7 +139,7 @@ class BookServiceImplTest {
 
         bookService.updateBook(bookId, request, newImages);
 
-        verify(stockService).increaseStock(eq(bookId), eq(-10));
+        verify(stockService).increaseStock(bookId, -10);
         assertThat(book.getStatus()).isEqualTo(BookStatus.SOLD_OUT);
         verify(imageUploadService).remove("old/path");
         assertThat(book.getImages()).hasSize(1);
@@ -163,7 +163,7 @@ class BookServiceImplTest {
 
         bookService.updateBook(bookId, request, null);
 
-        verify(stockService).increaseStock(eq(bookId), eq(5));
+        verify(stockService).increaseStock(bookId, 5);
         assertThat(book.getStatus()).isEqualTo(BookStatus.ON_SALE);
     }
 

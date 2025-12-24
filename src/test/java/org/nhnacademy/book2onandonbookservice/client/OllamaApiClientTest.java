@@ -26,8 +26,8 @@ class OllamaApiClientTest {
     @InjectMocks
     private OllamaApiClient ollamaApiClient;
 
-    private final String OLLAMA_URL = "http://test-ollama:11434/api/embeddings";
-    private final String MODEL_NAME = "test-model";
+    private static final String OLLAMA_URL = "http://test-ollama:11434/api/embeddings";
+    private static final String MODEL_NAME = "test-model";
 
     @BeforeEach
     void setUp() {
