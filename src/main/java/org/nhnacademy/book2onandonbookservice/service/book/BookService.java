@@ -48,11 +48,6 @@ public interface BookService {
     // 인기 도서 조회(좋아요 순)
     Page<BookListResponse> getPopularBooks(Pageable pageable);
 
-    //재고 감소
-    void decreaseStock(List<StockRequest> requests);
-
-    //재고 증가
-    void increaseStock(List<StockRequest> requests);
 
     //도서 상태 변경
     void updateBookStatus(Long bookId, BookStatus status);

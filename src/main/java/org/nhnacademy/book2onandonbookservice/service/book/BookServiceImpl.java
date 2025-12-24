@@ -64,6 +64,7 @@ public class BookServiceImpl implements BookService {
     private final OrderServiceClient orderServiceClient;
     private final BookHistoryService bookHistoryService;
     private final ImageUploadService imageUploadService;
+    private final StockService stockService;
 
     // 도서 등록
     @Override
@@ -111,9 +112,26 @@ public class BookServiceImpl implements BookService {
     public void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> newImages) {
         Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
-
+        int oldStock = book.getStockCount();
         // 1. 단순 필드 업데이트
         bookFactory.updateFields(book, request);
+
+        //재고 변경 감지 및 Redis 동기화
+        if(request.getStockCount() != null){
+            int newStock = request.getStockCount();
+
+            int diff = newStock - oldStock;
+
+            if(diff != 0){
+                stockService.increaseStock(bookId, diff);
+            }
+            if(newStock<=0 && book.getStatus() != BookStatus.BOOK_DELETED){
+                book.setStatus(BookStatus.SOLD_OUT);
+            }else if (newStock > 0 && book.getStatus() == BookStatus.SOLD_OUT){
+                book.setStatus(BookStatus.ON_SALE);
+            }
+        }
+
 
         // 2. 이미지 삭제 처리 (삭제된 파일 경로 반환)
         List<String> pathsToDelete = deleteRequestedImages(book, request.getDeleteImageIds());
@@ -126,7 +144,12 @@ public class BookServiceImpl implements BookService {
 
         // 5. 연관관계 및 인덱싱 업데이트
         bookRelationService.applyRelationsForUpdate(book, request);
-        bookSearchIndexService.index(book);
+
+        try{
+            bookSearchIndexService.index(book);
+        }catch(Exception e){
+            log.error("도서 수정 후 ES 인덱싱 실패 (DB는 반영됨) - bookId={}", bookId, e);
+        }
 
         // 6. 물리 파일 삭제 (마지막에 수행)
         deletePhysicalFiles(pathsToDelete);
@@ -321,44 +344,6 @@ public class BookServiceImpl implements BookService {
         return books.stream().map(BookOrderResponse::from).toList();
     }
 
-    /// 재고 감소
-    @Override
-    @Transactional
-    public void decreaseStock(List<StockRequest> requests) {
-        requests.sort(Comparator.comparing(StockRequest::getBookId)); //데드락 방지
-        for (StockRequest req : requests) {
-            int result = bookRepository.decreaseStock(req.getBookId(), req.getQuantity());
-
-            if (result == 0) {
-                throw new OutOfStockException("재고가 부족합니다. BookId: " + req.getBookId());
-            }
-
-            Book book = bookRepository.findById(req.getBookId())
-                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
-
-            if (book.getStockCount() <= 0) {
-                book.setStatus(BookStatus.SOLD_OUT);
-            }
-
-        }
-    }
-
-    /// 재고 증가
-    @Override
-    @Transactional
-    public void increaseStock(List<StockRequest> requests) {
-        requests.sort(Comparator.comparing(StockRequest::getBookId)); //데드락 방지
-        for (StockRequest req : requests) {
-            bookRepository.increaseStock(req.getBookId(), req.getQuantity());
-
-            Book book = bookRepository.findById(req.getBookId())
-                    .orElseThrow(() -> new NotFoundBookException(req.getBookId()));
-
-            if (book.getStockCount() > 0 && isSoldOut(book.getStatus())) {
-                book.setStatus(BookStatus.ON_SALE);
-            }
-        }
-    }
 
     /// 인기 도서 조회(좋아요순)
     @Override

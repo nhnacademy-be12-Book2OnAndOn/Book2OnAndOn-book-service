@@ -29,34 +29,45 @@
         </encoder>
     </appender>
 
+    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>s4.java21.net:50000</destination>
+
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"book2onandon-service"}</customFields>
+        </encoder>
+    </appender>
+
+
     <logger name="org.nhnacademy.book2onandonbookservice.config.DataInitializer" level="INFO" additivity="false">
         <appender-ref ref="PARSING_FILE"/>
-    </logger>
-
+        <appender-ref ref="LOGSTASH"/> </logger>
 
     <logger name="org.nhnacademy.book2onandonbookservice.parser" level="INFO" additivity="false">
         <appender-ref ref="PARSING_FILE"/>
-    </logger>
+        <appender-ref ref="LOGSTASH"/> </logger>
 
     <logger name="org.nhnacademy.book2onandonbookservice.service.enrichment.BookEnrichmentService" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
-    </logger>
+        <appender-ref ref="LOGSTASH"/> </logger>
 
     <logger name="org.nhnacademy.book2onandonbookservice.client.AladinApiClient" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
-    </logger>
+        <appender-ref ref="LOGSTASH"/> </logger>
+
     <logger name="org.nhnacademy.book2onandonbookservice.client.GeminiApiClient" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
-    </logger>
+        <appender-ref ref="LOGSTASH"/> </logger>
+
     <logger name="org.nhnacademy.book2onandonbookservice.client.GroqApiClient" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
-    </logger>
+        <appender-ref ref="LOGSTASH"/> </logger>
+
     <logger name="org.nhnacademy.book2onandonbookservice.scheduler.BookEnrichmentScheduler" level="INFO" additivity="false">
         <appender-ref ref="API_FILE"/>
-    </logger>
-
+        <appender-ref ref="LOGSTASH"/> </logger>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-    </root>
+        <appender-ref ref="LOGSTASH"/> </root>
+
 </configuration>

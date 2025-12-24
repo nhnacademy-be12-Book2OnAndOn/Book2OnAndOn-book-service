@@ -12,6 +12,7 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookStatusUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.service.book.AladinService;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
+import org.nhnacademy.book2onandonbookservice.service.book.StockService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -34,6 +35,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class BookAdminController {
     private final BookService bookService;
     private final AladinService aladinService;
+    private final StockService stockService;
 
     /**
      * 도서 등록(관리자용) : GoogleBooksApi 사용
@@ -105,6 +107,15 @@ public class BookAdminController {
     public ResponseEntity<Long> getBookCount(){
         long count = bookService.getBookCount();
         return ResponseEntity.ok(count);
+    }
+
+    /// 도서 재고 DB - REDIS 동기화 (재고가 진짜진짜 꼬였을때 써야함)
+    /// DB가 재고 10개이고 Redis가 9개인 상태에서 쓰면 재고가 1개 뻥튀기 될 수 있음
+    @AuthCheck(Role.BOOK_ADMIN)
+    @PostMapping("/sync/{bookId}")
+    public ResponseEntity<String> syncStock(@PathVariable Long bookId){
+        stockService.synchronizeStock(bookId);
+        return ResponseEntity.ok("BookId: "+ bookId + " 재고 동기화 완료");
     }
 
 }
