@@ -150,7 +150,7 @@ class BookEnrichmentServiceTest {
         assertThat(book.getPriceSales()).isEqualTo(18000L); // 20000 * 0.9 = 18000
         assertThat(book.getThumbnail()).isEqualTo("s3/path.jpg");
 
-        verify(categoryService).enrich(eq(book), eq(aladinItem));
+        verify(categoryService).enrich(book, aladinItem);
         verify(tagService).enrich(eq(book), anyString(), any(), anyString());
         verify(bookSearchIndexService).index(book);
         verify(taskRepository).save(task);

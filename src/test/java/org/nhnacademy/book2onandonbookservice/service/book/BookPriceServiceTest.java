@@ -5,19 +5,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,9 +65,9 @@ class BookPriceServiceTest {
 
         bookPriceService.updateGlobalDiscountRate(10);
 
-        verify(valueOperations).set(eq("admin:price:update:status"), eq("PROCESSING"), eq(1L), eq(TimeUnit.HOURS));
+        verify(valueOperations).set("admin:price:update:status", "PROCESSING", 1L, TimeUnit.HOURS);
         verify(bookPriceService, times(2)).processPriceUpdateChunk(anyInt(), anyDouble());
-        verify(valueOperations).set(eq("admin:price:update:status"), eq("DONE"), eq(1L), eq(TimeUnit.DAYS));
+        verify(valueOperations).set("admin:price:update:status", "DONE", 1L, TimeUnit.DAYS);
     }
 
     @Test
@@ -86,7 +83,7 @@ class BookPriceServiceTest {
 
         verify(bookPriceService).processPriceUpdateChunk(anyInt(), anyDouble());
 
-        verify(valueOperations, never()).set(eq("admin:price:update:status"), eq("FAILED"));
+        verify(valueOperations, never()).set("admin:price:update:status", "FAILED");
 
         verify(valueOperations).set(eq("admin:price:update:status"), eq("PROCESSING"), anyLong(), any());
     }

@@ -36,8 +36,8 @@ class GeminiBookCreateClientTest {
     @InjectMocks
     private GeminiBookCreateClient client;
 
-    private final String BASE_URL = "http://test-gemini.com";
-    private final String API_KEY = "test-api-key";
+    private static final String BASE_URL = "http://test-gemini.com";
+    private static final String API_KEY = "test-api-key";
 
     @BeforeEach
     void setUp() {

@@ -14,6 +14,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
+import org.nhnacademy.book2onandonbookservice.exception.SearchExecutionException;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchDocument;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -96,7 +97,7 @@ public class BookSearchQueryClient {
             return new PageImpl<>(content, pageable, total);
         }catch (IOException e){
             log.error("Elasticsearch search failed: {}", e.getMessage());
-            throw new RuntimeException("검색 중 오류 발생", e);
+            throw new SearchExecutionException("검색 중 오류 발생", e);
         }
     }
 

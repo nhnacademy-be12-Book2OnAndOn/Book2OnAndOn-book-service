@@ -5,9 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,9 +14,7 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -76,8 +72,7 @@ class ImageUploadServiceTest {
 
         String result = imageUploadService.uploadBookImage(file);
 
-        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + bookFolder + "/");
-        assertThat(result).endsWith(".jpg");
+        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + bookFolder + "/").endsWith(".jpg");
         verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
@@ -90,8 +85,7 @@ class ImageUploadServiceTest {
 
         String result = imageUploadService.uploadReviewImage(file);
 
-        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + reviewFolder + "/");
-        assertThat(result).endsWith(".png");
+        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + reviewFolder + "/").endsWith(".png");
         verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
@@ -139,8 +133,7 @@ class ImageUploadServiceTest {
 
         String result = imageUploadService.uploadImageFromUrl(fileUrl);
 
-        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + bookFolder + "/");
-        assertThat(result).endsWith(".jpg");
+        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + bookFolder + "/").endsWith(".jpg");
         verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
@@ -165,7 +158,6 @@ class ImageUploadServiceTest {
     @Test
     @DisplayName("remove: URL 인코딩된 객체 이름 디코딩 후 삭제")
     void remove_DecodesUrl_Success() throws Exception {
-        String objectKey = bookFolder + "/test image.jpg";
         String encodedKey = bookFolder + "/test%20image.jpg";
         String fullUrl = minioUrl + "/" + rootBucket + "/" + encodedKey;
 

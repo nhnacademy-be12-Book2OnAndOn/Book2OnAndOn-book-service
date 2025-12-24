@@ -2,7 +2,7 @@ package org.nhnacademy.book2onandonbookservice.service.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
+
 import java.util.HashSet;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

@@ -1,13 +1,6 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.SortOptions;
-import co.elastic.clients.elasticsearch._types.SortOrder;
-import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
-import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.elasticsearch.core.search.Hit;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -15,28 +8,22 @@ import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.BookSearchQueryClient;
-import org.nhnacademy.book2onandonbookservice.client.GeminiSearchClient;
-import org.nhnacademy.book2onandonbookservice.client.GeminiSearchClient.AiRecommendation;
 import org.nhnacademy.book2onandonbookservice.client.OllamaApiClient;
-import org.nhnacademy.book2onandonbookservice.client.RerankerApiClient;
-import org.nhnacademy.book2onandonbookservice.client.RerankerApiClient.RerankResult;
+
 import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchWarmupMessage;
-import org.nhnacademy.book2onandonbookservice.exception.SearchExecutionException;
+import org.nhnacademy.book2onandonbookservice.exception.EmbeddingGenerationException;
 import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMapper;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
+
 
 @Slf4j
 @Service
@@ -92,7 +79,7 @@ public class BookSearchServiceImpl implements BookSearchService {
                 try {
                     return ollamaApiClient.getEmbedding(keyword);
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    throw new EmbeddingGenerationException("AI 검색 기능 처리 중 오류가 발생했습니다.");
                 }
             });
 
@@ -107,6 +94,10 @@ public class BookSearchServiceImpl implements BookSearchService {
 
         } catch (TimeoutException e) {
             log.warn("임베딩 생성 타임아웃 ({}초): {} - 텍스트 검색만 수행", EMBEDDING_TIMEOUT_SECONDS, keyword);
+            return Collections.emptyList();
+        }catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("스레드 인터럽트 발생", e);
             return Collections.emptyList();
         } catch (Exception e) {
             log.warn("임베딩 생성 실패: {} - {}", keyword, e.getMessage());

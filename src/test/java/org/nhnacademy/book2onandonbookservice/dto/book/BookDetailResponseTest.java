@@ -64,7 +64,6 @@ class BookDetailResponseTest {
         BookPublisher bp1 = mock(BookPublisher.class); when(bp1.getPublisher()).thenReturn(p1);
         when(book.getBookPublishers()).thenReturn(Set.of(bp1));
 
-        // 수정: BookImage 엔티티에 맞춰 getUrl() -> getImagePath()로 변경
         BookImage img = mock(BookImage.class); when(img.getImagePath()).thenReturn("img.jpg");
         when(book.getImages()).thenReturn(Set.of(img));
 
@@ -90,9 +89,6 @@ class BookDetailResponseTest {
         assertThat(response.getPublishers().get(0).getName()).isEqualTo("Pub1");
 
         assertThat(response.getImages()).hasSize(1);
-        // DTO 필드명에 따라 getUrl() 또는 getImagePath() 사용 (여기서는 DTO가 imagePath를 쓴다고 가정하거나 DTO 내부 매핑 확인 필요)
-        // 만약 BookImageDto도 imagePath 필드를 쓴다면 getImagePath()로 수정하세요.
-        // assertThat(response.getImages().get(0).getImagePath()).isEqualTo("img.jpg");
 
         assertThat(response.getLikeCount()).isEqualTo(100L);
         assertThat(response.getLikedByCurrentUser()).isTrue();

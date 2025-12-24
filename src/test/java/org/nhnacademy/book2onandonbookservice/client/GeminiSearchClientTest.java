@@ -40,8 +40,8 @@ class GeminiSearchClientTest {
     @InjectMocks
     private GeminiSearchClient client;
 
-    private final String BASE_URL = "http://test-gemini.com";
-    private final String API_KEY = "test-key";
+    private static final String BASE_URL = "http://test-gemini.com";
+    private static final String API_KEY = "test-key";
 
     @BeforeEach
     void setUp() {
@@ -117,9 +117,7 @@ class GeminiSearchClientTest {
         assertThat(requestBody).isNotNull();
         String prompt = requestBody.getContents().get(0).getParts().get(0).getText();
 
-        assertThat(prompt).contains("ID:1");
-        assertThat(prompt).contains("...");
-        assertThat(prompt).contains("ID:2");
+        assertThat(prompt).contains("ID:1").contains("...").contains("ID:2");
     }
 
     @Test
