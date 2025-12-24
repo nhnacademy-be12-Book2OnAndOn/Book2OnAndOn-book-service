@@ -16,7 +16,7 @@ public class GeminiApiRequest {
     }
 
     @Getter
-    private static class Content {
+    public static class Content {
         private final List<Part> parts;
 
         public Content(List<Part> parts) {
@@ -25,7 +25,7 @@ public class GeminiApiRequest {
     }
 
     @Getter
-    private static class Part {
+    public static class Part {
         private final String text;
 
         public Part(String text) {

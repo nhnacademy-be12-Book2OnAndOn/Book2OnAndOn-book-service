@@ -1,187 +1,162 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookStatusUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.service.book.AladinService;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
-import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
-import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
-import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.web.servlet.MockMvc;
+import org.nhnacademy.book2onandonbookservice.service.book.StockService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
 
-@ExtendWith(SpringExtension.class)
-@AutoConfigureMockMvc(addFilters = false)
-@WebMvcTest(BookAdminController.class)
+import java.net.URI;
+import java.util.Collections;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
 class BookAdminControllerTest {
 
-    @Autowired
-    MockMvc mockMvc;
+    @Mock
+    private BookService bookService;
 
-    @Autowired
-    ObjectMapper objectMapper;
+    @Mock
+    private AladinService aladinService;
 
-    @MockitoBean
-    BookService bookService;
+    @Mock
+    private StockService stockService;
 
-    @MockitoBean
-    AladinService aladinService;
+    @InjectMocks
+    private BookAdminController bookAdminController;
 
-    @MockitoBean
-    ImageUploadService imageUploadService;
+    @Test
+    @DisplayName("성공: 도서 조회 (lookupBook)")
+    void lookupBook_Success() {
+        String isbn = "1234567890";
+        BookSaveRequest mockRequest = mock(BookSaveRequest.class);
+        when(aladinService.searchBookInfo(isbn)).thenReturn(mockRequest);
 
-    @MockitoBean
-    UserHeaderUtil userHeaderUtil;
+        ResponseEntity<BookSaveRequest> response = bookAdminController.lookupBook(isbn);
 
-    @MockitoBean
-    JpaMetamodelMappingContext jpaMetamodelMappingContext;
-
-    private void mockAdminRole() {
-        given(userHeaderUtil.getUserRole()).willReturn("ROLE_BOOK_ADMIN");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(mockRequest);
+        verify(aladinService).searchBookInfo(isbn);
     }
 
     @Test
-    @DisplayName("도서 등록 성공 컨트롤러 - 이미지 리스트 포함")
-    void createBook() throws Exception {
-        mockAdminRole();
+    @DisplayName("성공: 도서 등록 (createBook)")
+    void createBook_Success() {
+        BookSaveRequest request = mock(BookSaveRequest.class);
+        when(request.getTitle()).thenReturn("Test Book");
+        List<MultipartFile> images = Collections.emptyList();
+        Long createdBookId = 1L;
 
-        BookSaveRequest request = BookSaveRequest.builder()
-                .title("Test Book")
-                .isbn("1234567890123")
-                .priceStandard(10000L)
-                .publishDate(LocalDate.now())
-                .build();
+        when(bookService.createBook(request, images)).thenReturn(createdBookId);
 
-        String reqJson = objectMapper.writeValueAsString(request);
+        ResponseEntity<Void> response = bookAdminController.createBook(request, images);
 
-        MockMultipartFile bookPart = new MockMultipartFile(
-                "book",
-                "",
-                "application/json",
-                reqJson.getBytes(StandardCharsets.UTF_8)
-        );
-
-        MockMultipartFile image1 = new MockMultipartFile(
-                "images",
-                "test1.jpg",
-                "image/jpeg",
-                "dummy1".getBytes()
-        );
-        MockMultipartFile image2 = new MockMultipartFile(
-                "images",
-                "test2.jpg",
-                "image/jpeg",
-                "dummy2".getBytes()
-        );
-
-        given(bookService.createBook(any(BookSaveRequest.class), anyList()))
-                .willReturn(1L);
-
-        mockMvc.perform(multipart("/admin/books")
-                        .file(bookPart)
-                        .file(image1)
-                        .file(image2)
-                        .contentType(MediaType.MULTIPART_FORM_DATA_VALUE))
-                .andExpect(status().isCreated());
-
-        verify(bookService).createBook(any(BookSaveRequest.class), any());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getHeaders().getLocation()).isEqualTo(URI.create("/books/" + createdBookId));
+        verify(bookService).createBook(request, images);
     }
 
     @Test
-    @DisplayName("도서 등록 성공 컨트롤러 - 이미지 포함X")
-    void createBook_NotImage() throws Exception {
-        mockAdminRole();
-        BookSaveRequest request = BookSaveRequest.builder()
-                .title("Test Book")
-                .isbn("1234567890123")
-                .priceStandard(10000L)
-                .build();
-
-        String reqJson = objectMapper.writeValueAsString(request);
-        MockMultipartFile bookPart = new MockMultipartFile("book", "", "application/json", reqJson.getBytes(
-                StandardCharsets.UTF_8));
-        given(bookService.createBook(any(BookSaveRequest.class), any())).willReturn(1L);
-
-        mockMvc.perform(multipart("/admin/books")
-                .file(bookPart)
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-        ).andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("도서 수정 성공 - 이미지포함")
-    void updateBook() throws Exception {
-        mockAdminRole();
+    @DisplayName("성공: 도서 수정 (updateBook)")
+    void updateBook_Success() {
         Long bookId = 1L;
-        BookSaveRequest request = BookSaveRequest.builder().title("수정한 타이틀").build();
-        String reqJson = objectMapper.writeValueAsString(request);
+        BookUpdateRequest request = mock(BookUpdateRequest.class);
+        when(request.getTitle()).thenReturn("Updated Title");
+        List<MultipartFile> images = Collections.emptyList();
 
-        MockMultipartFile bookPart = new MockMultipartFile("book", "", "application/json", reqJson.getBytes(
-                StandardCharsets.UTF_8));
+        ResponseEntity<Void> response = bookAdminController.updateBook(bookId, request, images);
 
-        MockMultipartFile imagePart = new MockMultipartFile("images", "new.jpg", "image/jpeg", "new-dummy".getBytes());
-
-        given(imageUploadService.uploadBookImage(any())).willReturn("http://minio/new.jpg");
-        doNothing().when(bookService).updateBook(eq(bookId), any(BookUpdateRequest.class), anyList());
-
-        mockMvc.perform(multipart("/admin/books/{bookId}", bookId)
-                        .file(bookPart)
-                        .file(imagePart)
-                        .with(request1 -> {
-                            request1.setMethod("PUT");
-                            return request1;
-                        }))
-                .andExpect(status().isNoContent());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        verify(bookService).updateBook(bookId, request, images);
     }
 
     @Test
-    @DisplayName("도서 삭제 성공")
-    void deleteBook() throws Exception {
-        mockAdminRole();
+    @DisplayName("성공: 도서 썸네일 설정 (updateThumbnail)")
+    void updateThumbnail_Success() {
         Long bookId = 1L;
-        doNothing().when(bookService).deleteBook(bookId);
+        Long imageId = 10L;
 
-        mockMvc.perform(delete("/admin/books/{bookId}", bookId))
-                .andExpect(status().isNoContent());
+        ResponseEntity<Void> response = bookAdminController.updateThumbnail(bookId, imageId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(bookService).updateThumbnail(bookId, imageId);
+    }
+
+    @Test
+    @DisplayName("성공: 도서 삭제 (deleteBook)")
+    void deleteBook_Success() {
+        Long bookId = 1L;
+
+        ResponseEntity<Void> response = bookAdminController.deleteBook(bookId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(bookService).deleteBook(bookId);
     }
 
     @Test
-    @DisplayName("도서 상태 변경 성공")
-    void updateBookStatus() throws Exception {
-        mockAdminRole();
+    @DisplayName("성공: 도서 상태 변경 (updateBookStatus)")
+    void updateBookStatus_Success() {
         Long bookId = 1L;
-        BookStatusUpdateRequest request = new BookStatusUpdateRequest(BookStatus.SOLD_OUT);
-        doNothing().when(bookService).updateBookStatus(bookId, BookStatus.SOLD_OUT);
+        BookStatusUpdateRequest request = mock(BookStatusUpdateRequest.class);
+        when(request.getStatus()).thenReturn(BookStatus.ON_SALE);
 
-        mockMvc.perform(patch("/admin/books/{bookId}/status", bookId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
+        ResponseEntity<Void> response = bookAdminController.updateBookStatus(bookId, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(bookService).updateBookStatus(bookId, BookStatus.ON_SALE);
+    }
+
+    @Test
+    @DisplayName("성공: 도서 개수 반환 (getBookCount)")
+    void getBookCount_Success() {
+        long count = 100L;
+        when(bookService.getBookCount()).thenReturn(count);
+
+        ResponseEntity<Long> response = bookAdminController.getBookCount();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(count);
+        verify(bookService).getBookCount();
+    }
+
+    @Test
+    @DisplayName("성공: 재고 동기화 (syncStock)")
+    void syncStock_Success() {
+        Long bookId = 1L;
+
+        ResponseEntity<String> response = bookAdminController.syncStock(bookId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("동기화 완료");
+        verify(stockService).synchronizeStock(bookId);
+    }
+
+    @Test
+    @DisplayName("실패: 서비스 계층에서 예외 발생 시 전파 (createBook)")
+    void createBook_Fail_ServiceException() {
+        BookSaveRequest request = mock(BookSaveRequest.class);
+        List<MultipartFile> images = Collections.emptyList();
+
+        when(bookService.createBook(any(), any())).thenThrow(new RuntimeException("Service Error"));
+
+        assertThatThrownBy(() -> bookAdminController.createBook(request, images))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Service Error");
     }
 }

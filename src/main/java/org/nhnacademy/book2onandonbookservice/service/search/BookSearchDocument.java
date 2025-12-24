@@ -46,7 +46,7 @@ public class BookSearchDocument {
 
     //설명
     @Field(type = FieldType.Text, analyzer = "korean_search")
-    private String description; // 가중치 50
+    private String description;
 
 
     // 기여자 이름

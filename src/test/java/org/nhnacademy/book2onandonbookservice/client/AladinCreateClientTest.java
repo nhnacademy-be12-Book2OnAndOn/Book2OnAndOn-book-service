@@ -22,11 +22,12 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class AladinApiClientTest {
+class AladinCreateClientTest {
 
     @Mock
     private RestTemplate restTemplate;
@@ -35,15 +36,15 @@ class AladinApiClientTest {
     private ObjectMapper objectMapper;
 
     @InjectMocks
-    private AladinApiClient aladinApiClient;
+    private AladinCreateClient aladinCreateClient;
 
     private final String BASE_URL = "http://test-aladin.com";
-    private final String TTB_KEY = "test-ttb-key";
+    private final String TTB_KEY = "test-create-ttb-key";
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(aladinApiClient, "baseUrl", BASE_URL);
-        ReflectionTestUtils.setField(aladinApiClient, "ttbKey", TTB_KEY);
+        ReflectionTestUtils.setField(aladinCreateClient, "baseUrl", BASE_URL);
+        ReflectionTestUtils.setField(aladinCreateClient, "ttbKey", TTB_KEY);
     }
 
     @Test
@@ -54,13 +55,15 @@ class AladinApiClientTest {
 
         AladinApiResponse mockResponse = new AladinApiResponse();
         AladinApiResponse.Item mockItem = new AladinApiResponse.Item();
+
         ReflectionTestUtils.setField(mockResponse, "item", List.of(mockItem));
+
         when(restTemplate.getForEntity(any(URI.class), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(jsonResponse));
         when(objectMapper.readValue(jsonResponse, AladinApiResponse.class))
                 .thenReturn(mockResponse);
 
-        AladinApiResponse.Item result = aladinApiClient.searchByIsbn(isbn);
+        AladinApiResponse.Item result = aladinCreateClient.searchByIsbn(isbn);
 
         assertThat(result).isNotNull();
         assertThat(result).isEqualTo(mockItem);
@@ -69,7 +72,7 @@ class AladinApiClientTest {
     @Test
     @DisplayName("실패: ISBN이 null인 경우 null 반환")
     void searchByIsbn_NullIsbn() throws JsonProcessingException {
-        AladinApiResponse.Item result = aladinApiClient.searchByIsbn(null);
+        AladinApiResponse.Item result = aladinCreateClient.searchByIsbn(null);
 
         assertThat(result).isNull();
     }
@@ -77,7 +80,7 @@ class AladinApiClientTest {
     @Test
     @DisplayName("실패: ISBN이 빈 문자열인 경우 null 반환")
     void searchByIsbn_BlankIsbn() throws JsonProcessingException {
-        AladinApiResponse.Item result = aladinApiClient.searchByIsbn("");
+        AladinApiResponse.Item result = aladinCreateClient.searchByIsbn("");
 
         assertThat(result).isNull();
     }
@@ -89,7 +92,7 @@ class AladinApiClientTest {
         when(restTemplate.getForEntity(any(URI.class), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(null));
 
-        AladinApiResponse.Item result = aladinApiClient.searchByIsbn(isbn);
+        AladinApiResponse.Item result = aladinCreateClient.searchByIsbn(isbn);
 
         assertThat(result).isNull();
     }
@@ -103,7 +106,7 @@ class AladinApiClientTest {
         when(restTemplate.getForEntity(any(URI.class), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(errorJson));
 
-        assertThatThrownBy(() -> aladinApiClient.searchByIsbn(isbn))
+        assertThatThrownBy(() -> aladinCreateClient.searchByIsbn(isbn))
                 .isInstanceOf(AladinApiException.class)
                 .hasMessageContaining("Aladin API Error Response");
     }
@@ -117,7 +120,7 @@ class AladinApiClientTest {
         when(restTemplate.getForEntity(any(URI.class), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(errorJson));
 
-        assertThatThrownBy(() -> aladinApiClient.searchByIsbn(isbn))
+        assertThatThrownBy(() -> aladinCreateClient.searchByIsbn(isbn))
                 .isInstanceOf(AladinApiException.class)
                 .hasMessageContaining("Aladin API Error Response");
     }
@@ -129,13 +132,15 @@ class AladinApiClientTest {
         String jsonResponse = "{\"version\":\"...\", \"item\":[]}";
 
         AladinApiResponse mockResponse = new AladinApiResponse();
+
         ReflectionTestUtils.setField(mockResponse, "item", Collections.emptyList());
+
         when(restTemplate.getForEntity(any(URI.class), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(jsonResponse));
         when(objectMapper.readValue(jsonResponse, AladinApiResponse.class))
                 .thenReturn(mockResponse);
 
-        AladinApiResponse.Item result = aladinApiClient.searchByIsbn(isbn);
+        AladinApiResponse.Item result = aladinCreateClient.searchByIsbn(isbn);
 
         assertThat(result).isNull();
     }
@@ -147,13 +152,15 @@ class AladinApiClientTest {
         String jsonResponse = "{\"version\":\"...\"}";
 
         AladinApiResponse mockResponse = new AladinApiResponse();
+
         ReflectionTestUtils.setField(mockResponse, "item", null);
+
         when(restTemplate.getForEntity(any(URI.class), eq(String.class)))
                 .thenReturn(ResponseEntity.ok(jsonResponse));
         when(objectMapper.readValue(jsonResponse, AladinApiResponse.class))
                 .thenReturn(mockResponse);
 
-        AladinApiResponse.Item result = aladinApiClient.searchByIsbn(isbn);
+        AladinApiResponse.Item result = aladinCreateClient.searchByIsbn(isbn);
 
         assertThat(result).isNull();
     }
@@ -165,7 +172,7 @@ class AladinApiClientTest {
         when(restTemplate.getForEntity(any(URI.class), eq(String.class)))
                 .thenThrow(new RestClientException("Connection Refused"));
 
-        assertThatThrownBy(() -> aladinApiClient.searchByIsbn(isbn))
+        assertThatThrownBy(() -> aladinCreateClient.searchByIsbn(isbn))
                 .isInstanceOf(AladinApiException.class)
                 .hasMessage("Aladin API Fail during processing")
                 .hasCauseInstanceOf(RestClientException.class);
@@ -183,7 +190,7 @@ class AladinApiClientTest {
         when(objectMapper.readValue(invalidJson, AladinApiResponse.class))
                 .thenThrow(new JsonProcessingException("Parse Error"){});
 
-        assertThatThrownBy(() -> aladinApiClient.searchByIsbn(isbn))
+        assertThatThrownBy(() -> aladinCreateClient.searchByIsbn(isbn))
                 .isInstanceOf(AladinApiException.class)
                 .hasMessage("Aladin API Fail during processing");
     }
