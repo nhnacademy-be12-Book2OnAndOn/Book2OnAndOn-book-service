@@ -1,55 +1,112 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-@ExtendWith(SpringExtension.class)
-@AutoConfigureMockMvc(addFilters = false)
-@WebMvcTest(BookSearchController.class)
+import java.util.Collections;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
 class BookSearchControllerTest {
-    @Autowired
-    MockMvc mockMvc;
 
-    @MockitoBean
-    BookSearchService bookSearchService;
-    @MockitoBean
-    JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @Mock
+    private BookSearchService bookSearchService;
+
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
+    @InjectMocks
+    private BookSearchController bookSearchController;
 
     @Test
-    @DisplayName("도서 검색 성공")
-    void searchBooks() throws Exception {
-        BookListResponse response = BookListResponse.builder().id(1L).title("검색 결과").build();
+    @DisplayName("성공: 도서 검색 요청 시 결과 페이지 반환")
+    void searchBooks_Success() {
+        BookSearchCondition condition = new BookSearchCondition();
+        condition.setKeyword("Java");
+        condition.setUseAiSearch(false);
+        condition.setCategoryName("IT");
 
-        Page<BookListResponse> responsePage = new PageImpl<>(List.of(response));
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<BookListResponse> emptyPage = new PageImpl<>(Collections.emptyList());
 
-        given(bookSearchService.search(any(BookSearchCondition.class), any(Pageable.class))).willReturn(responsePage);
+        when(bookSearchService.search(any(BookSearchCondition.class), any(Pageable.class)))
+                .thenReturn(emptyPage);
 
-        mockMvc.perform(post("/books/search")
-                        .param("keyword", "test")
-                        .param("page", "0")
-                        .param("size", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].title").value("검색 결과"));
+        ResponseEntity<Page<BookListResponse>> response = bookSearchController.searchBooks(condition, pageable);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(emptyPage);
+        verify(bookSearchService).search(condition, pageable);
+    }
+
+    @Test
+    @DisplayName("성공: AI 결과 조회 - 캐시 히트 (카테고리 ID 포함)")
+    void getAiResult_Hit_WithCategory() {
+        String keyword = "Spring";
+        Long categoryId = 1L;
+        String expectedKey = "ai:result:Spring:1";
+        String cachedJson = "{\"result\":\"exist\"}";
+
+        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(expectedKey)).thenReturn(cachedJson);
+
+        ResponseEntity<String> response = bookSearchController.getAiResult(keyword, categoryId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(cachedJson);
+    }
+
+    @Test
+    @DisplayName("성공: AI 결과 조회 - 캐시 히트 (카테고리 ID 없음 -> all)")
+    void getAiResult_Hit_NoCategory() {
+        String keyword = "Java";
+        Long categoryId = null;
+        String expectedKey = "ai:result:Java:all";
+        String cachedJson = "{\"result\":\"all\"}";
+
+        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(expectedKey)).thenReturn(cachedJson);
+
+        ResponseEntity<String> response = bookSearchController.getAiResult(keyword, categoryId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(cachedJson);
+    }
+
+    @Test
+    @DisplayName("성공: AI 결과 조회 - 캐시 미스 (No Content 반환)")
+    void getAiResult_Miss() {
+        String keyword = "Unknown";
+        Long categoryId = 99L;
+        String expectedKey = "ai:result:Unknown:99";
+
+        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(expectedKey)).thenReturn(null);
+
+        ResponseEntity<String> response = bookSearchController.getAiResult(keyword, categoryId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(response.getBody()).isNull();
     }
 }

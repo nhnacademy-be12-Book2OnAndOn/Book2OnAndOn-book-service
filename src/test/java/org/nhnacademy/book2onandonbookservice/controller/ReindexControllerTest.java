@@ -1,107 +1,125 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage;
 import org.nhnacademy.book2onandonbookservice.service.search.BookReindexService;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-@WebMvcTest(ReindexController.class)
-@AutoConfigureMockMvc(addFilters = false)
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
 class ReindexControllerTest {
 
-    @Autowired
-    MockMvc mockMvc;
+    @Mock
+    private BookReindexService bookReindexService;
 
-    @MockitoBean
-    BookReindexService bookReindexService;
+    @Mock
+    private RabbitTemplate rabbitTemplate;
 
-    @MockitoBean
-    RabbitTemplate rabbitTemplate;
-
-    @MockitoBean
-    JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @InjectMocks
+    private ReindexController reindexController;
 
     @Test
-    @DisplayName("[성공] 전체 도서 재인덱싱 요청")
-    void reindexAll_Success() throws Exception {
-        willDoNothing().given(bookReindexService).reindexAll();
+    @DisplayName("성공: 전체 재인덱싱 요청 시 서비스 호출 및 200 응답")
+    void reindexAll_Success() {
+        ResponseEntity<String> response = reindexController.reindexAll();
 
-        mockMvc.perform(post("/admin/search/reindex"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("전체 재인덱싱 작업이 백그라운드에서 시작되었습니다")));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("전체 재인덱싱 작업이 백그라운드에서 시작되었습니다");
 
         verify(bookReindexService).reindexAll();
     }
 
     @Test
-    @DisplayName("[성공] 특정 카테고리 강제 재인덱싱 요청")
-    void manualReindexCategory_Success() throws Exception {
-        Long categoryId = 123L;
+    @DisplayName("실패: 전체 재인덱싱 서비스 실행 중 예외 발생")
+    void reindexAll_Fail_ServiceException() {
+        doThrow(new RuntimeException("Indexing Failed")).when(bookReindexService).reindexAll();
 
-        mockMvc.perform(post("/admin/search/reindex/category/{categoryId}", categoryId))
-                .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("카테고리(ID:" + categoryId + ")")));
+        assertThatThrownBy(() -> reindexController.reindexAll())
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Indexing Failed");
+    }
 
+    @Test
+    @DisplayName("성공: 카테고리 강제 재인덱싱 요청 시 RabbitMQ 메시지 전송")
+    void manualReindexCategory_Success() {
+        Long categoryId = 100L;
+
+        ResponseEntity<String> response = reindexController.manualReindexCategory(categoryId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("카테고리(ID:100) 재인덱싱 요청");
+
+        ArgumentCaptor<SearchSyncMessage> messageCaptor = ArgumentCaptor.forClass(SearchSyncMessage.class);
         verify(rabbitTemplate).convertAndSend(
                 eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
                 eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
-                any(SearchSyncMessage.class)
+                messageCaptor.capture()
         );
+
+        SearchSyncMessage sentMessage = messageCaptor.getValue();
+        assertThat(sentMessage.getTargetId()).isEqualTo(categoryId);
+        assertThat(sentMessage.getType()).isEqualTo(SearchSyncMessage.SyncType.CATEGORY);
     }
 
     @Test
-    @DisplayName("[성공] 특정 태그 강제 재인덱싱 요청")
-    void manualReindexTag_Success() throws Exception {
-        Long tagId = 456L;
+    @DisplayName("실패: 카테고리 재인덱싱 RabbitMQ 전송 실패")
+    void manualReindexCategory_Fail_AmqpException() {
+        Long categoryId = 100L;
 
-        mockMvc.perform(post("/admin/search/reindex/tag/{tagId}", tagId))
-                .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("태그(ID:" + tagId + ")")));
+        doThrow(new AmqpException("Connection Failed"))
+                .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(SearchSyncMessage.class));
 
+        assertThatThrownBy(() -> reindexController.manualReindexCategory(categoryId))
+                .isInstanceOf(AmqpException.class)
+                .hasMessage("Connection Failed");
+    }
+
+    @Test
+    @DisplayName("성공: 태그 강제 재인덱싱 요청 시 RabbitMQ 메시지 전송")
+    void manualReindexTag_Success() {
+        Long tagId = 50L;
+
+        ResponseEntity<String> response = reindexController.manualReindexTag(tagId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("태그(ID:50) 재인덱싱 요청");
+
+        ArgumentCaptor<SearchSyncMessage> messageCaptor = ArgumentCaptor.forClass(SearchSyncMessage.class);
         verify(rabbitTemplate).convertAndSend(
                 eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
                 eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
-                any(SearchSyncMessage.class)
+                messageCaptor.capture()
         );
+
+        SearchSyncMessage sentMessage = messageCaptor.getValue();
+        assertThat(sentMessage.getTargetId()).isEqualTo(tagId);
+        assertThat(sentMessage.getType()).isEqualTo(SearchSyncMessage.SyncType.TAG);
     }
 
     @Test
-    @DisplayName("[실패] 전체 재인덱싱 중 서비스 예외 발생")
-    void reindexAll_Fail() throws Exception {
+    @DisplayName("실패: 태그 재인덱싱 RabbitMQ 전송 실패")
+    void manualReindexTag_Fail_AmqpException() {
+        Long tagId = 50L;
 
-        willThrow(new RuntimeException("Reindex failed")).given(bookReindexService).reindexAll();
+        doThrow(new AmqpException("Connection Failed"))
+                .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(SearchSyncMessage.class));
 
-        mockMvc.perform(post("/admin/search/reindex"))
-                .andExpect(status().is5xxServerError());
-    }
-
-    @Test
-    @DisplayName("[실패] RabbitMQ 메시지 전송 실패")
-    void manualReindexCategory_Fail() throws Exception {
-        Long categoryId = 123L;
-
-        willThrow(new RuntimeException("MQ Connection failed"))
-                .given(rabbitTemplate).convertAndSend(anyString(), anyString(), any(SearchSyncMessage.class));
-
-        mockMvc.perform(post("/admin/search/reindex/category/{categoryId}", categoryId))
-                .andExpect(status().is5xxServerError());
+        assertThatThrownBy(() -> reindexController.manualReindexTag(tagId))
+                .isInstanceOf(AmqpException.class)
+                .hasMessage("Connection Failed");
     }
 }

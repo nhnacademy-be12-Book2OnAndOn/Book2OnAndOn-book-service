@@ -27,7 +27,7 @@ public class AladinCreateClient {
     @Value("${aladin.api.create-ttb-key}")
     private String ttbKey;
 
-    @Cacheable(value = "aladinCreateBook", key = "#isbn", unless = "#result == null", cacheManager = "RedisCacheManager")
+    @Cacheable(value = "aladinCreateBook", key = "#isbn", unless = "#result == null")
     public AladinApiResponse.Item searchByIsbn(String isbn) throws JsonProcessingException {
         if (isbn == null || isbn.isBlank()) {
             return null;

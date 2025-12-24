@@ -1,81 +1,178 @@
 package org.nhnacademy.book2onandonbookservice.entity;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class BookTest {
 
     @Test
-    @DisplayName("좋아요 증가 테스트 : 정상적으로 1증가")
-    void increaseLikeCount() {
+    @DisplayName("Builder를 통한 객체 생성 및 기본값 확인")
+    void createBook_Builder_Success() {
+        String title = "Test Book";
+        String isbn = "1234567890123";
+
         Book book = Book.builder()
-                .title("테스트 책")
-                .likeCount(0L)
+                .title(title)
+                .isbn(isbn)
+                .priceStandard(10000L)
+                .isWrapped(true)
+                .publishDate(LocalDate.now())
+                .status(BookStatus.ON_SALE)
                 .build();
-        book.increaseLikeCount();
-        assertThat(book.getLikeCount()).isEqualTo(1L);
+
+        assertThat(book.getTitle()).isEqualTo(title);
+        assertThat(book.getIsbn()).isEqualTo(isbn);
+        assertThat(book.getRating()).isEqualTo(0.0);
+        assertThat(book.getLikeCount()).isEqualTo(0L);
+        assertThat(book.getImages()).isNotNull().isEmpty();
     }
 
     @Test
-    @DisplayName("좋아요 증가 테스트: likeCount가 null일 경우 0으로 초기화 후 증가해야됨")
-    void increaseLikeCount_whenNull() {
+    @DisplayName("NoArgsConstructor 및 Setter 동작 확인")
+    void createBook_NoArgs_Setter_Success() {
         Book book = new Book();
-        book.increaseLikeCount(); //내부에서 null -> 0 -> 1로 되나?
+        String volume = "Vol.1";
+        Category category = mock(Category.class);
+
+        book.setVolume(volume);
+        book.setCategory(category);
+        book.setDescription("Description");
+        book.setChapter("Chapter 1");
+        book.setPriceSales(9000L);
+        book.setStockCount(50);
+        book.setThumbnail("thumb.jpg");
+
+        assertThat(book.getVolume()).isEqualTo(volume);
+        assertThat(book.getCategory()).isEqualTo(category);
+        assertThat(book.getDescription()).isEqualTo("Description");
+        assertThat(book.getChapter()).isEqualTo("Chapter 1");
+        assertThat(book.getPriceSales()).isEqualTo(9000L);
+        assertThat(book.getStockCount()).isEqualTo(50);
+        assertThat(book.getThumbnail()).isEqualTo("thumb.jpg");
+    }
+
+    @Test
+    @DisplayName("평점 업데이트 (updateRating)")
+    void updateRating_Success() {
+        Book book = Book.builder().build();
+        Double newRating = 4.5;
+
+        book.updateRating(newRating);
+
+        assertThat(book.getRating()).isEqualTo(newRating);
+    }
+
+    @Test
+    @DisplayName("좋아요 증가 (increaseLikeCount)")
+    void increaseLikeCount_Success() {
+        Book book = Book.builder().build();
+
+        book.increaseLikeCount();
+
         assertThat(book.getLikeCount()).isEqualTo(1L);
     }
 
     @Test
-    @DisplayName("좋아요 감소 테스트: 0이하일때는 감소X 0유지")
-    void decreaseLikeCount() {
-        Book book = Book.builder()
-                .likeCount(0L)
-                .build();
+    @DisplayName("좋아요 감소 (decreaseLikeCount)")
+    void decreaseLikeCount_Success() {
+        Book book = Book.builder().build();
+        ReflectionTestUtils.setField(book, "likeCount", 5L);
 
         book.decreaseLikeCount();
-        assertThat(book.getLikeCount()).isZero();
+
+        assertThat(book.getLikeCount()).isEqualTo(4L);
     }
 
     @Test
-    @DisplayName("평점 수정 테스트")
-    void updateRating() {
-        Book book = Book.builder()
-                .rating(3.5)
-                .build();
-        book.updateRating(4.5);
-        assertThat(book.getRating()).isEqualTo(4.5);
-    }
-
-    @Test
-    @DisplayName("출판사 추가 및 확인")
-    void addAndHasPublisher() {
-        Book book = Book.builder()
-                .title("테스트 책")
-                .build();
-
+    @DisplayName("출판사 추가 및 확인 (addPublisher, hasPublisher)")
+    void publisher_Logic_Success() {
+        Book book = Book.builder().build();
         Publisher publisher = mock(Publisher.class);
 
         book.addPublisher(publisher);
 
-        boolean hasPublisher = book.hasPublisher(publisher);
-        assertThat(hasPublisher).isTrue();
-
         assertThat(book.getBookPublishers()).hasSize(1);
-        assertThat(book.getBookPublishers().iterator().next().getPublisher()).isEqualTo(publisher);
+        assertThat(book.hasPublisher(publisher)).isTrue();
     }
 
     @Test
-    @DisplayName("없는 출판사 확인 테스트")
-    void hasPublisher_false() {
+    @DisplayName("연관관계 컬렉션 Setter 테스트")
+    void relationship_Setters_Success() {
+        Book book = new Book();
+        Set<BookImage> images = new HashSet<>();
+        Set<BookTag> tags = new HashSet<>();
+        Set<BookContributor> contributors = new HashSet<>();
+        Set<BookPublisher> publishers = new HashSet<>();
+        Set<Review> reviews = new HashSet<>();
+        Set<BookLike> likes = new HashSet<>();
+
+        book.setImages(images);
+        book.setBookTags(tags);
+        book.setBookContributors(contributors);
+        book.setBookPublishers(publishers);
+        book.setReviews(reviews);
+        book.setLikes(likes);
+
+        assertThat(book.getImages()).isSameAs(images);
+        assertThat(book.getBookTags()).isSameAs(tags);
+        assertThat(book.getBookContributors()).isSameAs(contributors);
+        assertThat(book.getBookPublishers()).isSameAs(publishers);
+        assertThat(book.getReviews()).isSameAs(reviews);
+        assertThat(book.getLikes()).isSameAs(likes);
+    }
+
+    @Test
+    @DisplayName("좋아요가 0일 때 감소 시도 시 0 유지")
+    void decreaseLikeCount_FromZero() {
         Book book = Book.builder().build();
-        Publisher pA = mock(Publisher.class);
-        Publisher pB = mock(Publisher.class);
 
-        book.addPublisher(pA);
+        book.decreaseLikeCount();
 
-        boolean result = book.hasPublisher(pB);
+        assertThat(book.getLikeCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("좋아요가 Null일 때 증가 시도 (Null Safe)")
+    void increaseLikeCount_Null_Safe() {
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "likeCount", null);
+
+        book.increaseLikeCount();
+
+        assertThat(book.getLikeCount()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("좋아요가 Null일 때 감소 시도 (Null Safe)")
+    void decreaseLikeCount_Null_Safe() {
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "likeCount", null);
+
+        book.decreaseLikeCount();
+
+        assertThat(book.getLikeCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("가지고 있지 않은 출판사 확인 (hasPublisher)")
+    void hasPublisher_False() {
+        Book book = Book.builder().build();
+        Publisher publisherA = mock(Publisher.class);
+        Publisher publisherB = mock(Publisher.class);
+
+        book.addPublisher(publisherA);
+
+        boolean result = book.hasPublisher(publisherB);
+
         assertThat(result).isFalse();
     }
 }

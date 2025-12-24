@@ -189,6 +189,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handleSearchExecutionException() {
+        String errorMessage = "Search engine failure";
+        SearchExecutionException exception = new SearchExecutionException(errorMessage);
+
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleSearchExecutionException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(500);
+        assertThat(response.getBody().getError()).isEqualTo("SEARCH_ENGINE_ERROR");
+        assertThat(response.getBody().getMessage()).isEqualTo("검색 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    }
+
+    @Test
     void handleGlobalException() {
         Exception exception = new RuntimeException("Unexpected error");
 
