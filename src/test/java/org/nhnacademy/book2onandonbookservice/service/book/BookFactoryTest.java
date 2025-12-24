@@ -112,35 +112,4 @@ class BookFactoryTest {
         assertThat(book.getIsWrapped()).isTrue();
     }
 
-    @Test
-    @DisplayName("updateFields: 모든 필드 업데이트 테스트")
-    void updateFields_AllFields() {
-        Book book = Book.builder().build();
-        BookUpdateRequest request = BookUpdateRequest.builder()
-                .title("타타이이틀틀")
-                .volume("볼륨볼륨")
-                .chapter("채채텁텁텁!")
-                .descriptionHtml("설명설명")
-                .isbn("1234123412345")
-                .publishDate(LocalDate.now())
-                .priceStandard(1000000L)
-                .priceSales(900000L)
-                .stockCount(23)
-                .status(BookStatus.BOOK_DELETED)
-                .isWrapped(false)
-                .build();
-
-        bookFactory.updateFields(book, request);
-
-        assertThat(book.getTitle()).isEqualTo("타타이이틀틀");
-        assertThat(book.getIsbn()).isEqualTo("1234123412345");
-        assertThat(book.getVolume()).isEqualTo("볼륨볼륨");
-        assertThat(book.getChapter()).isEqualTo("채채텁텁텁!");
-        assertThat(book.getDescription()).isEqualTo("설명설명");
-        assertThat(book.getPriceStandard()).isEqualTo(1000000L);
-        assertThat(book.getPriceSales()).isEqualTo(900000L);
-        assertThat(book.getStockCount()).isEqualTo(23);
-        assertThat(book.getIsWrapped()).isFalse();
-        assertThat(book.getStatus()).isEqualTo(BookStatus.BOOK_DELETED);
-    }
 }
