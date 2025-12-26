@@ -41,7 +41,7 @@ public class OrderController {
      * 재고 선점 요청
      * Redis에서 재고를 임시 차감하고 선점 기록을 남김
      */
-    @PostMapping("/stock/decrease")
+    @PostMapping("/stock/reserve")
     public ResponseEntity<Void> decreaseStock(@RequestBody StockRequest requests) {
         log.info("재고 선점 요청: {}건", requests.getBookInfoDtoList().size());
         stockService.decreaseStock(requests);
