@@ -10,7 +10,4 @@ public interface DataParser {
 
     List<DataParserDto> parsing(Resource resource) throws IOException;
 
-    default boolean matchFileType(String fileName) {
-        return fileName.trim().toLowerCase().endsWith(getFileType().toLowerCase());
-    }
 }

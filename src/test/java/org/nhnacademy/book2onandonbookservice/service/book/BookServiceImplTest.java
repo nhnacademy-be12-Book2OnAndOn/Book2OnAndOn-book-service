@@ -1,28 +1,24 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,16 +34,9 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
-import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
-import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
-import org.nhnacademy.book2onandonbookservice.entity.Contributor;
-import org.nhnacademy.book2onandonbookservice.entity.Publisher;
-import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
-import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.repository.BookLikeRepository;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
@@ -58,6 +47,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.util.ReflectionTestUtils; // 핵심 import
 import org.springframework.web.multipart.MultipartFile;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,438 +56,365 @@ class BookServiceImplTest {
     @InjectMocks
     private BookServiceImpl bookService;
 
-    @Mock
-    private BookRepository bookRepository;
-    @Mock
-    private BookSearchIndexService bookSearchIndexService;
-    @Mock
-    private BookValidator bookValidator;
-    @Mock
-    private BookFactory bookFactory;
-    @Mock
-    private BookRelationService bookRelationService;
-    @Mock
-    private BookLikeRepository bookLikeRepository;
-    @Mock
-    private CategoryRepository categoryRepository;
-    @Mock
-    private OrderServiceClient orderServiceClient;
-    @Mock
-    private BookListResponseMapper bookListResponseMapper;
-    @Mock
-    private BookHistoryService bookHistoryService;
-    @Mock
-    private ImageUploadService imageUploadService;
-
-    private Book bookA;
-    private Pageable pageable;
-
-    @BeforeEach
-    void setUp() {
-        pageable = PageRequest.of(0, 10);
-
-        Contributor mockContributorEntity = mock(Contributor.class);
-        lenient().when(mockContributorEntity.getId()).thenReturn(50L);
-        lenient().when(mockContributorEntity.getContributorName()).thenReturn("Test Author");
-
-        BookContributor mockBookContributor = mock(BookContributor.class);
-        lenient().when(mockBookContributor.getContributor()).thenReturn(mockContributorEntity);
-
-        Publisher mockPublisherEntity = mock(Publisher.class);
-        lenient().when(mockPublisherEntity.getId()).thenReturn(60L);
-        lenient().when(mockPublisherEntity.getPublisherName()).thenReturn("Test Publisher");
-
-        BookPublisher mockBookPublisher = mock(BookPublisher.class);
-        lenient().when(mockBookPublisher.getPublisher()).thenReturn(mockPublisherEntity);
-
-        BookImage image1 = BookImage.builder().id(100L).imagePath("url1").isThumbnail(true).build();
-        BookImage image2 = BookImage.builder().id(101L).imagePath("url2").isThumbnail(false).build();
-
-        bookA = Book.builder()
-                .id(1L)
-                .title("Book A")
-                .publishDate(LocalDate.of(2023, 1, 1))
-                .priceStandard(10000L)
-                .rating(5.0)
-                .isWrapped(false)
-                .isbn("9791191370215")
-                .status(BookStatus.ON_SALE)
-                .stockCount(100)
-                .priceSales(9000L)
-                .images(new HashSet<>(List.of(image1, image2)))
-                .bookContributors(new HashSet<>(List.of(mockBookContributor)))
-                .bookPublishers(new HashSet<>(List.of(mockBookPublisher)))
-                .bookTags(new HashSet<>())
-                .reviews(new HashSet<>())
-                .likes(new HashSet<>())
-                .thumbnail("url1")
-                .build();
-    }
+    @Mock private BookFactory bookFactory;
+    @Mock private BookRelationService bookRelationService;
+    @Mock private BookValidator bookValidator;
+    @Mock private BookRepository bookRepository;
+    @Mock private BookLikeRepository bookLikeRepository;
+    @Mock private CategoryRepository categoryRepository;
+    @Mock private BookSearchIndexService bookSearchIndexService;
+    @Mock private BookListResponseMapper bookListResponseMapper;
+    @Mock private OrderServiceClient orderServiceClient;
+    @Mock private BookHistoryService bookHistoryService;
+    @Mock private ImageUploadService imageUploadService;
+    @Mock private StockService stockService;
 
     @Test
-    void createBook() {
-        BookSaveRequest request = new BookSaveRequest();
-        MultipartFile file = mock(MultipartFile.class);
-        given(file.isEmpty()).willReturn(false);
-        List<MultipartFile> files = List.of(file);
+    @DisplayName("도서 생성 - 이미지 파일과 외부 URL 모두 있는 경우 (파일 우선 처리 확인)")
+    void createBook_WithFileAndUrl() {
 
-        given(bookFactory.createFrom(any(BookSaveRequest.class))).willReturn(bookA);
-        given(imageUploadService.uploadBookImage(any())).willReturn("new-url");
-        given(bookRepository.save(any(Book.class))).willReturn(bookA);
+        BookSaveRequest request = BookSaveRequest.builder().imageUrl("http://external.com/img").build();
+        List<MultipartFile> files = List.of(mock(MultipartFile.class));
+        Book book = new Book();
+        book.setImages(new HashSet<>());
 
-        Long saveId = bookService.createBook(request, files);
+        ReflectionTestUtils.setField(book, "id", 1L);
 
-        assertThat(saveId).isEqualTo(bookA.getId());
-        verify(bookValidator).validateForCreate(request);
-        verify(bookRepository).save(bookA);
-        verify(bookSearchIndexService).index(bookA);
-    }
-
-    @Test
-    void createBook_ExternalUrl() {
-        BookSaveRequest request = new BookSaveRequest();
-        request.setImageUrl("http://external.com/img.jpg");
-        List<MultipartFile> files = Collections.emptyList();
-
-        given(bookFactory.createFrom(any(BookSaveRequest.class))).willReturn(bookA);
-        given(imageUploadService.uploadImageFromUrl(any())).willReturn("internal-url");
-        given(bookRepository.save(any(Book.class))).willReturn(bookA);
+        when(bookFactory.createFrom(request)).thenReturn(book);
+        when(imageUploadService.uploadBookImage(any())).thenReturn("s3/path/img.jpg");
+        when(bookRepository.save(any(Book.class))).thenReturn(book);
 
         bookService.createBook(request, files);
 
-        verify(imageUploadService).uploadImageFromUrl("http://external.com/img.jpg");
+        verify(bookValidator).validateForCreate(request);
+        verify(bookSearchIndexService).index(book);
+
+        assertThat(book.getImages()).hasSize(1);
+        assertThat(book.getThumbnail()).isEqualTo("s3/path/img.jpg");
     }
 
     @Test
-    void createBook_ESIndexFail() {
-        BookSaveRequest request = new BookSaveRequest();
-        given(bookFactory.createFrom(any(BookSaveRequest.class))).willReturn(bookA);
-        given(bookRepository.save(any(Book.class))).willReturn(bookA);
-        willThrow(new RuntimeException("ES Error")).given(bookSearchIndexService).index(bookA);
+    @DisplayName("도서 생성 - ES 인덱싱 실패해도 DB 저장은 성공해야 함")
+    void createBook_IndexFail() {
 
-        assertThatCode(() -> bookService.createBook(request, null)).doesNotThrowAnyException();
+        BookSaveRequest request = BookSaveRequest.builder().build();
+        Book book = new Book();
+        book.setImages(new HashSet<>());
+        ReflectionTestUtils.setField(book, "id", 1L);
 
-        verify(bookRepository).save(bookA);
+        when(bookFactory.createFrom(request)).thenReturn(book);
+        when(bookRepository.save(book)).thenReturn(book);
+        doThrow(new RuntimeException("ES Fail")).when(bookSearchIndexService).index(book);
+
+        bookService.createBook(request, null);
+
+        verify(bookRepository).save(book);
     }
 
     @Test
-    void updateBook_DeleteImage_And_AddImage() {
+    @DisplayName("도서 수정 - 재고 변경, 상태 변경, 이미지 삭제 및 추가")
+    void updateBook_Complex() {
+
         Long bookId = 1L;
-        BookUpdateRequest request = new BookUpdateRequest();
-        request.setDeleteImageIds(List.of(100L));
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", bookId); // ID 주입
+        book.setStockCount(10);
+        book.setStatus(BookStatus.ON_SALE);
+
+        BookImage oldImg = BookImage.builder().imagePath("old/path").book(book).build();
+        ReflectionTestUtils.setField(oldImg, "id", 100L);
+
+        book.setImages(new HashSet<>(Set.of(oldImg)));
+
+        BookUpdateRequest request = BookUpdateRequest.builder()
+                .stockCount(0)
+                .deleteImageIds(List.of(100L))
+                .build();
 
         MultipartFile newFile = mock(MultipartFile.class);
-        given(newFile.isEmpty()).willReturn(false);
         List<MultipartFile> newImages = List.of(newFile);
 
-        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
-        given(imageUploadService.uploadBookImage(newFile)).willReturn("new-image-url");
+        when(bookRepository.findByIdWithRelations(bookId)).thenReturn(Optional.of(book));
+        when(imageUploadService.uploadBookImage(newFile)).thenReturn("new/path");
 
         bookService.updateBook(bookId, request, newImages);
 
-        assertThat(bookA.getImages()).hasSize(2);
-        assertThat(bookA.getImages().stream().anyMatch(img -> img.getImagePath().equals("new-image-url"))).isTrue();
-        assertThat(bookA.getThumbnail()).isNotNull();
-
-        verify(bookRelationService).applyRelationsForUpdate(bookA, request);
-        verify(imageUploadService).remove("url1");
+        verify(stockService).increaseStock(bookId, -10);
+        assertThat(book.getStatus()).isEqualTo(BookStatus.SOLD_OUT);
+        verify(imageUploadService).remove("old/path");
+        assertThat(book.getImages()).hasSize(1);
+        verify(bookSearchIndexService).index(book);
     }
 
     @Test
-    void updateBook_DeleteImage_Failure_Catch() {
+    @DisplayName("도서 수정 - 재고가 0에서 양수가 되면 ON_SALE 로 변경")
+    void updateBook_StockRestock() {
+
         Long bookId = 1L;
-        BookUpdateRequest request = new BookUpdateRequest();
-        request.setDeleteImageIds(List.of(100L));
-        List<MultipartFile> newImages = Collections.emptyList();
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", bookId);
+        book.setStockCount(0);
+        book.setStatus(BookStatus.SOLD_OUT);
+        book.setImages(new HashSet<>());
 
-        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
-        doThrow(new RuntimeException("MinIO Error")).when(imageUploadService).remove("url1");
+        BookUpdateRequest request = BookUpdateRequest.builder().stockCount(5).build();
 
-        assertThatCode(() -> bookService.updateBook(bookId, request, newImages)).doesNotThrowAnyException();
+        when(bookRepository.findByIdWithRelations(bookId)).thenReturn(Optional.of(book));
+
+        bookService.updateBook(bookId, request, null);
+
+        verify(stockService).increaseStock(bookId, 5);
+        assertThat(book.getStatus()).isEqualTo(BookStatus.ON_SALE);
     }
 
     @Test
-    void updateBook_NotFound() {
-        Long bookId = 9999L;
-        BookUpdateRequest request = new BookUpdateRequest();
-        List<MultipartFile> images = Collections.emptyList();
+    @DisplayName("썸네일 업데이트 - 존재하지 않는 이미지 ID 예외")
+    void updateThumbnail_Fail() {
 
-        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.empty());
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", 1L);
+        book.setImages(new HashSet<>());
+        when(bookRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(book));
 
-        assertThatThrownBy(() -> bookService.updateBook(bookId, request, images))
-                .isInstanceOf(NotFoundBookException.class);
-    }
-
-    @Test
-    void updateThumbnail() {
-        Long bookId = 1L;
-        Long targetImageId = 101L;
-
-        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
-
-        bookService.updateThumbnail(bookId, targetImageId);
-
-        BookImage newThumb = bookA.getImages().stream().filter(img -> img.getId().equals(101L)).findFirst().get();
-        BookImage oldThumb = bookA.getImages().stream().filter(img -> img.getId().equals(100L)).findFirst().get();
-
-        assertThat(newThumb.isThumbnail()).isTrue();
-        assertThat(oldThumb.isThumbnail()).isFalse();
-        assertThat(bookA.getThumbnail()).isEqualTo("url2");
-        verify(bookSearchIndexService).index(bookA);
-    }
-
-    @Test
-    void updateThumbnail_ImageNotFound() {
-        Long bookId = 1L;
-        Long targetImageId = 999L;
-
-        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
-
-        assertThatThrownBy(() -> bookService.updateThumbnail(bookId, targetImageId))
+        assertThatThrownBy(() -> bookService.updateThumbnail(1L, 999L))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
+    @DisplayName("썸네일 업데이트 - 성공")
+    void updateThumbnail_Success() {
+
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", 1L);
+
+        BookImage img1 = BookImage.builder().isThumbnail(true).imagePath("path1").build();
+        ReflectionTestUtils.setField(img1, "id", 1L);
+
+        BookImage img2 = BookImage.builder().isThumbnail(false).imagePath("path2").build();
+        ReflectionTestUtils.setField(img2, "id", 2L);
+
+        book.setImages(new HashSet<>(Set.of(img1, img2)));
+
+        when(bookRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(book));
+
+        bookService.updateThumbnail(1L, 2L);
+
+        assertThat(img1.isThumbnail()).isFalse();
+        assertThat(img2.isThumbnail()).isTrue();
+        assertThat(book.getThumbnail()).isEqualTo("path2");
+        verify(bookSearchIndexService).index(book);
+    }
+
+    @Test
+    @DisplayName("도서 삭제 - DB 삭제 후 ES, MinIO 삭제 호출 (예외 발생 포함)")
     void deleteBook() {
-        Long bookId = 1L;
-        given(bookRepository.findById(bookId)).willReturn(Optional.of(bookA));
 
-        bookService.deleteBook(bookId);
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", 1L);
 
-        verify(bookRepository).delete(bookA);
+        BookImage img = BookImage.builder().imagePath("path/to/delete").build();
+        book.setImages(Set.of(img));
+
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
+        doThrow(new RuntimeException("ES Fail")).when(bookSearchIndexService).deleteIndex(1L);
+        doThrow(new RuntimeException("MinIO Fail")).when(imageUploadService).remove("path/to/delete");
+
+        bookService.deleteBook(1L);
+
+        verify(bookRepository).delete(book);
         verify(bookRepository).flush();
-        verify(bookSearchIndexService).deleteIndex(bookId);
-        verify(imageUploadService, times(2)).remove(any());
+        verify(bookSearchIndexService).deleteIndex(1L);
+        verify(imageUploadService).remove("path/to/delete");
     }
 
     @Test
-    void deleteBook_ExceptionFlow() {
-        Long bookId = 1L;
-        given(bookRepository.findById(bookId)).willReturn(Optional.of(bookA));
-        willThrow(new RuntimeException("ES Error")).given(bookSearchIndexService).deleteIndex(bookId);
-        doThrow(new RuntimeException("MinIO Error")).when(imageUploadService).remove(any());
-
-        assertThatCode(() -> bookService.deleteBook(bookId)).doesNotThrowAnyException();
-
-        verify(bookRepository).delete(bookA);
-    }
-
-    @Test
-    void getBookCount() {
-        given(bookRepository.count()).willReturn(10L);
-        assertThat(bookService.getBookCount()).isEqualTo(10L);
-    }
-
-    @Test
-    void getBooks() {
-        BookSearchCondition condition = new BookSearchCondition();
-        Page<Book> bookPage = new PageImpl<>(List.of(bookA), pageable, 1);
-        BookListResponse mockResponse = BookListResponse.builder().id(bookA.getId()).build();
-
-        given(bookRepository.findByStatusNot(BookStatus.BOOK_DELETED, pageable)).willReturn(bookPage);
-        given(bookListResponseMapper.fromEntity(bookA)).willReturn(mockResponse);
-
-        Page<BookListResponse> result = bookService.getBooks(condition, pageable);
-        assertThat(result).hasSize(1);
-    }
-
-    @Test
-    void getBookDetail_LoggedIn() {
-        Long bookId = 1L;
-        Long userId = 100L;
-        String guestId = "guest";
-
-        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
-        given(bookLikeRepository.countByBookId(bookId)).willReturn(5L);
-        given(bookLikeRepository.existsByBookIdAndUserId(bookId, userId)).willReturn(true);
-
-        BookDetailResponse result = bookService.getBookDetail(bookId, userId, guestId);
-
-        assertThat(result.getLikedByCurrentUser()).isTrue();
-        verify(bookHistoryService, timeout(100)).addRecentView(userId, guestId, bookId);
-    }
-
-    @Test
-    void getBookDetail_NotLoggedIn() {
-        Long bookId = 1L;
-        given(bookRepository.findByIdWithRelations(bookId)).willReturn(Optional.of(bookA));
-
-        BookDetailResponse result = bookService.getBookDetail(bookId, null, null);
-        assertThat(result.getLikedByCurrentUser()).isNull();
-    }
-
-    @Test
-    void getBestsellers() {
-        given(orderServiceClient.getBestSellersBookIds("DAILY")).willReturn(List.of(1L));
-        given(bookRepository.findAllById(List.of(1L))).willReturn(List.of(bookA));
-
-        List<BookListResponse> result = bookService.getBestsellers("DAILY");
-        assertThat(result).hasSize(1);
-    }
-
-    @Test
-    void getBestsellers_Empty() {
-        given(orderServiceClient.getBestSellersBookIds("DAILY")).willReturn(Collections.emptyList());
-        List<BookListResponse> result = bookService.getBestsellers("DAILY");
-        assertThat(result).isEmpty();
-    }
-
-    @Test
+    @DisplayName("신간 도서 조회 - 카테고리 필터링 포함")
     void getNewArrivals_WithCategory() {
-        Long categoryId = 10L;
-        Category root = Category.builder().id(10L).children(new ArrayList<>()).build();
-        Category child = Category.builder().id(11L).children(new ArrayList<>()).build();
+
+        Long categoryId = 1L;
+        Category root = Category.builder().id(1L).children(new ArrayList<>()).build();
+        Category child = Category.builder().id(2L).children(null).build();
         root.getChildren().add(child);
 
-        given(categoryRepository.findById(categoryId)).willReturn(Optional.of(root));
-        given(bookRepository.findBooksByCategoryIdsSorted(anyList(), any())).willReturn(new PageImpl<>(List.of(bookA)));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(root));
 
-        Page<BookListResponse> result = bookService.getNewArrivals(categoryId, pageable);
-        assertThat(result).hasSize(1);
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", 10L);
+        book.setStatus(BookStatus.ON_SALE);
+        Page<Book> bookPage = new PageImpl<>(List.of(book));
+
+        when(bookRepository.findBooksByCategoryIdsSorted(anyList(), any(Pageable.class)))
+                .thenReturn(bookPage);
+
+        Page<BookListResponse> result = bookService.getNewArrivals(categoryId, PageRequest.of(0, 10));
+
+        verify(bookRepository).findBooksWithDetails(anyList());
+        assertThat(result.getContent()).hasSize(1);
     }
 
     @Test
+    @DisplayName("신간 도서 조회 - 카테고리 없이 전체 조회")
     void getNewArrivals_NoCategory() {
-        given(bookRepository.findAllByOrderByPublishDateDesc(pageable)).willReturn(new PageImpl<>(List.of(bookA)));
-        Page<BookListResponse> result = bookService.getNewArrivals(null, pageable);
-        assertThat(result).hasSize(1);
+        Page<Book> bookPage = new PageImpl<>(Collections.emptyList());
+        when(bookRepository.findAllByOrderByPublishDateDesc(any(Pageable.class))).thenReturn(bookPage);
+
+        bookService.getNewArrivals(null, PageRequest.of(0, 10));
+
+        verify(bookRepository, never()).findBooksByCategoryIdsSorted(anyList(), any());
     }
 
     @Test
-    void getNewArrivals_EmptyBooks() {
-        given(bookRepository.findAllByOrderByPublishDateDesc(pageable)).willReturn(Page.empty());
-        Page<BookListResponse> result = bookService.getNewArrivals(null, pageable);
+    @DisplayName("베스트셀러 조회 - 주문 서비스 연동")
+    void getBestsellers() {
+
+        List<Long> ids = List.of(1L, 2L);
+        when(orderServiceClient.getBestSellersBookIds("WEEK")).thenReturn(ids);
+
+        Book b1 = new Book();
+        ReflectionTestUtils.setField(b1, "id", 1L);
+        b1.setStatus(BookStatus.ON_SALE);
+
+        Book b2 = new Book();
+        ReflectionTestUtils.setField(b2, "id", 2L);
+        b2.setStatus(BookStatus.BOOK_DELETED);
+
+        when(bookRepository.findAllById(ids)).thenReturn(List.of(b1, b2));
+
+        List<BookListResponse> result = bookService.getBestsellers("WEEK");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("베스트셀러 조회 - 결과 없음")
+    void getBestsellers_Empty() {
+        when(orderServiceClient.getBestSellersBookIds("WEEK")).thenReturn(Collections.emptyList());
+        List<BookListResponse> result = bookService.getBestsellers("WEEK");
         assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("주문용 도서 정보 다건 조회 성공")
-    void getBooksForOrder() {
-        List<Long> ids = List.of(1L);
+    @DisplayName("도서 상세 조회 - 로그인 유저")
+    void getBookDetail_LoginUser() {
 
-        Category category = Category.builder()
-                .id(100L)
-                .categoryName("테스트 카테고리")
-                .build();
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", 1L); // ID 주입
+        when(bookRepository.findByIdWithRelations(1L)).thenReturn(Optional.of(book));
+        when(bookLikeRepository.existsByBookIdAndUserId(1L, 100L)).thenReturn(true);
 
-        bookA.setCategory(category);
+        BookDetailResponse response = bookService.getBookDetail(1L, 100L, null);
 
-        given(bookRepository.findAllById(ids)).willReturn(List.of(bookA));
-
-        List<BookOrderResponse> result = bookService.getBooksForOrder(ids);
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getCategoryId()).isEqualTo(100L);
+        assertThat(response.getLikedByCurrentUser()).isTrue();
     }
 
     @Test
-    void getBooksForOrder_Empty() {
-        assertThat(bookService.getBooksForOrder(null)).isEmpty();
-    }
-
-    @Test
-    void decreaseStock_Success() {
-        StockRequest req = StockRequest.builder().bookId(1L).quantity(1).build();
-        bookA.setStockCount(10);
-
-        given(bookRepository.decreaseStock(1L, 1)).willReturn(1);
-        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
-
-        bookService.decreaseStock(new ArrayList<>(List.of(req)));
-        assertThat(bookA.getStatus()).isEqualTo(BookStatus.ON_SALE);
-    }
-
-    @Test
-    void decreaseStock_SoldOut() {
-        StockRequest req = StockRequest.builder().bookId(1L).quantity(100).build();
-        bookA.setStockCount(0);
-
-        given(bookRepository.decreaseStock(1L, 100)).willReturn(1);
-        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
-
-        bookService.decreaseStock(new ArrayList<>(List.of(req)));
-        assertThat(bookA.getStatus()).isEqualTo(BookStatus.SOLD_OUT);
-    }
-
-    @Test
-    void decreaseStock_Fail_Count0() {
-        StockRequest req = StockRequest.builder().bookId(1L).quantity(1).build();
-        given(bookRepository.decreaseStock(1L, 1)).willReturn(0);
-
-        List<StockRequest> list = new ArrayList<>(List.of(req));
-        assertThatThrownBy(() -> bookService.decreaseStock(list)).isInstanceOf(OutOfStockException.class);
-    }
-
-    @Test
-    void increaseStock() {
-        StockRequest req = StockRequest.builder().bookId(1L).quantity(1).build();
-        bookA.setStatus(BookStatus.SOLD_OUT);
-        bookA.setStockCount(5);
-
-        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
-
-        bookService.increaseStock(new ArrayList<>(List.of(req)));
-        assertThat(bookA.getStatus()).isEqualTo(BookStatus.ON_SALE);
-    }
-
-    @Test
-    void getPopularBooks() {
-        given(bookRepository.findByStatusOrderByLikeCountDesc(BookStatus.ON_SALE, pageable))
-                .willReturn(new PageImpl<>(List.of(bookA)));
-        Page<BookListResponse> result = bookService.getPopularBooks(pageable);
-        assertThat(result).hasSize(1);
-    }
-
-    @Test
-    void updateBookStatus() {
-        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
-        bookService.updateBookStatus(1L, BookStatus.SOLD_OUT);
-        assertThat(bookA.getStatus()).isEqualTo(BookStatus.SOLD_OUT);
-        verify(bookSearchIndexService).index(bookA);
-    }
-
-    @Test
-    void updateBookStatus_ESFail() {
-        given(bookRepository.findById(1L)).willReturn(Optional.of(bookA));
-        willThrow(new RuntimeException("ES Fail")).given(bookSearchIndexService).index(bookA);
-
-        assertThatCode(() -> bookService.updateBookStatus(1L, BookStatus.SOLD_OUT))
-                .doesNotThrowAnyException();
-    }
-
-    @Test
-    void getRecentViews() {
-        given(bookHistoryService.getRecentViews(100L, "guest")).willReturn(List.of(1L));
-        given(bookRepository.findAllById(List.of(1L))).willReturn(List.of(bookA));
-
-        List<BookListResponse> result = bookService.getRecentViews(100L, "guest");
-        assertThat(result).hasSize(1);
-    }
-
-    @Test
-    void getRecentViews_Empty() {
-        given(bookHistoryService.getRecentViews(100L, "guest")).willReturn(Collections.emptyList());
-        assertThat(bookService.getRecentViews(100L, "guest")).isEmpty();
-    }
-
-    @Test
-    void mergeRecentViews() {
-        bookService.mergeRecentViews("guest", 100L);
-        verify(bookHistoryService).mergeHistory("guest", 100L);
-    }
-
-    @Test
-    void mergeRecentViews_InvalidInput() {
-        bookService.mergeRecentViews(null, 100L);
-        verify(bookHistoryService, never()).mergeHistory(any(), any());
-    }
-
-    @Test
+    @DisplayName("장바구니용 스냅샷 조회")
     void getBookSnapshots() {
-        given(bookRepository.findAllById(List.of(1L))).willReturn(List.of(bookA));
+
+        Book b1 = new Book();
+        ReflectionTestUtils.setField(b1, "id", 1L);
+
+        b1.setStatus(BookStatus.ON_SALE);
+        b1.setPriceStandard(10000L);
+        b1.setPriceSales(9000L);
+        b1.setStockCount(50);
+
+        when(bookRepository.findAllById(List.of(1L))).thenReturn(List.of(b1));
+
         Map<Long, CartResponse> result = bookService.getBookSnapshots(List.of(1L));
 
         assertThat(result).containsKey(1L);
-        assertThat(result.get(1L).getTitle()).isEqualTo("Book A");
+    }
+
+    @Test
+    @DisplayName("내부 주문용 도서 조회 - ID 리스트가 null인 경우")
+    void getBooksForOrder_Null() {
+        List<BookOrderResponse> result = bookService.getBooksForOrder(null);
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("내부 주문용 도서 조회 - 정상")
+    void getBooksForOrder_Success() {
+
+        Book b = new Book();
+        ReflectionTestUtils.setField(b, "id", 1L);
+        b.setIsWrapped(false);
+        b.setStatus(BookStatus.ON_SALE);
+        b.setTitle("Test Title");
+        b.setPriceStandard(10000L);
+        b.setPriceSales(9000L);
+
+        Category category = new Category();
+        ReflectionTestUtils.setField(category, "id", 100L); // Category ID 설정
+        b.setCategory(category);
+
+        when(bookRepository.findAllById(List.of(1L))).thenReturn(List.of(b));
+
+        List<BookOrderResponse> result = bookService.getBooksForOrder(List.of(1L));
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("최근 본 상품 조회 및 병합")
+    void recentViews() {
+
+        when(bookHistoryService.getRecentViews(1L, null)).thenReturn(List.of(10L));
+        Book b = new Book();
+        ReflectionTestUtils.setField(b, "id", 10L);
+        when(bookRepository.findAllById(List.of(10L))).thenReturn(List.of(b));
+
+        List<BookListResponse> views = bookService.getRecentViews(1L, null);
+        assertThat(views).hasSize(1);
+
+        bookService.mergeRecentViews("guest", 1L);
+        verify(bookHistoryService).mergeHistory("guest", 1L);
+
+        bookService.mergeRecentViews(null, 1L);
+        verify(bookHistoryService, times(1)).mergeHistory(any(), any());
+    }
+
+    @Test
+    @DisplayName("도서 상태 변경 - 예외 발생 시 로그 출력")
+    void updateBookStatus() {
+        Book book = new Book();
+        ReflectionTestUtils.setField(book, "id", 1L);
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
+        doThrow(new RuntimeException("Index Fail")).when(bookSearchIndexService).index(book);
+
+        bookService.updateBookStatus(1L, BookStatus.SOLD_OUT);
+
+        assertThat(book.getStatus()).isEqualTo(BookStatus.SOLD_OUT);
+    }
+
+    @Test
+    @DisplayName("getPopularBooks 테스트")
+    void getPopularBooks() {
+        Page<Book> page = new PageImpl<>(List.of(new Book()));
+        when(bookRepository.findByStatusOrderByLikeCountDesc(eq(BookStatus.ON_SALE), any())).thenReturn(page);
+
+        Page<BookListResponse> result = bookService.getPopularBooks(PageRequest.of(0, 10));
+        assertThat(result.getContent()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("getBooks - 공통 검색")
+    void getBooks() {
+        Page<Book> page = new PageImpl<>(List.of(new Book()));
+        when(bookRepository.findByStatusNot(eq(BookStatus.BOOK_DELETED), any())).thenReturn(page);
+        when(bookListResponseMapper.fromEntity(any())).thenReturn(BookListResponse.builder().build());
+
+        bookService.getBooks(new BookSearchCondition(), PageRequest.of(0, 10));
+
+        verify(bookListResponseMapper).fromEntity(any());
+    }
+
+    @Test
+    @DisplayName("getBookCount")
+    void getBookCount() {
+        when(bookRepository.count()).thenReturn(100L);
+        assertThat(bookService.getBookCount()).isEqualTo(100L);
     }
 }

@@ -2,7 +2,7 @@ name: CI/CD for Book Service
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:

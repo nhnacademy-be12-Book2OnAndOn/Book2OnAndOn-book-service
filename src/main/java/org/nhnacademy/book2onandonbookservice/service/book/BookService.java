@@ -10,7 +10,6 @@ import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
-import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -48,11 +47,6 @@ public interface BookService {
     // 인기 도서 조회(좋아요 순)
     Page<BookListResponse> getPopularBooks(Pageable pageable);
 
-    //재고 감소
-    void decreaseStock(List<StockRequest> requests);
-
-    //재고 증가
-    void increaseStock(List<StockRequest> requests);
 
     //도서 상태 변경
     void updateBookStatus(Long bookId, BookStatus status);

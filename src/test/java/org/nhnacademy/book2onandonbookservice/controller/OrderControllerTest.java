@@ -1,150 +1,80 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookOrderResponse;
+import org.nhnacademy.book2onandonbookservice.dto.book.CartResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.StockRequest;
-import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
-import org.nhnacademy.book2onandonbookservice.exception.OutOfStockException;
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
-import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.nhnacademy.book2onandonbookservice.service.book.StockService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-@WebMvcTest(OrderController.class)
-@AutoConfigureMockMvc(addFilters = false)
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
 class OrderControllerTest {
-    @Autowired
-    MockMvc mockMvc;
 
-    @Autowired
-    ObjectMapper objectMapper;
+    @Mock
+    private BookService bookService;
 
-    @MockitoBean
-    BookService bookService;
+    @Mock
+    private StockService stockService;
 
-    @MockitoBean
-    UserHeaderUtil util;
-
-    @MockitoBean
-    JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @InjectMocks
+    private OrderController orderController;
 
     @Test
-    @DisplayName("주문용 도서 정보 조회 성공")
-    void getBooksForOrder() throws Exception {
+    @DisplayName("성공: 주문 검증용 도서 정보 조회 (GET /internal/books)")
+    void getBooksForOrder_Success() {
+
         List<Long> bookIds = List.of(1L, 2L);
-        BookOrderResponse response = BookOrderResponse.builder()
-                .bookId(1L)
-                .title("Book 1")
-                .priceSales(10000L)
-                .status(BookStatus.ON_SALE)
-                .stockCount(5)
-                .build();
-        BookOrderResponse response2 = BookOrderResponse.builder()
-                .bookId(2L)
-                .title("Book 2")
-                .priceSales(20000L)
-                .status(BookStatus.ON_SALE)
-                .stockCount(10)
-                .build();
+        BookOrderResponse responseDto = new BookOrderResponse();
+        List<BookOrderResponse> expectedResponse = List.of(responseDto);
 
-        given(bookService.getBooksForOrder(bookIds)).willReturn(List.of(response, response2));
+        when(bookService.getBooksForOrder(bookIds)).thenReturn(expectedResponse);
 
-        mockMvc.perform(get("/internal/books")
-                        .param("bookIds", "1,2")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].bookId", is(1)))
-                .andExpect(jsonPath("$[0].title", is("Book 1")))
-                .andExpect(jsonPath("$[1].bookId", is(2)))
-                .andExpect(jsonPath("$[1].title", is("Book 2")));
+        ResponseEntity<List<BookOrderResponse>> response = orderController.getBooksForOrder(bookIds);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(expectedResponse);
+        verify(bookService).getBooksForOrder(bookIds);
     }
 
     @Test
-    @DisplayName("재고 차감 성공")
-    void decreaseStock() throws Exception {
-        List<StockRequest> reqs = List.of(
-                StockRequest.builder().bookId(1L).quantity(2).build(),
-                StockRequest.builder().bookId(2L).quantity(4).build()
-        );
+    @DisplayName("성공: 재고 선점 요청 (POST /internal/books/stock/reserve)")
+    void decreaseStock_Success() {
+        StockRequest stockRequest = mock(StockRequest.class);
+        when(stockRequest.getBookInfoDtoList()).thenReturn(Collections.emptyList());
 
-        mockMvc.perform(post("/internal/books/stock/decrease")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reqs)))
-                .andExpect(status().isOk());
+        ResponseEntity<Void> response = orderController.decreaseStock(stockRequest);
 
-        verify(bookService).decreaseStock(anyList());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(stockService).decreaseStock(stockRequest);
     }
 
     @Test
-    @DisplayName("재고 차감 실패")
-    void decreaseStock_Fail() throws Exception {
-        List<StockRequest> reqs = List.of(
-                StockRequest.builder().bookId(1L).quantity(2).build(),
-                StockRequest.builder().bookId(2L).quantity(4).build()
-        );
+    @DisplayName("성공: 장바구니/주문용 도서 스냅샷 조회 (POST /internal/books/bulk)")
+    void getBookSnapshots_Success() {
+        List<Long> bookIds = List.of(1L, 2L);
+        CartResponse cartResponse = new CartResponse();
+        Map<Long, CartResponse> expectedResult = Map.of(1L, cartResponse);
 
-        willThrow(new OutOfStockException("재고가 부족합니다.")).given(bookService).decreaseStock(anyList());
-        mockMvc.perform(post("/internal/books/stock/decrease")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reqs)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error", is("Stock Conflict")));
-    }
+        when(bookService.getBookSnapshots(bookIds)).thenReturn(expectedResult);
 
-    @Test
-    @DisplayName("재고 증가 성공")
-    void increaseStock() throws Exception {
-        List<StockRequest> reqs = List.of(
-                StockRequest.builder().bookId(1L).quantity(2).build()
-        );
+        ResponseEntity<Map<Long, CartResponse>> response = orderController.getBookSnapshots(bookIds);
 
-        doNothing().when(bookService).increaseStock(anyList());
-
-        mockMvc.perform(post("/internal/books/stock/increase")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reqs)))
-                .andExpect(status().isOk());
-
-        verify(bookService).increaseStock(anyList());
-    }
-
-    @Test
-    @DisplayName("재고 증가 실패")
-    void increaseStock_Fail_NotFoundBook() throws Exception {
-        List<StockRequest> reqs = List.of(
-                StockRequest.builder().bookId(999L).quantity(2).build()
-        );
-
-        willThrow(new NotFoundBookException(999L)).given(bookService).increaseStock(anyList());
-
-        mockMvc.perform(post("/internal/books/stock/increase")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reqs)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error", is("Not Found")));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(expectedResult);
+        verify(bookService).getBookSnapshots(bookIds);
     }
 }

@@ -7,56 +7,38 @@
         </encoder>
     </appender>
 
-    <appender name="PARSING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/parsing.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/parsing.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>7</maxHistory>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>s4.java21.net:50000</destination>
+        <keepAliveDuration>5 minutes</keepAliveDuration>
+        <reconnectionDelay>10 second</reconnectionDelay>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"book2onandon-book"}</customFields>
         </encoder>
     </appender>
 
-    <appender name="API_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/api.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/api.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>7</maxHistory>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
+    <appender name="ASYNC_LOGSTASH" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="LOGSTASH" />
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
     </appender>
 
-    <logger name="org.nhnacademy.book2onandonbookservice.config.DataInitializer" level="INFO" additivity="false">
-        <appender-ref ref="PARSING_FILE"/>
+    <logger name="org.springframework" level="WARN" />
+    <logger name="org.hibernate" level="WARN" />
+    <logger name="com.zaxxer" level="WARN" />
+    <logger name="org.apache" level="WARN" />
+    <logger name="io.lettuce" level="WARN" /> <logger name="io.netty" level="WARN" />   <logger name="org.nhnacademy.book2onandonbookservice.parser" level="INFO" additivity="false">
+    <appender-ref ref="ASYNC_LOGSTASH"/>
+</logger>
+    <logger name="org.nhnacademy.book2onandonbookservice.client" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_LOGSTASH"/>
     </logger>
-
-
-    <logger name="org.nhnacademy.book2onandonbookservice.parser" level="INFO" additivity="false">
-        <appender-ref ref="PARSING_FILE"/>
+    <logger name="org.nhnacademy.book2onandonbookservice.scheduler" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_LOGSTASH"/>
     </logger>
-
-    <logger name="org.nhnacademy.book2onandonbookservice.service.enrichment.BookEnrichmentService" level="INFO" additivity="false">
-        <appender-ref ref="API_FILE"/>
-    </logger>
-
-    <logger name="org.nhnacademy.book2onandonbookservice.client.AladinApiClient" level="INFO" additivity="false">
-        <appender-ref ref="API_FILE"/>
-    </logger>
-    <logger name="org.nhnacademy.book2onandonbookservice.client.GeminiApiClient" level="INFO" additivity="false">
-        <appender-ref ref="API_FILE"/>
-    </logger>
-    <logger name="org.nhnacademy.book2onandonbookservice.client.GroqApiClient" level="INFO" additivity="false">
-        <appender-ref ref="API_FILE"/>
-    </logger>
-    <logger name="org.nhnacademy.book2onandonbookservice.scheduler.BookEnrichmentScheduler" level="INFO" additivity="false">
-        <appender-ref ref="API_FILE"/>
-    </logger>
-
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_LOGSTASH"/>
     </root>
+
 </configuration>

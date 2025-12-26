@@ -17,7 +17,6 @@ import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 import org.springframework.data.elasticsearch.annotations.InnerField;
 import org.springframework.data.elasticsearch.annotations.MultiField;
-import org.springframework.data.elasticsearch.annotations.Setting;
 
 // Elastic Search 도구 이용 코드 -> 검색 시 이용
 @Getter
@@ -46,7 +45,7 @@ public class BookSearchDocument {
 
     //설명
     @Field(type = FieldType.Text, analyzer = "korean_search")
-    private String description; // 가중치 50
+    private String description;
 
 
     // 기여자 이름

@@ -1,7 +1,9 @@
 package org.nhnacademy.book2onandonbookservice.dto.book;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
@@ -11,6 +13,8 @@ import org.springframework.util.StringUtils;
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CartResponse {
     private Long bookId;
     private String title;

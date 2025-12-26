@@ -1,7 +1,9 @@
 package org.nhnacademy.book2onandonbookservice.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
+import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage.SyncType;
 import org.nhnacademy.book2onandonbookservice.service.search.BookReindexService;
@@ -10,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/admin/search")
+@RequestMapping("/admin")
 @RequiredArgsConstructor
 public class ReindexController {
 
@@ -21,6 +23,7 @@ public class ReindexController {
      * 1. 전체 도서 재인덱싱 (비상용/초기화용)
      * 주의: 데이터 양에 따라 시간이 오래 걸림
      */
+    @AuthCheck(Role.BOOK_ADMIN)
     @PostMapping("/reindex")
     public ResponseEntity<String> reindexAll() {
         // @Async로 동작하므로 즉시 반환
@@ -36,6 +39,7 @@ public class ReindexController {
      * 2. 특정 카테고리 강제 재인덱싱
      * (이름 변경이 아니라, 검색 결과가 이상할 때 수동으로 맞추는 용도)
      */
+    @AuthCheck(Role.BOOK_ADMIN)
     @PostMapping("/reindex/category/{categoryId}")
     public ResponseEntity<String> manualReindexCategory(@PathVariable Long categoryId) {
         // 리스너를 거치지 않고 바로 큐에 메시지를 쏴서 작업을 예약함
@@ -52,6 +56,7 @@ public class ReindexController {
     /**
      * 3. 특정 태그 강제 재인덱싱
      */
+    @AuthCheck(Role.BOOK_ADMIN)
     @PostMapping("/reindex/tag/{tagId}")
     public ResponseEntity<String> manualReindexTag(@PathVariable Long tagId) {
         SearchSyncMessage message = new SearchSyncMessage(tagId, SyncType.TAG);

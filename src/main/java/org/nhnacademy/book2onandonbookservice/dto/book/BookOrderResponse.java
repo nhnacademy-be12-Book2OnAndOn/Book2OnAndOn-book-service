@@ -1,7 +1,9 @@
 package org.nhnacademy.book2onandonbookservice.dto.book;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
@@ -11,15 +13,18 @@ import org.springframework.util.StringUtils;
 
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class BookOrderResponse {
     private Long bookId;
     private String title;
     private Long priceSales;
+    private Long priceStandard;
     private String imageUrl;
-    private boolean isWrapped;
+    private boolean isPackable;
     private Integer stockCount;
-    private BookStatus status;
+    private BookStatus stockStatus;
     private Long categoryId;
 
 
@@ -40,9 +45,10 @@ public class BookOrderResponse {
                 .title(book.getTitle())
                 .priceSales(book.getPriceSales())
                 .imageUrl(resolvedImage)
-                .isWrapped(book.getIsWrapped())
+                .priceStandard(book.getPriceStandard())
+                .isPackable(book.getIsWrapped())
                 .stockCount(book.getStockCount())
-                .status(book.getStatus())
+                .stockStatus(book.getStatus())
                 .categoryId(book.getCategory().getId())
                 .build();
     }
