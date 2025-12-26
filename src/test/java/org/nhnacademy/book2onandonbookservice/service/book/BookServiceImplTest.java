@@ -230,7 +230,6 @@ class BookServiceImplTest {
     @Test
     @DisplayName("신간 도서 조회 - 카테고리 필터링 포함")
     void getNewArrivals_WithCategory() {
-
         Long categoryId = 1L;
         Category root = Category.builder().id(1L).children(new ArrayList<>()).build();
         Category child = Category.builder().id(2L).children(null).build();
@@ -241,14 +240,24 @@ class BookServiceImplTest {
         Book book = new Book();
         ReflectionTestUtils.setField(book, "id", 10L);
         book.setStatus(BookStatus.ON_SALE);
+
+        ReflectionTestUtils.setField(book, "bookContributors", new HashSet<>());
+        ReflectionTestUtils.setField(book, "bookPublishers", new HashSet<>());
+        ReflectionTestUtils.setField(book, "bookTags", new HashSet<>());
+        ReflectionTestUtils.setField(book, "images", new HashSet<>());
+
         Page<Book> bookPage = new PageImpl<>(List.of(book));
 
         when(bookRepository.findBooksByCategoryIdsSorted(anyList(), any(Pageable.class)))
                 .thenReturn(bookPage);
 
+
+
         Page<BookListResponse> result = bookService.getNewArrivals(categoryId, PageRequest.of(0, 10));
 
-        verify(bookRepository).findBooksWithDetails(anyList());
+        verify(categoryRepository).findById(1L);
+        verify(bookRepository).findBooksByCategoryIdsSorted(anyList(), any(Pageable.class));
+
         assertThat(result.getContent()).hasSize(1);
     }
 
