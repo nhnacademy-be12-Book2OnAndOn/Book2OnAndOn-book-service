@@ -36,34 +36,28 @@ class OrderControllerTest {
     @Test
     @DisplayName("성공: 주문 검증용 도서 정보 조회 (GET /internal/books)")
     void getBooksForOrder_Success() {
-        // given
+
         List<Long> bookIds = List.of(1L, 2L);
-        BookOrderResponse responseDto = new BookOrderResponse(); // DTO 생성자/빌더에 따라 수정 가능
+        BookOrderResponse responseDto = new BookOrderResponse();
         List<BookOrderResponse> expectedResponse = List.of(responseDto);
 
         when(bookService.getBooksForOrder(bookIds)).thenReturn(expectedResponse);
 
-        // when
         ResponseEntity<List<BookOrderResponse>> response = orderController.getBooksForOrder(bookIds);
 
-        // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo(expectedResponse);
         verify(bookService).getBooksForOrder(bookIds);
     }
 
     @Test
-    @DisplayName("성공: 재고 선점 요청 (POST /internal/books/stock/decrease)")
+    @DisplayName("성공: 재고 선점 요청 (POST /internal/books/stock/reserve)")
     void decreaseStock_Success() {
-        // given
         StockRequest stockRequest = mock(StockRequest.class);
-        // 로그 출력을 위해 list size 호출 시 빈 리스트 반환하도록 설정 (NPE 방지)
         when(stockRequest.getBookInfoDtoList()).thenReturn(Collections.emptyList());
 
-        // when
         ResponseEntity<Void> response = orderController.decreaseStock(stockRequest);
 
-        // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(stockService).decreaseStock(stockRequest);
     }
@@ -71,17 +65,14 @@ class OrderControllerTest {
     @Test
     @DisplayName("성공: 장바구니/주문용 도서 스냅샷 조회 (POST /internal/books/bulk)")
     void getBookSnapshots_Success() {
-        // given
         List<Long> bookIds = List.of(1L, 2L);
-        CartResponse cartResponse = new CartResponse(); // DTO 생성자/빌더에 따라 수정 가능
+        CartResponse cartResponse = new CartResponse();
         Map<Long, CartResponse> expectedResult = Map.of(1L, cartResponse);
 
         when(bookService.getBookSnapshots(bookIds)).thenReturn(expectedResult);
 
-        // when
         ResponseEntity<Map<Long, CartResponse>> response = orderController.getBookSnapshots(bookIds);
 
-        // then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo(expectedResult);
         verify(bookService).getBookSnapshots(bookIds);
