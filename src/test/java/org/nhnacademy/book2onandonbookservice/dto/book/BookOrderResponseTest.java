@@ -39,9 +39,9 @@ class BookOrderResponseTest {
         assertThat(response.getTitle()).isEqualTo("Test Book");
         assertThat(response.getPriceSales()).isEqualTo(10000L);
         assertThat(response.getImageUrl()).isEqualTo("direct-thumb.jpg");
-        assertThat(response.isWrapped()).isTrue();
+        assertThat(response.isPackable()).isTrue();
         assertThat(response.getStockCount()).isEqualTo(50);
-        assertThat(response.getStatus()).isEqualTo(BookStatus.ON_SALE);
+        assertThat(response.getStockStatus()).isEqualTo(BookStatus.ON_SALE);
         assertThat(response.getCategoryId()).isEqualTo(10L);
     }
 
@@ -102,25 +102,25 @@ class BookOrderResponseTest {
         dto.setTitle("Title");
         dto.setPriceSales(5000L);
         dto.setImageUrl("img.jpg");
-        dto.setWrapped(true);
+        dto.setPackable(true);
         dto.setStockCount(100);
-        dto.setStatus(BookStatus.ON_SALE);
+        dto.setStockStatus(BookStatus.ON_SALE);
         dto.setCategoryId(5L);
 
         assertThat(dto.getBookId()).isEqualTo(1L);
         assertThat(dto.getTitle()).isEqualTo("Title");
         assertThat(dto.getPriceSales()).isEqualTo(5000L);
         assertThat(dto.getImageUrl()).isEqualTo("img.jpg");
-        assertThat(dto.isWrapped()).isTrue();
+        assertThat(dto.isPackable()).isTrue();
         assertThat(dto.getStockCount()).isEqualTo(100);
-        assertThat(dto.getStatus()).isEqualTo(BookStatus.ON_SALE);
+        assertThat(dto.getStockStatus()).isEqualTo(BookStatus.ON_SALE);
         assertThat(dto.getCategoryId()).isEqualTo(5L);
 
         BookOrderResponse allArgs = new BookOrderResponse(
-                2L, "Title2", 6000L, "img2.jpg", false, 10, BookStatus.BOOK_DELETED, 3L
+                2L, "Title2", 6000L,6000L, "img2.jpg", false, 10, BookStatus.BOOK_DELETED, 3L
         );
         assertThat(allArgs.getBookId()).isEqualTo(2L);
-        assertThat(allArgs.getStatus()).isEqualTo(BookStatus.BOOK_DELETED);
+        assertThat(allArgs.getStockStatus()).isEqualTo(BookStatus.BOOK_DELETED);
 
         BookOrderResponse builder = BookOrderResponse.builder()
                 .bookId(3L)
