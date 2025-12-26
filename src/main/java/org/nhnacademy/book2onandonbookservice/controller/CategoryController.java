@@ -41,7 +41,7 @@ public class CategoryController {
     }
 
     /// 카테고리 이름 반환 (해당 카테고리 이름 가지고 카테고리 정보 검색)
-    @GetMapping("/categories/{categoryId}/info")
+    @GetMapping("/{categoryId}/info")
     public ResponseEntity<CategoryDto> getCategoryInfo(@PathVariable Long categoryId){
         CategoryDto categoryDto = categoryService.getCategory(categoryId);
         return ResponseEntity.ok(categoryDto);
