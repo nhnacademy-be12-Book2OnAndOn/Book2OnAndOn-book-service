@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration debug="true">
+<configuration>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -7,38 +7,15 @@
         </encoder>
     </appender>
 
-    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>s4.java21.net:50000</destination>
-        <keepAliveDuration>5 minutes</keepAliveDuration>
-        <reconnectionDelay>10 second</reconnectionDelay>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"service":"book2onandon-book"}</customFields>
-        </encoder>
-    </appender>
-
-    <appender name="ASYNC_LOGSTASH" class="ch.qos.logback.classic.AsyncAppender">
-        <appender-ref ref="LOGSTASH" />
-        <queueSize>512</queueSize>
-        <discardingThreshold>0</discardingThreshold>
-    </appender>
-
     <logger name="org.springframework" level="WARN" />
     <logger name="org.hibernate" level="WARN" />
     <logger name="com.zaxxer" level="WARN" />
     <logger name="org.apache" level="WARN" />
-    <logger name="io.lettuce" level="WARN" /> <logger name="io.netty" level="WARN" />   <logger name="org.nhnacademy.book2onandonbookservice.parser" level="INFO" additivity="false">
-    <appender-ref ref="ASYNC_LOGSTASH"/>
-</logger>
-    <logger name="org.nhnacademy.book2onandonbookservice.client" level="INFO" additivity="false">
-        <appender-ref ref="ASYNC_LOGSTASH"/>
-    </logger>
-    <logger name="org.nhnacademy.book2onandonbookservice.scheduler" level="INFO" additivity="false">
-        <appender-ref ref="ASYNC_LOGSTASH"/>
-    </logger>
+    <logger name="io.lettuce" level="WARN" />
+    <logger name="io.netty" level="WARN" />
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="ASYNC_LOGSTASH"/>
     </root>
 
 </configuration>
