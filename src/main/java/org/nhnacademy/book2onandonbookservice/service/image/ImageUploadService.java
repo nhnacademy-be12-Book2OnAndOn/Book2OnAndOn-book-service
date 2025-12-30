@@ -5,6 +5,7 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.SetBucketPolicyArgs;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
@@ -42,7 +43,28 @@ public class ImageUploadService {
             boolean found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(rootBucket).build());
             if (!found) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(rootBucket).build());
-                log.info("[MinIO 초기화] 버킷('{}')이 없어서 생성했습니다.", rootBucket);
+                String policyJson = """
+                        {
+                          "Version": "2012-10-17",
+                          "Statement": [
+                            {
+                              "Effect": "Allow",
+                              "Principal": "*",
+                              "Action": ["s3:GetObject"],
+                              "Resource": ["arn:aws:s3:::%s/*"]
+                            }
+                          ]
+                        }
+                        """.formatted(rootBucket);
+
+                minioClient.setBucketPolicy(
+                        SetBucketPolicyArgs.builder()
+                                .bucket(rootBucket)
+                                .config(policyJson)
+                                .build()
+                );
+
+                log.info("[MinIO 초기화] 버킷('{}') 생성 및 공개 정책 설정 완료.", rootBucket);
             } else {
                 log.info("[MinIO 초기화] 버킷('{}') 확인 완료. MinIO와 연결 성공!", rootBucket);
             }
