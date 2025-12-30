@@ -288,5 +288,12 @@ public class BookEnrichmentService {
         log.info("[이미지 보강] 썸네일 교체 및 기존 파일 삭제 완료 (BookId: {})", book.getId());
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateTaskStatus(BookEnrichmentTask task) {
+        // REQUIRES_NEW 덕분에 스케줄러의 트랜잭션과 별개로 즉시 DB에 커밋됩니다.
+        taskRepository.saveAndFlush(task);
+        log.debug("[Task Status] 즉시 저장 완료 - BookId: {}", task.getBookId());
+    }
+
 
 }
