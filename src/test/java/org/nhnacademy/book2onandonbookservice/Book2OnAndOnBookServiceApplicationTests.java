@@ -5,11 +5,15 @@ import static org.mockito.Mockito.mock;
 import org.junit.jupiter.api.Test;
 import org.nhnacademy.book2onandonbookservice.config.DataInitializer;
 import org.nhnacademy.book2onandonbookservice.config.ElasticsearchIndexConfig;
+import org.nhnacademy.book2onandonbookservice.repository.BookSearchRepository;
+import org.nhnacademy.book2onandonbookservice.scheduler.BookEnrichmentScheduler;
+import org.nhnacademy.book2onandonbookservice.service.enrichment.rate.ApiRateLimiter;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
@@ -19,6 +23,22 @@ class Book2OnAndOnBookServiceApplicationTests {
     DataInitializer dataInitializer;
     @MockitoBean
     ElasticsearchIndexConfig elasticsearchIndexConfig;
+
+    @MockitoBean
+    StringRedisTemplate redisTemplate;
+
+    // 2. Redis를 사용하는 RateLimiter도 가짜로 대체
+    @MockitoBean
+    ApiRateLimiter apiRateLimiter;
+
+    // 3. Elasticsearch 연결 끊기 (가짜 리포지토리 사용)
+    @MockitoBean
+    BookSearchRepository bookSearchRepository;
+
+    // 4. 스케줄러 끊기 (시작하자마자 SQL 날리는 것 방지)
+    // 특히 initTasksFromBook()의 네이티브 쿼리가 H2에서 문제될 수 있음
+    @MockitoBean
+    BookEnrichmentScheduler bookEnrichmentScheduler;
 
     @Test
     void contextLoads() {

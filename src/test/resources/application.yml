@@ -55,15 +55,13 @@ eureka:
 
 minio:
   url: http://localhost:9000
+  public-url: dummy;
   access-key: dummy-access
   secret-key: dummy-secret
   bucket-name: dummy-bucket
   folder:
     book: books
     review: reviews
-
-google:
-  api-key: dummy-google-key
 
 aladin:
   api:
