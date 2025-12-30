@@ -1,5 +1,6 @@
 package org.nhnacademy.book2onandonbookservice.repository;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
@@ -7,6 +8,7 @@ import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,6 +26,15 @@ public interface BookRepository extends JpaRepository<Book, Long> {
                 WHERE b.id = :bookId
                 """)
     Optional<Book> findByIdWithRelations(Long bookId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE) // 다른 사람은 읽지도/쓰지도 못함 (확실한 정합성)
+    @Query("""
+    SELECT DISTINCT b FROM Book b
+    LEFT JOIN FETCH b.category c
+    LEFT JOIN FETCH b.bookContributors bct
+    WHERE b.id = :bookId
+""")
+    Optional<Book> findByIdWithRelationsForUpdate(@Param("bookId") Long bookId);
 
     /// 신간 도서 조회용 (정렬 O)
     @Query(value = """
@@ -61,18 +72,6 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             countQuery = "SELECT count(b) FROM Book b WHERE b.status = 'ON_SALE'")
     Page<Book> findAllByOrderByPublishDateDesc(Pageable pageable);
 
-
-//    @Query("""
-//        SELECT DISTINCT b FROM Book b
-//        LEFT JOIN FETCH b.bookContributors bc
-//        LEFT JOIN FETCH bc.contributor
-//        LEFT JOIN FETCH b.bookPublishers bp
-//        LEFT JOIN FETCH bp.publisher
-//        LEFT JOIN FETCH b.bookTags bt
-//        LEFT JOIN FETCH bt.tag
-//        WHERE b.id IN :bookIds
-//        """)
-////    List<Book> findBooksWithDetails(@Param("bookIds") List<Long> bookIds);
 
     Page<Book> findByCategory_IdIn(List<Long> categoryIds, Pageable pageable);
 

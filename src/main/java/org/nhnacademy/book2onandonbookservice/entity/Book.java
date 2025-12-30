@@ -14,6 +14,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -156,6 +157,9 @@ public class Book {
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private Set<BookLike> likes = new HashSet<>();
+
+    @Version
+    private Long version;
 
     // 도서 like count 필드 추가 (성능개선을 위한 반정규화) BookLike와 필드 갯수가 맞지않을 수 있는 위험 있어서 조심해야함! 트랜잭션 처리 필수
     @Builder.Default

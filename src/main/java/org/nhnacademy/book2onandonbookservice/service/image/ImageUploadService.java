@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ImageUploadService {
     private final MinioClient minioClient;
     private final String minioUrl;
+    private final String publicUrl;
     private final String rootBucket;
     private final String bookFolder;
     private final String reviewFolder;
@@ -30,11 +31,13 @@ public class ImageUploadService {
     // 생성자 주입 방식으로 변경 (가장 안전함)
     public ImageUploadService(MinioClient minioClient,
                               @Value("${minio.url}") String minioUrl,
+                              @Value("${minio.public-url}")String publicUrl,
                               @Value("${minio.bucket-name}") String rootBucket,
                               @Value("${minio.folder.book}") String bookFolder,
                               @Value("${minio.folder.review}") String reviewFolder) {
         this.minioClient = minioClient;
         this.minioUrl = minioUrl;
+        this.publicUrl = publicUrl;
         this.rootBucket = rootBucket;
         this.bookFolder = bookFolder;
         this.reviewFolder = reviewFolder;
@@ -104,7 +107,7 @@ public class ImageUploadService {
             );
 
             log.info("이미지 업로드 성공: {}", objectName);
-            return minioUrl + "/" + rootBucket + "/" + objectName;
+            return publicUrl + "/" + rootBucket + "/" + objectName;
 
         } catch (Exception e) {
             log.error("[이미지 업로드 실패] MinIO 에러 발생! bucket: {}, url: {}", rootBucket, minioUrl, e);
@@ -134,7 +137,7 @@ public class ImageUploadService {
                 );
 
                 log.info("외부 이미지 다운로드 및 업로드 성공함: {}", objectName);
-                return minioUrl + "/" + rootBucket + "/" + objectName;
+                return publicUrl + "/" + rootBucket + "/" + objectName;
             }
         } catch (Exception e) {
             log.warn("외부 이미지 다운로드 실패 (무시하고 진행): {}",imageUrl, e);
@@ -145,18 +148,25 @@ public class ImageUploadService {
     public void remove(String imageUrl) {
         if (imageUrl == null || imageUrl.isEmpty()) return;
         try {
-            String minioPrefix = minioUrl + "/" + rootBucket + "/";
-            if (!imageUrl.startsWith(minioPrefix)) {
+            String decodedUrl = URLDecoder.decode(imageUrl, StandardCharsets.UTF_8);
+
+            int bucketIndex = decodedUrl.indexOf(rootBucket);
+
+            if (bucketIndex == -1) {
+                log.warn("[이미지 삭제 건너뜀] URL에 버킷명({})이 없습니다: {}", rootBucket, imageUrl);
                 return;
             }
-            String objectName = imageUrl.substring(minioPrefix.length());
-            objectName = URLDecoder.decode(objectName, StandardCharsets.UTF_8);
+
+            String objectName = decodedUrl.substring(bucketIndex + rootBucket.length() + 1);
 
             minioClient.removeObject(RemoveObjectArgs.builder()
                     .bucket(rootBucket)
                     .object(objectName)
                     .build()
             );
+
+            log.info("기존 MinIO 이미지 삭제 완료: {}", objectName);
+
         } catch (Exception e) {
             log.error("MINIO 이미지 삭제 실패 : URL={}", imageUrl, e);
         }

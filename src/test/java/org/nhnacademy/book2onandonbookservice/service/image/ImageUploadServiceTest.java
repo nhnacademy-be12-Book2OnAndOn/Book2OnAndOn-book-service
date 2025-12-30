@@ -33,6 +33,7 @@ class ImageUploadServiceTest {
     private MinioClient minioClient;
 
     private final String minioUrl = "http://localhost:9000";
+    private final String publicUrl = "dummy";
     private final String rootBucket = "test-bucket";
     private final String bookFolder = "book";
     private final String reviewFolder = "review";
@@ -40,7 +41,7 @@ class ImageUploadServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         when(minioClient.bucketExists(any(BucketExistsArgs.class))).thenReturn(true);
-        imageUploadService = new ImageUploadService(minioClient, minioUrl, rootBucket, bookFolder, reviewFolder);
+        imageUploadService = new ImageUploadService(minioClient, minioUrl,publicUrl ,rootBucket, bookFolder, reviewFolder);
     }
 
     @Test
@@ -48,7 +49,7 @@ class ImageUploadServiceTest {
     void constructor_BucketNotExists_CreatesBucket() throws Exception {
         when(minioClient.bucketExists(any(BucketExistsArgs.class))).thenReturn(false);
 
-        new ImageUploadService(minioClient, minioUrl, rootBucket, bookFolder, reviewFolder);
+        new ImageUploadService(minioClient, minioUrl,publicUrl ,rootBucket, bookFolder, reviewFolder);
 
         verify(minioClient).makeBucket(any(MakeBucketArgs.class));
     }
@@ -59,7 +60,7 @@ class ImageUploadServiceTest {
         when(minioClient.bucketExists(any(BucketExistsArgs.class)))
                 .thenThrow(new RuntimeException("MinIO Connection Error"));
 
-        assertThatCode(() -> new ImageUploadService(minioClient, minioUrl, rootBucket, bookFolder, reviewFolder))
+        assertThatCode(() -> new ImageUploadService(minioClient, minioUrl,publicUrl ,rootBucket, bookFolder, reviewFolder))
                 .doesNotThrowAnyException();
     }
 
@@ -72,7 +73,7 @@ class ImageUploadServiceTest {
 
         String result = imageUploadService.uploadBookImage(file);
 
-        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + bookFolder + "/").endsWith(".jpg");
+        assertThat(result).startsWith(publicUrl + "/" + rootBucket + "/" + bookFolder + "/").endsWith(".jpg");
         verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
@@ -85,7 +86,7 @@ class ImageUploadServiceTest {
 
         String result = imageUploadService.uploadReviewImage(file);
 
-        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + reviewFolder + "/").endsWith(".png");
+        assertThat(result).startsWith(publicUrl + "/" + rootBucket + "/" + reviewFolder + "/").endsWith(".png");
         verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
@@ -113,7 +114,7 @@ class ImageUploadServiceTest {
 
         String result = imageUploadService.uploadBookImage(file);
 
-        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + bookFolder + "/");
+        assertThat(result).startsWith(publicUrl + "/" + rootBucket + "/" + bookFolder + "/");
         verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
@@ -133,7 +134,7 @@ class ImageUploadServiceTest {
 
         String result = imageUploadService.uploadImageFromUrl(fileUrl);
 
-        assertThat(result).startsWith(minioUrl + "/" + rootBucket + "/" + bookFolder + "/").endsWith(".jpg");
+        assertThat(result).startsWith(publicUrl + "/" + rootBucket + "/" + bookFolder + "/").endsWith(".jpg");
         verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
@@ -148,7 +149,7 @@ class ImageUploadServiceTest {
     @DisplayName("remove: 성공")
     void remove_Success() throws Exception {
         String objectKey = bookFolder + "/test-image.jpg";
-        String fullUrl = minioUrl + "/" + rootBucket + "/" + objectKey;
+        String fullUrl = publicUrl + "/" + rootBucket + "/" + objectKey;
 
         imageUploadService.remove(fullUrl);
 
@@ -159,7 +160,7 @@ class ImageUploadServiceTest {
     @DisplayName("remove: URL 인코딩된 객체 이름 디코딩 후 삭제")
     void remove_DecodesUrl_Success() throws Exception {
         String encodedKey = bookFolder + "/test%20image.jpg";
-        String fullUrl = minioUrl + "/" + rootBucket + "/" + encodedKey;
+        String fullUrl = publicUrl + "/" + rootBucket + "/" + encodedKey;
 
         imageUploadService.remove(fullUrl);
 
@@ -189,7 +190,7 @@ class ImageUploadServiceTest {
     @DisplayName("remove: MinIO 예외 발생 시 로그 찍고 무시")
     void remove_Exception_Ignored() throws Exception {
         String objectKey = bookFolder + "/test.jpg";
-        String fullUrl = minioUrl + "/" + rootBucket + "/" + objectKey;
+        String fullUrl = publicUrl + "/" + rootBucket + "/" + objectKey;
 
         doThrow(new RuntimeException("Remove Fail"))
                 .when(minioClient).removeObject(any(RemoveObjectArgs.class));

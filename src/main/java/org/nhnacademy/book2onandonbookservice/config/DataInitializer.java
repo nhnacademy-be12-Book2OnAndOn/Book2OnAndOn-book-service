@@ -172,9 +172,14 @@ public class DataInitializer implements ApplicationRunner {
         }
         String finalPubName = pubName;
         String pubKey = normalizeKey(finalPubName);
-        Publisher publisher = publisherCache.computeIfAbsent(pubKey, name ->
-                publisherRepository.save(Publisher.builder().publisherName(finalPubName).build())
-        );
+        Publisher publisher = publisherCache.computeIfAbsent(pubKey, name -> {
+            try {
+                return publisherRepository.save(Publisher.builder().publisherName(finalPubName).build());
+            } catch (Exception e) {
+                return publisherRepository.findByPublisherName(finalPubName)
+                        .orElseThrow(() -> new RuntimeException("출판사 처리 실패: " + finalPubName));
+            }
+        });
 
         long price = parsePrice(safeGet(row, h, "PRC_VALUE"));
         long defaultDiscountedPrice = (long) (price * 0.9);
@@ -338,9 +343,14 @@ public class DataInitializer implements ApplicationRunner {
         String key = normalizeKey(name);
 
         // 2. 캐시 찾을 땐 'key'(소문자), 저장할 땐 'name'(원본) 사용
-        return contributorCache.computeIfAbsent(key, k ->
-                contributorRepository.save(Contributor.builder().contributorName(name).build())
-        );
+        return contributorCache.computeIfAbsent(key, k -> {
+            try {
+                return contributorRepository.save(Contributor.builder().contributorName(name).build());
+            } catch (Exception e) {
+                return contributorRepository.findByContributorName(name)
+                        .orElseThrow(() -> new RuntimeException("작가 처리 실패: " + name));
+            }
+        });
     }
 
     // --- 유틸리티 메서드 ---

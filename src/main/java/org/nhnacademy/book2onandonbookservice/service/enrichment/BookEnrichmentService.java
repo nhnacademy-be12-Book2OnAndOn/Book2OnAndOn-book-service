@@ -178,9 +178,14 @@ public class BookEnrichmentService {
         String cleanName = publisherName.trim();
 
         Publisher publisher = publisherRepository.findByPublisherName(cleanName)
-                .orElseGet(()-> publisherRepository.save(
-                        Publisher.builder().publisherName(cleanName).build()
-                ));
+                .orElseGet(() -> {
+                    try {
+                        return publisherRepository.save(Publisher.builder().publisherName(cleanName).build());
+                    } catch (Exception e) {
+                        return publisherRepository.findByPublisherName(cleanName).orElseThrow();
+                    }
+                });
+
         boolean exists = bookPublisherRepository.existsByBookAndPublisher(book, publisher);
 
         if(!exists){
@@ -218,10 +223,14 @@ public class BookEnrichmentService {
             }
 
             String finalName = name;
-            Contributor contributor  = contributorRepository.findByContributorName(finalName)
-                    .orElseGet(()-> contributorRepository.save(
-                            Contributor.builder().contributorName(finalName).build()
-                    ));
+            Contributor contributor = contributorRepository.findByContributorName(finalName)
+                    .orElseGet(() -> {
+                        try {
+                            return contributorRepository.save(Contributor.builder().contributorName(finalName).build());
+                        } catch (Exception e) {
+                            return contributorRepository.findByContributorName(finalName).orElseThrow();
+                        }
+                    });
 
             boolean exists = bookContributorRepository.existsByBookAndContributorAndRoleType(book, contributor, role);
 
@@ -239,25 +248,34 @@ public class BookEnrichmentService {
 
 
     private void enrichThumbnail(Book book, String coverUrl){
-        if(StringUtils.hasText(book.getThumbnail())) return;
         if(!StringUtils.hasText(coverUrl)) return;
 
-        String internalUrl  = imageUploadService.uploadImageFromUrl(coverUrl);
+        String newInternalUrl = imageUploadService.uploadImageFromUrl(coverUrl);
+        if (newInternalUrl == null) return;
 
-        if(internalUrl != null){
-            book.setThumbnail(internalUrl);
-
-            BookImage bookImage = BookImage.builder()
-                    .book(book)
-                    .imagePath(internalUrl)
-                    .isThumbnail(true)
-                    .build();
-
-            book.getImages().add(bookImage);
-
-            //Cascade가 동작하려면 bookRepository.save(book) 이 호출되어야 되는데
-            //트랜잭션이 종료되면 Dirty checking으로 자동 저장됨.
+        if (StringUtils.hasText(book.getThumbnail())) {
+            // 아까 수정한 remove 메서드가 URL을 파싱해서 알아서 지워줍니다.
+            imageUploadService.remove(book.getThumbnail());
         }
+        book.setThumbnail(newInternalUrl);
+
+        if (book.getImages() != null) {
+            book.getImages().forEach(img -> {
+                // BookImage 엔티티가 boolean 필드이므로 getter는 isThumbnail() 입니다.
+                if (img.isThumbnail()) {
+                    img.setThumbnail(false);
+                }
+            });
+        }
+
+        BookImage newBookImage = BookImage.builder()
+                .book(book)
+                .imagePath(newInternalUrl)
+                .isThumbnail(true)
+                .build();
+
+        book.getImages().add(newBookImage);
+        log.info("[이미지 보강] 썸네일 교체 및 기존 파일 삭제 완료 (BookId: {})", book.getId());
     }
 
 
