@@ -180,9 +180,11 @@ public class BookEnrichmentService {
         Publisher publisher = publisherRepository.findByPublisherName(cleanName)
                 .orElseGet(() -> {
                     try {
-                        return publisherRepository.save(Publisher.builder().publisherName(cleanName).build());
+
+                        return publisherRepository.saveAndFlush(Publisher.builder().publisherName(cleanName).build());
                     } catch (Exception e) {
-                        return publisherRepository.findByPublisherName(cleanName).orElseThrow();
+                        return publisherRepository.findByPublisherName(cleanName)
+                                .orElseThrow(() -> new RuntimeException("출판사 저장 및 재조회 실패: " + cleanName));
                     }
                 });
 
@@ -194,9 +196,12 @@ public class BookEnrichmentService {
                     .publisher(publisher)
                     .build();
 
-            bookPublisherRepository.save(bookPublisher);
-
-            book.getBookPublishers().add(bookPublisher);
+            try {
+                bookPublisherRepository.saveAndFlush(bookPublisher);
+                book.getBookPublishers().add(bookPublisher);
+            } catch (Exception e) {
+                log.warn("[중복 방지] 이미 연결된 출판사 관계입니다. (BookId: {}, Publisher: {})", book.getId(), cleanName);
+            }
         }
 
     }
@@ -226,9 +231,10 @@ public class BookEnrichmentService {
             Contributor contributor = contributorRepository.findByContributorName(finalName)
                     .orElseGet(() -> {
                         try {
-                            return contributorRepository.save(Contributor.builder().contributorName(finalName).build());
+                            return contributorRepository.saveAndFlush(Contributor.builder().contributorName(finalName).build());
                         } catch (Exception e) {
-                            return contributorRepository.findByContributorName(finalName).orElseThrow();
+                            return contributorRepository.findByContributorName(finalName)
+                                    .orElseThrow(() -> new RuntimeException("작가 저장 및 재조회 실패: " + finalName));
                         }
                     });
 
@@ -241,7 +247,11 @@ public class BookEnrichmentService {
                         .roleType(role)
                         .build();
 
-                bookContributorRepository.save(bookContributor);
+                try {
+                    bookContributorRepository.saveAndFlush(bookContributor);
+                } catch (Exception e) {
+                    log.warn("[중복 방지] 이미 연결된 작가 관계입니다. (BookId: {}, Contributor: {})", book.getId(), finalName);
+                }
             }
         }
     }
