@@ -38,7 +38,6 @@ public class BookEnrichmentScheduler {
     // 5초마다 실행 (API 호출 간격 조절 역할)
     @Scheduled(fixedDelay = 10000)
     @SchedulerLock(name = "enrichment_batch", lockAtLeastFor = "1s", lockAtMostFor = "50s")
-    @Transactional
     public void processEnrichmentBatch() {
         // 1. 할 일 10개 가져오기 (API Quota 고려하여 소량씩)
         List<BookEnrichmentTask> tasks = taskRepository.findTasksToProcess(PageRequest.of(0, 10));
@@ -50,6 +49,14 @@ public class BookEnrichmentScheduler {
         log.info("배치 작업 시작 - 대상: {}", tasks.size());
 
         for(BookEnrichmentTask task: tasks){
+
+            int updated = taskRepository.markAsProcessing(task.getBookId());
+
+            if (updated == 0) {
+                log.info("이미 처리 중인 작업입니다 (BookId: {})", task.getBookId());
+                continue;
+            }
+
             try{
                 enrichmentService.enrichBookData(task);
                 enrichmentService.updateTaskStatus(task);
