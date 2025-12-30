@@ -26,6 +26,7 @@ import org.springframework.data.domain.Sort;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -97,6 +98,8 @@ class BookSearchQueryClientTest {
     @Test
     @DisplayName("성공: 벡터 검색 (KNN) 적용 - Sort 없을 때")
     void search_VectorSearch() throws IOException {
+        ReflectionTestUtils.setField(bookSearchQueryClient, "indexName", "test-book-index");
+        ReflectionTestUtils.setField(bookSearchQueryClient, "embeddingField", "embedding");
         BookSearchCondition condition = new BookSearchCondition();
         Pageable pageable = PageRequest.of(0, 10);
         List<Float> vector = List.of(0.1f, 0.2f, 0.3f);

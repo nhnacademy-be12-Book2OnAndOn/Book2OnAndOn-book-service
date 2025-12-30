@@ -101,7 +101,7 @@ class CategoryControllerTest {
 
         given(categoryService.getCategory(categoryId)).willReturn(categoryDto);
 
-        mockMvc.perform(get("/categories/categories/{categoryId}/info", categoryId)
+        mockMvc.perform(get("/categories/{categoryId}/info", categoryId)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(categoryId))

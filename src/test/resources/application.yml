@@ -104,3 +104,8 @@ logging:
   level:
     org.springframework.web.multipart: INFO
     org.springframework.web.servlet: INFO
+elasticsearch:
+  index:
+    name: book2onandon-books
+  field:
+    embedding: embedding

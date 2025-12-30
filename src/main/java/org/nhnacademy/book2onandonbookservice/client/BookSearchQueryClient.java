@@ -4,7 +4,6 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery.Builder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
@@ -16,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.exception.SearchExecutionException;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchDocument;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -29,8 +29,11 @@ import org.springframework.util.StringUtils;
 public class BookSearchQueryClient {
     private final ElasticsearchClient elasticsearchClient;
 
-    private static final String INDEX_NAME = "book2onandon-books";
-    private static final String FIELD_EMBEDDING = "embedding";
+    @Value("${elasticsearch.index.name}")
+    private String indexName;
+
+    @Value("${elasticsearch.field.embedding}")
+    private String embeddingField;
 
     private static final String[] SEARCH_FIELDS_WITH_BOOST = {
             "title^80.0",            // 제목
@@ -54,7 +57,7 @@ public class BookSearchQueryClient {
             boolean useVectorSearch = (vector !=null && ! vector.isEmpty()) && !hasSortOption;
 
             SearchResponse<BookSearchDocument> response = elasticsearchClient.search( s ->{
-                s.index(INDEX_NAME);
+                s.index(indexName);
 
                 s.query(q -> q.bool(b ->{
                     b.must(textQuery);
@@ -66,7 +69,7 @@ public class BookSearchQueryClient {
 
                 if (useVectorSearch) {
                     s.knn(k ->
-                        k.field(FIELD_EMBEDDING)
+                        k.field(embeddingField)
                                 .queryVector(vector)
                                 .k(VECTOR_K)
                                 .numCandidates(VECTOR_NUM_CANDIDATES)
