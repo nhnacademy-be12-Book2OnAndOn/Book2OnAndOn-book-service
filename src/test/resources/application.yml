@@ -106,6 +106,6 @@ logging:
     org.springframework.web.servlet: INFO
 elasticsearch:
   index:
-    name: book2onandon-books
+    name: dummy
   field:
     embedding: embedding
