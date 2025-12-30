@@ -117,7 +117,7 @@ class BookServiceImplTest {
 
         Long bookId = 1L;
         Book book = new Book();
-        ReflectionTestUtils.setField(book, "id", bookId); // ID 주입
+        ReflectionTestUtils.setField(book, "id", bookId);
         book.setStockCount(10);
         book.setStatus(BookStatus.ON_SALE);
 
@@ -134,7 +134,7 @@ class BookServiceImplTest {
         MultipartFile newFile = mock(MultipartFile.class);
         List<MultipartFile> newImages = List.of(newFile);
 
-        when(bookRepository.findByIdWithRelations(bookId)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdWithRelationsForUpdate(bookId)).thenReturn(Optional.of(book));
         when(imageUploadService.uploadBookImage(newFile)).thenReturn("new/path");
 
         bookService.updateBook(bookId, request, newImages);
@@ -159,7 +159,8 @@ class BookServiceImplTest {
 
         BookUpdateRequest request = BookUpdateRequest.builder().stockCount(5).build();
 
-        when(bookRepository.findByIdWithRelations(bookId)).thenReturn(Optional.of(book));
+        // [수정] findByIdWithRelations -> findByIdWithRelationsForUpdate 로 변경!
+        when(bookRepository.findByIdWithRelationsForUpdate(bookId)).thenReturn(Optional.of(book));
 
         bookService.updateBook(bookId, request, null);
 
