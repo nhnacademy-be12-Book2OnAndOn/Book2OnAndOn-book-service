@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -100,7 +101,6 @@ class BookEnrichmentServiceTest {
     @Test
     @DisplayName("enrichBookData: 알라딘/AI 성공 시 상태 업데이트 및 재색인 수행")
     void enrichBookData_Success() throws JsonProcessingException {
-        // given
         BookEnrichmentTask task = createTask();
         ReflectionTestUtils.setField(task, "bookId", 1L);
         ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
@@ -128,13 +128,13 @@ class BookEnrichmentServiceTest {
         // Publisher Mock
         when(publisherRepository.findByPublisherName("Test Publisher"))
                 .thenReturn(Optional.empty());
-        when(publisherRepository.save(any(Publisher.class))).thenAnswer(i -> i.getArgument(0));
+        lenient().when(publisherRepository.save(any(Publisher.class))).thenAnswer(i -> i.getArgument(0));
         when(bookPublisherRepository.existsByBookAndPublisher(any(), any())).thenReturn(false);
 
         // Contributor Mock
         when(contributorRepository.findByContributorName("Author"))
                 .thenReturn(Optional.empty());
-        when(contributorRepository.save(any(Contributor.class))).thenAnswer(i -> i.getArgument(0));
+        lenient().when(contributorRepository.save(any(Contributor.class))).thenAnswer(i -> i.getArgument(0));
         when(bookContributorRepository.existsByBookAndContributorAndRoleType(any(), any(), anyString()))
                 .thenReturn(false);
 
@@ -283,11 +283,10 @@ class BookEnrichmentServiceTest {
         when(aladinApiClient.searchByIsbn(any())).thenReturn(item);
 
         when(contributorRepository.findByContributorName(anyString())).thenReturn(Optional.empty());
-        when(contributorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-
+        lenient().when(contributorRepository.save(any(Contributor.class))).thenAnswer(i -> i.getArgument(0));
         bookEnrichmentService.enrichBookData(task);
 
-        verify(bookContributorRepository, times(2)).save(any(BookContributor.class));
+        verify(bookContributorRepository, times(2)).saveAndFlush(any(BookContributor.class));
     }
 
     @Test
