@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.exception.ElasticsearchInitializationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
@@ -18,22 +19,23 @@ import java.io.InputStream;
 public class ElasticsearchIndexConfig {
 
     private final ElasticsearchClient elasticsearchClient;
-    private static final String INDEX_NAME = "book2onandon-books";
+    @Value("${elasticsearch.index.name}")
+    private String indexName;
     private static final String INDEX_DEFINITION_PATH = "static/elastic-index-definition.json";
 
     @PostConstruct
     public void initIndex() {
         try {
             boolean exists = elasticsearchClient.indices()
-                    .exists(ExistsRequest.of(e -> e.index(INDEX_NAME)))
+                    .exists(ExistsRequest.of(e -> e.index(indexName)))
                     .value();
 
             if (exists) {
-                log.info("인덱스 [{}]가 이미 존재합니다.", INDEX_NAME);
+                log.info("인덱스 [{}]가 이미 존재합니다.", indexName);
                 return;
             }
 
-            log.info("인덱스 [{}] 생성 시작...", INDEX_NAME);
+            log.info("인덱스 [{}] 생성 시작...", indexName);
 
             // JSON 파일 읽기
             ClassPathResource resource = new ClassPathResource(INDEX_DEFINITION_PATH);
@@ -42,11 +44,11 @@ public class ElasticsearchIndexConfig {
 
                 // 인덱스 생성
                 elasticsearchClient.indices().create(c -> c
-                        .index(INDEX_NAME)
+                        .index(indexName)
                         .withJson(new java.io.StringReader(indexDefinition))
                 );
 
-                log.info("인덱스 [{}] 생성 완료", INDEX_NAME);
+                log.info("인덱스 [{}] 생성 완료", indexName);
             }
 
         } catch (IOException e) {

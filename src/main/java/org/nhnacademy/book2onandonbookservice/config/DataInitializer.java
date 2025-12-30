@@ -93,8 +93,8 @@ public class DataInitializer implements ApplicationRunner {
 
     private void preloadCaches() {
         log.info("캐시 워밍업 중 (기존 데이터 로드)...");
-        publisherRepository.findAll().forEach(p -> publisherCache.put(p.getPublisherName(), p));
-        contributorRepository.findAll().forEach(c -> contributorCache.put(c.getContributorName(), c));
+        publisherRepository.findAll().forEach(p -> publisherCache.put(normalizeKey(p.getPublisherName()), p));
+        contributorRepository.findAll().forEach(c -> contributorCache.put(normalizeKey(c.getContributorName()), c));
         log.info("캐시 로드 완료 (Publisher: {}, Contributor: {})", publisherCache.size(), contributorCache.size());
     }
 
@@ -170,9 +170,10 @@ public class DataInitializer implements ApplicationRunner {
         if (!StringUtils.hasText(pubName)) {
             pubName = "Unknown";
         }
-
-        Publisher publisher = publisherCache.computeIfAbsent(pubName, name ->
-                publisherRepository.save(Publisher.builder().publisherName(name).build())
+        String finalPubName = pubName;
+        String pubKey = normalizeKey(finalPubName);
+        Publisher publisher = publisherCache.computeIfAbsent(pubKey, name ->
+                publisherRepository.save(Publisher.builder().publisherName(finalPubName).build())
         );
 
         long price = parsePrice(safeGet(row, h, "PRC_VALUE"));
@@ -245,6 +246,10 @@ public class DataInitializer implements ApplicationRunner {
             this.name = name;
             this.role = role;
         }
+    }
+
+    private String normalizeKey(String str) {
+        return str == null ? "" : str.trim().toLowerCase();
     }
 
     // 정규식을 이용해 "이름"과 "역할"을 분리
@@ -329,8 +334,12 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private Contributor getOrCreateContributor(String name) {
-        return contributorCache.computeIfAbsent(name, n ->
-                contributorRepository.save(Contributor.builder().contributorName(n).build())
+        // 1. 키를 소문자로 변환
+        String key = normalizeKey(name);
+
+        // 2. 캐시 찾을 땐 'key'(소문자), 저장할 땐 'name'(원본) 사용
+        return contributorCache.computeIfAbsent(key, k ->
+                contributorRepository.save(Contributor.builder().contributorName(name).build())
         );
     }
 
