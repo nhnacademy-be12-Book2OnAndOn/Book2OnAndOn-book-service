@@ -1,9 +1,11 @@
 package org.nhnacademy.book2onandonbookservice.repository;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import org.nhnacademy.book2onandonbookservice.entity.BookEnrichmentTask;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +15,7 @@ public interface BookEnrichmentTaskRepository extends JpaRepository<BookEnrichme
     // 알라딘 혹은 AI 둘 중 하나라도 처리해야 할 게 남아있는 녀석들을 조회
     // 조건: (알라딘이 PENDING이거나 3번 미만 실패) OR (AI가 PENDING이거나 3번 미만 실패)
     // 단, 알라딘이 NOT_FOUND인 경우는 "할 일 없음"으로 간주하므로 조건에서 제외됨(자동)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM BookEnrichmentTask t "
             + "WHERE "
             + "   (t.aladinStatus = 'PENDING' OR (t.aladinStatus = 'FAILED' AND t.aladinRetryCount < 3)) "

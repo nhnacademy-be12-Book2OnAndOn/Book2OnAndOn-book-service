@@ -291,28 +291,37 @@ class BookEnrichmentServiceTest {
     }
 
     @Test
-    @DisplayName("enrichThumbnail: 이미 썸네일이 있으면 업데이트 안 함")
-    void enrichThumbnail_ExistingThumbnail() throws JsonProcessingException {
+    @DisplayName("enrichThumbnail: 이미 썸네일이 있어도 알라딘 이미지로 교체함 (덮어쓰기)")
+    void enrichThumbnail_UpdatesExistingThumbnail() throws JsonProcessingException {
         BookEnrichmentTask task = createTask();
         ReflectionTestUtils.setField(task, "bookId", 1L);
         ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
         ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.DONE);
 
         Book book = Book.builder().build();
-        book.setThumbnail("existing.jpg");
+        String oldThumbnail = "existing.jpg";
+        book.setThumbnail(oldThumbnail);
         book.setBookPublishers(new HashSet<>());
         book.setBookContributors(new HashSet<>());
 
         when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
 
         AladinApiResponse.Item item = new AladinApiResponse.Item();
-        ReflectionTestUtils.setField(item, "cover", "http://new.jpg");
+        String newAladinCover = "http://new.jpg";
+        ReflectionTestUtils.setField(item, "cover", newAladinCover);
 
         when(aladinApiClient.searchByIsbn(any())).thenReturn(item);
 
+        String newInternalUrl = "https://book2onandon.shop/minio/new_image.jpg";
+        when(imageUploadService.uploadImageFromUrl(newAladinCover)).thenReturn(newInternalUrl);
+
         bookEnrichmentService.enrichBookData(task);
 
-        verify(imageUploadService, never()).uploadImageFromUrl(anyString());
+        verify(imageUploadService, times(1)).uploadImageFromUrl(newAladinCover);
+
+        verify(imageUploadService, times(1)).remove(oldThumbnail);
+
+        org.assertj.core.api.Assertions.assertThat(book.getThumbnail()).isEqualTo(newInternalUrl);
     }
 
     @Test

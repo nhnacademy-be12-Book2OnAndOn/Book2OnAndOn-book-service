@@ -37,12 +37,19 @@ public class CategoryEnrichmentService {
             if(name.isEmpty()) continue;
 
             Category finalParent = parent;
-            current= categoryRepository
+            current = categoryRepository
                     .findByCategoryNameAndParent(name, parent)
-                    .orElseGet(()-> {
-                        Category c = Category.builder().categoryName(name)
-                                        .parent(finalParent).build();
-                        return categoryRepository.save(c);
+                    .orElseGet(() -> {
+                        try {
+                            Category c = Category.builder()
+                                    .categoryName(name)
+                                    .parent(finalParent)
+                                    .build();
+                            return categoryRepository.save(c);
+                        } catch (Exception e) {
+                            return categoryRepository.findByCategoryNameAndParent(name, finalParent)
+                                    .orElseThrow(() -> new CategoryResolveException("카테고리 생성 충돌: " + name));
+                        }
                     });
             parent=current;
         }

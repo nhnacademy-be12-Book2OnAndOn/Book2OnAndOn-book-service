@@ -106,7 +106,7 @@ public class BookServiceImpl implements BookService {
             @CacheEvict(value = "bestsellers", allEntries = true, cacheManager = "bestsellersCacheManager")
     })
     public void updateBook(Long bookId, BookUpdateRequest request, List<MultipartFile> newImages) {
-        Book book = bookRepository.findByIdWithRelations(bookId)
+        Book book = bookRepository.findByIdWithRelationsForUpdate(bookId)
                 .orElseThrow(() -> new NotFoundBookException(bookId));
         int oldStock = book.getStockCount();
         // 1. 단순 필드 업데이트
@@ -490,9 +490,9 @@ public class BookServiceImpl implements BookService {
 
         books.forEach(book -> {
             // .size()를 호출하면 프록시가 초기화되면서 DB 조회가 발생함
-            book.getBookContributors().size();
-            book.getBookPublishers().size();
-            book.getBookTags().size();
+            log.trace("Contributors size: {}", book.getBookContributors().size());
+            log.trace("Publishers size: {}", book.getBookPublishers().size());
+            log.trace("Tags size: {}", book.getBookTags().size());
         });
         log.debug("2단계 쿼리 (상세정보): {}ms", System.currentTimeMillis() - startTime);
     }

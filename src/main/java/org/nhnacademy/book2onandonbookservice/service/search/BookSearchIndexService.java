@@ -31,9 +31,9 @@ public class BookSearchIndexService {
         try{
             BookSearchDocument bookSearchDocument = createDocument(book);
             bookSearchRepository.save(bookSearchDocument);
-            log.info("인덱싱 완료!!!!!!!!!!!: {}", bookSearchDocument.getTitle());
+            log.info("🥳인덱싱 완료: {}", bookSearchDocument.getTitle());
         } catch (Exception e) {
-            log.error("인덱싱 실패 book id={}", book.getId(), e);
+            log.error("🥲인덱싱 실패 book id={}", book.getId(), e);
         }
 
     }
@@ -81,7 +81,6 @@ public class BookSearchIndexService {
         // Ollama를 통해 1024차원 벡터 생성
         List<Float> embedding = null; // 기본값 null
         try {
-            searchText = buildSearchText(book, contributorNames, tagNames);
             List<Float> vector = ollamaApiClient.getEmbedding(searchText);
 
             // 벡터가 존재하고 비어있지 않을 때만 할당

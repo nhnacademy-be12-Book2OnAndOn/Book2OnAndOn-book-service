@@ -8,9 +8,9 @@
     </appender>
 
     <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/logs/app.log</file>
+        <file>logs/app.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>/logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>3</maxHistory>
         </rollingPolicy>
         <encoder>
@@ -19,9 +19,9 @@
     </appender>
 
     <appender name="AI_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/logs/ai-parsing.log</file>
+        <file>logs/ai-parsing.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>/logs/ai-parsing.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/ai-parsing.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>3</maxHistory>
         </rollingPolicy>
         <encoder>
@@ -46,7 +46,7 @@
         <appender-ref ref="AI_FILE"/>
     </logger>
 
-    <logger name="org.nhnacademy.book2onandonbookservice.service.BookEnrichmentService" level="INFO" additivity="false">
+    <logger name="org.nhnacademy.book2onandonbookservice.service.enrichment.BookEnrichmentService" level="INFO" additivity="false">
         <appender-ref ref="AI_FILE"/>
     </logger>
 
