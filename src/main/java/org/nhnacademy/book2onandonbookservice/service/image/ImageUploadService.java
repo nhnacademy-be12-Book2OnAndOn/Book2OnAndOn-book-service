@@ -7,11 +7,13 @@ import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.SetBucketPolicyArgs;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.RejectedExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.exception.ImageUploadException;
 import org.springframework.beans.factory.annotation.Value;
@@ -129,8 +131,20 @@ public class ImageUploadService {
             return uploadInternal(highResUrl, "image/jpeg");
         } catch (Exception e) {
             // 2. 실패 시 원본 URL로 최종 시도
-            return uploadOriginalUrl(imageUrl);
-        }
+            try {
+                return uploadInternal(imageUrl, "image/jpeg");
+            } catch (RejectedExecutionException | InterruptedIOException ie) {
+                // ★ 핵심 수정: 시스템 종료나 쓰레드 풀 종료로 인한 에러는 ERROR 로그 안 찍음
+                log.warn("이미지 업로드 중단 (시스템 종료 또는 재시작 감지): {}", imageUrl);
+                return null;
+            } catch (java.io.FileNotFoundException fe) {
+                log.warn("이미지 소스 없음(404): {}", imageUrl);
+                return null;
+            } catch (Exception ex) {
+                // 진짜 에러만 ERROR로 출력
+                log.error("이미지 업로드 최종 실패: {}", imageUrl, ex);
+                return null;
+            }        }
     }
 
     public void remove(String imageUrl) {

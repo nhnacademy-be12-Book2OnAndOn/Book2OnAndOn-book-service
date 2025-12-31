@@ -78,7 +78,7 @@ public class DataInitializer implements ApplicationRunner {
 
         // 캐시 : 이미 DB에 있는 출판사/작가를 메모리에 올림 (중복 Insert 방지 및 속도 향상)
         preloadCaches();
-
+        ensureSpecialValues();
         Resource[] resources = resolver.getResources("classpath*:/data/*.csv");
         if (resources.length == 0) {
             log.warn("classpath:/data 경로에 CSV 파일이 없습니다.");
@@ -204,20 +204,7 @@ public class DataInitializer implements ApplicationRunner {
         }
         String finalPubName = pubName;
         String pubKey = normalizeKey(finalPubName);
-        Publisher publisher = publisherCache.computeIfAbsent(pubKey, key -> {
-            // 1. 먼저 DB 조회
-            return publisherRepository.findByPublisherName(finalPubName)
-                    .orElseGet(() -> {
-                        // 2. 없으면 저장 시도
-                        try {
-                            return publisherRepository.save(Publisher.builder().publisherName(finalPubName).build());
-                        } catch (Exception e) {
-                            // 3. 동시에 다른 스레드가 저장했거나 캐시 엇박자로 충돌 시 재조회
-                            return publisherRepository.findByPublisherName(finalPubName)
-                                    .orElseThrow(() -> new RuntimeException("출판사 처리 실패(DB 불일치): " + finalPubName));
-                        }
-                    });
-        });
+        Publisher publisher = getOrCreatePublisherSafe(pubName);
 
         long price = parsePrice(safeGet(row, h, "PRC_VALUE"));
         long defaultDiscountedPrice = (long) (price * 0.9);
@@ -385,8 +372,11 @@ public class DataInitializer implements ApplicationRunner {
             try {
                 return contributorRepository.save(Contributor.builder().contributorName(name).build());
             } catch (Exception e) {
-                return contributorRepository.findByContributorName(name)
-                        .orElseThrow(() -> new RuntimeException("작가 처리 실패: " + name));
+                Contributor saved = contributorRepository.save(Contributor.builder().contributorName(name).build());
+                if (saved == null || saved.getId() == null) {
+                    throw new IllegalStateException("Contributor save 결과가 비정상입니다: " + name);
+                }
+                return saved;
             }
         });
     }
@@ -439,5 +429,95 @@ public class DataInitializer implements ApplicationRunner {
             map.put(headers[i].trim(), i);
         }
         return map;
+    }
+
+    private Publisher getOrCreatePublisherSafe(String rawName) {
+        String cleanName = rawName.trim();
+        String key = normalizeKey(cleanName);
+
+        // 1. 캐시 수동 확인 (computeIfAbsent 대신 명시적으로 확인)
+        if (publisherCache.containsKey(key)) {
+            return publisherCache.get(key);
+        }
+
+        // 2. DB 조회 및 저장 시도
+        try {
+            return publisherRepository.findByPublisherName(cleanName)
+                    .orElseGet(() -> {
+                        try {
+                            // saveAndFlush: 즉시 DB에 반영하여 중복 에러가 나면 바로 catch로 보냄
+                            Publisher saved = publisherRepository.saveAndFlush(
+                                    Publisher.builder().publisherName(cleanName).build()
+                            );
+                            publisherCache.put(key, saved);
+                            return saved;
+                        } catch (Exception e) {
+                            // 중복 에러 발생 시(동시성 이슈 등), 다시 조회해서 가져옴
+                            Publisher found = publisherRepository.findByPublisherName(cleanName)
+                                    .orElseGet(() -> findPublisherByBroadSearch(cleanName)); // 최후의 수단
+
+                            // 찾아낸 것도 캐시에 넣어둠
+                            publisherCache.put(key, found);
+                            return found;
+                        }
+                    });
+        } catch (Exception e) {
+            // 혹시 모를 예외 발생 시에도 멈추지 않고 검색 시도
+            return findPublisherByBroadSearch(cleanName);
+        }
+    }
+
+    //  최후의 수단...: 대소문자 무시 검색 (DB collation 차이 극복용)
+    private Publisher findPublisherByBroadSearch(String name) {
+        // 1. 캐시 재확인
+        Publisher cached = publisherCache.get(normalizeKey(name));
+        if (cached != null) return cached;
+
+        // 2. DB 검색 (대소문자 무시 등)
+        return publisherRepository.findAll().stream()
+                .filter(p -> p.getPublisherName().equalsIgnoreCase(name.trim()))
+                .findFirst()
+                .orElseGet(() -> {
+
+                    String unknownKey = normalizeKey("Unknown");
+                    if (publisherCache.containsKey(unknownKey)) {
+                        return publisherCache.get(unknownKey);
+                    }
+
+                    // 진짜 만에 하나 캐시에도 없으면 DB 조회 (절대 save 하지 않음)
+                    return publisherRepository.findByPublisherName("Unknown")
+                            .orElseThrow(() -> new RuntimeException("치명적 오류: Unknown 출판사가 DB에 없습니다."));
+                });
+    }
+
+    private void ensureSpecialValues() {
+        log.info("특수 데이터(Unknown) 사전 확보 중...");
+        String unknownName = "Unknown";
+        String key = normalizeKey(unknownName);
+
+        // 이미 캐시에 있으면 패스
+        if (publisherCache.containsKey(key)) return;
+
+        try {
+            // DB에 있으면 가져오고, 없으면 저장
+            Publisher unknown = publisherRepository.findByPublisherName(unknownName)
+                    .orElseGet(() -> {
+                        try {
+                            return publisherRepository.saveAndFlush(
+                                    Publisher.builder().publisherName(unknownName).build()
+                            );
+                        } catch (Exception e) {
+                            // 동시에 생겼을 경우 재조회
+                            return publisherRepository.findByPublisherName(unknownName)
+                                    .orElseThrow(() -> new RuntimeException("Unknown 출판사 초기화 실패"));
+                        }
+                    });
+
+            // 캐시에 등록
+            publisherCache.put(key, unknown);
+            log.info("Unknown 출판사 확보 완료: ID={}", unknown.getId());
+        } catch (Exception e) {
+            log.error("특수 데이터 초기화 중 오류", e);
+        }
     }
 }

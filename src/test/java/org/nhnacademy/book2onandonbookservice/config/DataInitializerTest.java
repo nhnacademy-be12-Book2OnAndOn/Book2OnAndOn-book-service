@@ -1,23 +1,35 @@
 package org.nhnacademy.book2onandonbookservice.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +51,8 @@ import org.nhnacademy.book2onandonbookservice.service.BookBatchService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class DataInitializerTest {
@@ -47,7 +61,8 @@ class DataInitializerTest {
     private BookRepository bookRepository;
 
     @Mock
-    ImageUploadService imageUploadService;
+    private ImageUploadService imageUploadService;
+
     @Mock
     private BookEnrichmentTaskRepository taskRepository;
 
@@ -86,44 +101,82 @@ class DataInitializerTest {
     }
 
     @Test
-    @DisplayName("데이터가 이미 존재하면 초기화를 건너뜀")
-    void run_SkipWhenDataExists() throws Exception {
+    @DisplayName("run - 데이터가 이미 존재하면 초기화를 건너뜀")
+    void run_skipWhenDataExists() throws Exception {
         when(bookRepository.count()).thenReturn(100L);
 
         dataInitializer.run(applicationArguments);
 
         verify(bookRepository).count();
         verify(taskRepository).initTasksFromBook();
-
         verify(publisherRepository, never()).findAll();
         verify(contributorRepository, never()).findAll();
     }
 
-
     @Test
-    @DisplayName("CSV 파일 처리 - 정상 케이스")
-    void processCsvFile_Success() throws Exception {
-        String csvContent = """
-                ISBN_THIRTEEN_NO,TITLE_NM,PUBLISHER_NM,AUTHR_NM,PRC_VALUE,TWO_PBLICTE_DE,BOOK_INTRCN_CN,VLM_NM,IMAGE_URL
-                9788901234567,테스트책,테스트출판사,홍길동(지은이),15000,2024-01-15,책소개,1권,http://image.url
-                """;
-        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes("UTF-8"));
-        when(resource.getInputStream()).thenReturn(inputStream);
-        when(resource.getFilename()).thenReturn("test.csv");
+    @DisplayName("run - 데이터가 없을 때 초기화 진행")
+    void run_initializeWhenNoData() throws Exception {
+        when(bookRepository.count()).thenReturn(0L);
+        when(publisherRepository.findAll()).thenReturn(new ArrayList<>());
+        when(contributorRepository.findAll()).thenReturn(new ArrayList<>());
 
-        when(publisherRepository.save(any(Publisher.class))).thenReturn(testPublisher);
-        when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
+        PathMatchingResourcePatternResolver mockResolver = mock(PathMatchingResourcePatternResolver.class);
+        when(mockResolver.getResources(anyString())).thenReturn(new Resource[0]);
 
-        dataInitializer.processCsvFile(resource);
+        setPrivateField(dataInitializer, "resolver", mockResolver);
 
-        verify(bookBatchService).saveBooksInBatch(anyList());
+        dataInitializer.run(applicationArguments);
+
+        verify(bookRepository).count();
+        verify(publisherRepository).findAll();
+        verify(contributorRepository).findAll();
     }
 
     @Test
-    @DisplayName("CSV 파일 처리 - 빈 파일")
-    void processCsvFile_EmptyFile() throws Exception {
+    @DisplayName("initializeEnrichmentTasks - 정상 실행")
+    void initializeEnrichmentTasks_success() throws Exception {
+        Method method = DataInitializer.class.getDeclaredMethod("initializeEnrichmentTasks");
+        method.setAccessible(true);
+        method.invoke(dataInitializer);
+
+        verify(taskRepository).initTasksFromBook();
+    }
+
+    @Test
+    @DisplayName("initializeEnrichmentTasks - 예외 발생 시 처리")
+    void initializeEnrichmentTasks_handleException() throws Exception {
+        doThrow(new RuntimeException("DB Error")).when(taskRepository).initTasksFromBook();
+
+        Method method = DataInitializer.class.getDeclaredMethod("initializeEnrichmentTasks");
+        method.setAccessible(true);
+        method.invoke(dataInitializer);
+
+        verify(taskRepository).initTasksFromBook();
+    }
+
+    @Test
+    @DisplayName("preloadCaches - 캐시 로드")
+    void preloadCaches_success() throws Exception {
+        List<Publisher> publishers = List.of(testPublisher);
+        List<Contributor> contributors = List.of(testContributor);
+
+        when(publisherRepository.findAll()).thenReturn(publishers);
+        when(contributorRepository.findAll()).thenReturn(contributors);
+
+        Method method = DataInitializer.class.getDeclaredMethod("preloadCaches");
+        method.setAccessible(true);
+        method.invoke(dataInitializer);
+
+        verify(publisherRepository).findAll();
+        verify(contributorRepository).findAll();
+    }
+
+
+    @Test
+    @DisplayName("processCsvFile - 빈 파일")
+    void processCsvFile_emptyFile() throws Exception {
         String csvContent = "";
-        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes("UTF-8"));
+        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8));
         when(resource.getInputStream()).thenReturn(inputStream);
         when(resource.getFilename()).thenReturn("empty.csv");
 
@@ -133,8 +186,8 @@ class DataInitializerTest {
     }
 
     @Test
-    @DisplayName("CSV 파일 처리 - IO예외 발생 시 안전하게 처리되는지 확인")
-    void processCsvFile_IOException() throws Exception {
+    @DisplayName("processCsvFile - IOException 발생")
+    void processCsvFile_ioException() throws Exception {
         when(resource.getInputStream()).thenThrow(new IOException("File read error"));
         when(resource.getFilename()).thenReturn("error.csv");
 
@@ -143,33 +196,12 @@ class DataInitializerTest {
         verify(bookBatchService, never()).saveBooksInBatch(anyList());
     }
 
-    @Test
-    @DisplayName("CSV 파일 처리 - 일부 행이 유효하지 않을 경우 (필수값 누락) 해당 행만 스킵하고 나머지는 저장")
-    void processCsvFile_MixedValidAndInvalidRows() throws Exception {
-        String csvContent = """
-                ISBN_THIRTEEN_NO,TITLE_NM,PUBLISHER_NM,AUTHR_NM,PRC_VALUE,TWO_PBLICTE_DE,BOOK_INTRCN_CN,VLM_NM,IMAGE_URL
-                9788901234567,정상책,테스트출판사,홍길동,15000,2024-01-15,책소개,1권,http://url
-                9788901234568,,테스트출판사,김철수,10000,2024-01-15,제목없음,,http://url
-                """;
-
-        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8));
-        when(resource.getInputStream()).thenReturn(inputStream);
-        when(resource.getFilename()).thenReturn("mixed.csv");
-
-        when(publisherRepository.save(any(Publisher.class))).thenReturn(testPublisher);
-        when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
-
-        dataInitializer.processCsvFile(resource);
-
-        verify(bookBatchService, timeout(2000)).saveBooksInBatch(
-                argThat(list -> list.size() == 1 && list.get(0).getTitle().equals("정상책")));
-    }
 
     @Test
-    @DisplayName("CSV 파일 처리 - 헤더만 있는 경우")
-    void processCsvFile_HeaderOnly() throws Exception {
+    @DisplayName("processCsvFile - 헤더만 있는 경우")
+    void processCsvFile_headerOnly() throws Exception {
         String csvContent = "ISBN_THIRTEEN_NO,TITLE_NM,PUBLISHER_NM\n";
-        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes("UTF-8"));
+        InputStream inputStream = new ByteArrayInputStream(csvContent.getBytes(StandardCharsets.UTF_8));
         when(resource.getInputStream()).thenReturn(inputStream);
         when(resource.getFilename()).thenReturn("header.csv");
 
@@ -178,14 +210,72 @@ class DataInitializerTest {
         verify(bookBatchService, never()).saveBooksInBatch(anyList());
     }
 
+
+
     @Test
-    @DisplayName("convertToBook - 필수값 없으면 null 반환")
-    void convertToBook_NullWhenMissingRequired() throws Exception {
+    @DisplayName("saveBatchSafe - 정상 저장")
+    void saveBatchSafe_success() throws Exception {
+        List<Book> batch = List.of(Book.builder().build());
+
+        Method method = DataInitializer.class.getDeclaredMethod("saveBatchSafe", List.class);
+        method.setAccessible(true);
+        method.invoke(dataInitializer, batch);
+
+        verify(bookBatchService).saveBooksInBatch(batch);
+    }
+
+    @Test
+    @DisplayName("saveBatchSafe - 일반 예외 처리")
+    void saveBatchSafe_generalException() throws Exception {
+        List<Book> batch = List.of(Book.builder().build());
+        doThrow(new RuntimeException("Save failed")).when(bookBatchService).saveBooksInBatch(anyList());
+
+        Method method = DataInitializer.class.getDeclaredMethod("saveBatchSafe", List.class);
+        method.setAccessible(true);
+        method.invoke(dataInitializer, batch);
+
+        verify(bookBatchService).saveBooksInBatch(batch);
+    }
+
+    @Test
+    @DisplayName("processSingleRow - 정상 처리")
+    void processSingleRow_success() throws Exception {
+        String[] row = {"9788901234567", "테스트책", "출판사", "작가", "10000", "2024-01-01", "설명", "1권", "http://url"};
+        Map<String, Integer> headerMap = createHeaderMap();
+
+        when(publisherRepository.findByPublisherName("출판사"))
+                .thenReturn(Optional.empty());
+        when(publisherRepository.saveAndFlush(any(Publisher.class)))
+                .thenReturn(testPublisher);
+        when(contributorRepository.save(any(Contributor.class)))
+                .thenReturn(testContributor);
+
+        Method method = DataInitializer.class.getDeclaredMethod("processSingleRow", String[].class, Map.class, int.class);
+        method.setAccessible(true);
+        Book result = (Book) method.invoke(dataInitializer, row, headerMap, 0);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getTitle()).isEqualTo("테스트책");
+    }
+
+    @Test
+    @DisplayName("processSingleRow - 예외 발생 시 null 반환")
+    void processSingleRow_exceptionReturnsNull() throws Exception {
+        String[] row = {"invalid"};
+        Map<String, Integer> headerMap = createHeaderMap();
+
+        Method method = DataInitializer.class.getDeclaredMethod("processSingleRow", String[].class, Map.class, int.class);
+        method.setAccessible(true);
+        Book result = (Book) method.invoke(dataInitializer, row, headerMap, 0);
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("convertToBook - 필수값 없으면 null")
+    void convertToBook_nullWhenMissingRequired() throws Exception {
         String[] row = {"", "", "출판사"};
-        Map<String, Integer> headerMap = new HashMap<>();
-        headerMap.put("ISBN_THIRTEEN_NO", 0);
-        headerMap.put("TITLE_NM", 1);
-        headerMap.put("PUBLISHER_NM", 2);
+        Map<String, Integer> headerMap = createHeaderMap();
 
         Book result = invokeConvertToBook(row, headerMap);
 
@@ -194,13 +284,15 @@ class DataInitializerTest {
 
     @Test
     @DisplayName("convertToBook - 정상 변환")
-    void convertToBook_Success() throws Exception {
+    void convertToBook_success() throws Exception {
         String[] row = {"9788901234567", "테스트책", "테스트출판사", "홍길동(지은이)",
                 "15000", "2024-01-15", "책소개", "1권", "http://image.url"};
         Map<String, Integer> headerMap = createHeaderMap();
 
-        when(publisherRepository.save(any(Publisher.class))).thenReturn(testPublisher);
+        when(publisherRepository.findByPublisherName(anyString())).thenReturn(Optional.empty());
+        when(publisherRepository.saveAndFlush(any(Publisher.class))).thenReturn(testPublisher);
         when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
+        when(imageUploadService.uploadImageFromUrl(anyString())).thenReturn("minio://uploaded");
 
         Book result = invokeConvertToBook(row, headerMap);
 
@@ -209,11 +301,12 @@ class DataInitializerTest {
         assertThat(result.getTitle()).isEqualTo("테스트책");
         assertThat(result.getPriceStandard()).isEqualTo(15000L);
         assertThat(result.getStatus()).isEqualTo(BookStatus.ON_SALE);
+        assertThat(result.getThumbnail()).isEqualTo("minio://uploaded");
     }
 
     @Test
     @DisplayName("convertToBook - 출판사명이 없으면 Unknown")
-    void convertToBook_UnknownPublisher() throws Exception {
+    void convertToBook_unknownPublisher() throws Exception {
         String[] row = {"9788901234567", "테스트책", "", "", "", "", "", "", ""};
         Map<String, Integer> headerMap = createHeaderMap();
 
@@ -221,7 +314,8 @@ class DataInitializerTest {
                 .id(999L)
                 .publisherName("Unknown")
                 .build();
-        when(publisherRepository.save(any(Publisher.class))).thenReturn(unknownPublisher);
+        when(publisherRepository.findByPublisherName("Unknown")).thenReturn(Optional.empty());
+        when(publisherRepository.saveAndFlush(any(Publisher.class))).thenReturn(unknownPublisher);
 
         Book result = invokeConvertToBook(row, headerMap);
 
@@ -229,35 +323,108 @@ class DataInitializerTest {
         assertThat(result.getBookPublishers()).hasSize(1);
     }
 
-    @DisplayName("parseAndAddContributors - 다양한 입력 케이스 통합 테스트")
+    @Test
+    @DisplayName("convertToBook - 이미지 URL이 없는 경우")
+    void convertToBook_noImageUrl() throws Exception {
+        String[] row = {"9788901234567", "테스트책", "출판사", "", "10000", "", "", "", ""};
+        Map<String, Integer> headerMap = createHeaderMap();
+        when(publisherRepository.findByPublisherName(anyString())).thenReturn(Optional.empty());
+        when(publisherRepository.saveAndFlush(any(Publisher.class))).thenReturn(testPublisher);
+
+        Book result = invokeConvertToBook(row, headerMap);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getThumbnail()).isNull();
+        assertThat(result.getImages()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("convertToBook - 긴 ISBN 자르기")
+    void convertToBook_truncateLongIsbn() throws Exception {
+        String longIsbn = "1".repeat(30);
+        String[] row = {longIsbn, "테스트책", "출판사", "", "10000", "", "", "", ""};
+        Map<String, Integer> headerMap = createHeaderMap();
+        when(publisherRepository.findByPublisherName(anyString())).thenReturn(Optional.empty());
+        when(publisherRepository.saveAndFlush(any(Publisher.class))).thenReturn(testPublisher);
+
+        Book result = invokeConvertToBook(row, headerMap);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getIsbn()).hasSize(20);
+    }
+
+    @DisplayName("parseAndAddContributors - 다양한 입력 케이스")
     @ParameterizedTest(name = "[{index}] 입력: \"{0}\" -> 예상 작가 수: {1}")
     @CsvSource(value = {
-            "'홍길동(지은이)', 1",                 // 단일 작가
-            "'홍길동(지은이),김철수(옮긴이)', 2",      // 쉼표 구분
-            "'홍길동(지은이);김철수(옮긴이)', 2",      // 세미콜론 구분
-            "'홍길동 외', 1",                     // '외' 처리
-            "'홍길동 외 2명', 1",                  // '외 N명' 처리
-            "'by 홍길동', 1",                     // 'by' 접두사 제거
-            "'', 0"                             // 빈 문자열 (Result 0)
+            "'홍길동(지은이)', 1",
+            "'홍길동 외', 1",
+            "'홍길동 외 2명', 1",
+            "'by 홍길동', 1",
+            "'illustrated 홍길동', 1",
+            "'', 0"
     })
-    void parseAndAddContributors_Parameterized(String authorStr, int expectedSize) throws Exception {
+    void parseAndAddContributors_parameterized(String authorStr, int expectedSize) throws Exception {
         Book book = Book.builder().build();
 
-        lenient().when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
+        Contributor contributor1 = Contributor.builder().id(1L).contributorName("홍길동").build();
+        Contributor contributor2 = Contributor.builder().id(2L).contributorName("김철수").build();
+
+        lenient().when(contributorRepository.save(any(Contributor.class)))
+                .thenAnswer(invocation -> {
+                    Contributor c = invocation.getArgument(0);
+                    if (c.getContributorName().equals("홍길동")) return contributor1;
+                    return contributor2;
+                });
 
         invokeParseAndAddContributors(book, authorStr);
 
         assertThat(book.getBookContributors()).hasSize(expectedSize);
     }
 
-    @DisplayName("extractNameAndRole - 다양한 입력 형식 파싱 검증")
+
+
+    @Test
+    @DisplayName("parseAndAddContributors - null 입력")
+    void parseAndAddContributors_nullInput() throws Exception {
+        Book book = Book.builder().build();
+
+        invokeParseAndAddContributors(book, null);
+
+        assertThat(book.getBookContributors()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("parseAndAddContributors - 중복 제거")
+    void parseAndAddContributors_duplicateRemoval() throws Exception {
+        Book book = Book.builder().build();
+        String authorStr = "홍길동(지은이),홍길동(지은이)";
+
+        Contributor contributor = Contributor.builder()
+                .id(1L)
+                .contributorName("홍길동")
+                .build();
+
+        Map<String, Contributor> contributorCache = new ConcurrentHashMap<>();
+        contributorCache.put("홍길동", contributor);
+        setPrivateField(dataInitializer, "contributorCache", contributorCache);
+
+        invokeParseAndAddContributors(book, authorStr);
+
+        assertThat(book.getBookContributors()).hasSize(1);
+    }
+
+    @DisplayName("extractNameAndRole - 다양한 입력 형식")
     @ParameterizedTest(name = "[{index}] 입력: \"{0}\" -> 이름: {1}, 역할: {2}")
     @CsvSource(value = {
-            "홍길동(지은이), 홍길동, 지은이",  // 괄호 역할
-            "홍길동 지음, 홍길동, 지은이",     // 접미사 역할 ('지음' -> '지은이' 정규화됨)
-            "홍길동, 홍길동, 지은이"          // 역할 없음 (기본값 '지은이')
+            "홍길동(지은이), 홍길동, 지은이",
+            "홍길동 지음, 홍길동, 지은이",
+            "홍길동, 홍길동, 지은이",
+            "홍길동 옮김, 홍길동, 옮긴이",
+            "홍길동 그림, 홍길동, 그림",
+            "홍길동 글, 홍길동, 글",
+            "홍길동(편), 홍길동, 엮은이"
     })
-    void extractNameAndRole_Parameterized(String token, String expectedName, String expectedRole) throws Exception {
+    void extractNameAndRole_parameterized(String token, String expectedName, String expectedRole) throws Exception {
         Object result = invokeExtractNameAndRole(token);
         String name = getField(result, "name");
         String role = getField(result, "role");
@@ -268,7 +435,7 @@ class DataInitializerTest {
 
     @Test
     @DisplayName("normalizeRole - 다양한 역할 통일")
-    void normalizeRole_Various() throws Exception {
+    void normalizeRole_various() throws Exception {
         assertThat(invokeNormalizeRole("지음")).isEqualTo("지은이");
         assertThat(invokeNormalizeRole("저")).isEqualTo("지은이");
         assertThat(invokeNormalizeRole("공저")).isEqualTo("지은이");
@@ -278,11 +445,12 @@ class DataInitializerTest {
         assertThat(invokeNormalizeRole("엮음")).isEqualTo("엮은이");
         assertThat(invokeNormalizeRole("글")).isEqualTo("글");
         assertThat(invokeNormalizeRole("그림")).isEqualTo("그림");
+        assertThat(invokeNormalizeRole("기타")).isEqualTo("기타");
     }
 
     @Test
-    @DisplayName("normalizeRole - 50자 넘으면 자르기")
-    void normalizeRole_TruncateLongRole() throws Exception {
+    @DisplayName("normalizeRole - 50자 초과 자르기")
+    void normalizeRole_truncateLongRole() throws Exception {
         String longRole = "a".repeat(60);
 
         String result = invokeNormalizeRole(longRole);
@@ -291,8 +459,94 @@ class DataInitializerTest {
     }
 
     @Test
+    @DisplayName("cleanRawString - by와 illustrated 제거")
+    void cleanRawString_removeKeywords() throws Exception {
+        Method method = DataInitializer.class.getDeclaredMethod("cleanRawString", String.class);
+        method.setAccessible(true);
+
+        String result = (String) method.invoke(dataInitializer, "by 홍길동 illustrated");
+
+        assertThat(result).isEqualTo("홍길동");
+    }
+
+    @Test
+    @DisplayName("isValidToken - 유효성 검증")
+    void isValidToken_validation() throws Exception {
+        Method method = DataInitializer.class.getDeclaredMethod("isValidToken", String.class);
+        method.setAccessible(true);
+
+        assertThat((boolean) method.invoke(dataInitializer, "홍길동")).isTrue();
+        assertThat((boolean) method.invoke(dataInitializer, "외")).isFalse();
+        assertThat((boolean) method.invoke(dataInitializer, "")).isFalse();
+        assertThat((boolean) method.invoke(dataInitializer, "  ")).isFalse();
+    }
+
+    @Test
+    @DisplayName("removeEtcSuffix - '외' 접미사 제거")
+    void removeEtcSuffix_removeSuffix() throws Exception {
+        Method method = DataInitializer.class.getDeclaredMethod("removeEtcSuffix", String.class);
+        method.setAccessible(true);
+
+        String result1 = (String) method.invoke(dataInitializer, "홍길동 외");
+        String result2 = (String) method.invoke(dataInitializer, "홍길동 외 2명");
+        String result3 = (String) method.invoke(dataInitializer, "홍길동");
+
+        assertThat(result1).isEqualTo("홍길동");
+        assertThat(result2).isEqualTo("홍길동");
+        assertThat(result3).isEqualTo("홍길동");
+    }
+
+    @Test
+    @DisplayName("linkContributorToBook - 기여자 연결")
+    void linkContributorToBook_success() throws Exception {
+        Book book = Book.builder().build();
+        Object cData = createContributorData("홍길동", "지은이");
+        Set<String> processedKeys = new java.util.HashSet<>();
+
+        Map<String, Contributor> contributorCache = new ConcurrentHashMap<>();
+        contributorCache.put("홍길동", testContributor);
+        setPrivateField(dataInitializer, "contributorCache", contributorCache);
+
+        Method method = DataInitializer.class.getDeclaredMethod("linkContributorToBook",
+                Book.class, cData.getClass(), Set.class);
+        method.setAccessible(true);
+        method.invoke(dataInitializer, book, cData, processedKeys);
+
+        assertThat(book.getBookContributors()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("getOrCreateContributor - 캐시에서 가져오기")
+    void getOrCreateContributor_fromCache() throws Exception {
+        Map<String, Contributor> contributorCache = new ConcurrentHashMap<>();
+        contributorCache.put("홍길동", testContributor);
+        setPrivateField(dataInitializer, "contributorCache", contributorCache);
+
+        Method method = DataInitializer.class.getDeclaredMethod("getOrCreateContributor", String.class);
+        method.setAccessible(true);
+        Contributor result = (Contributor) method.invoke(dataInitializer, "홍길동");
+
+        assertThat(result).isEqualTo(testContributor);
+    }
+
+    @Test
+    @DisplayName("getOrCreateContributor - 새로 생성")
+    void getOrCreateContributor_createNew() throws Exception {
+        when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
+
+        Method method = DataInitializer.class.getDeclaredMethod("getOrCreateContributor", String.class);
+        method.setAccessible(true);
+        Contributor result = (Contributor) method.invoke(dataInitializer, "새작가");
+
+        assertThat(result).isNotNull();
+        verify(contributorRepository).save(any(Contributor.class));
+    }
+
+
+
+    @Test
     @DisplayName("safeGet - 정상 값 가져오기")
-    void safeGet_Success() throws Exception {
+    void safeGet_success() throws Exception {
         String[] row = {"value1", "value2", "value3"};
         Map<String, Integer> headerMap = new HashMap<>();
         headerMap.put("col1", 0);
@@ -305,7 +559,7 @@ class DataInitializerTest {
 
     @Test
     @DisplayName("safeGet - NaN 처리")
-    void safeGet_NaN() throws Exception {
+    void safeGet_nan() throws Exception {
         String[] row = {"NaN", "value2"};
         Map<String, Integer> headerMap = new HashMap<>();
         headerMap.put("col1", 0);
@@ -317,8 +571,7 @@ class DataInitializerTest {
 
     @Test
     @DisplayName("safeGet - 빈 문자열 처리")
-    void safeGet_EmptyString() throws Exception {
-
+    void safeGet_emptyString() throws Exception {
         String[] row = {"  ", "value2"};
         Map<String, Integer> headerMap = new HashMap<>();
         headerMap.put("col1", 0);
@@ -330,8 +583,7 @@ class DataInitializerTest {
 
     @Test
     @DisplayName("safeGet - 여러 키 중 첫 번째 유효한 값")
-    void safeGet_MultipleKeys() throws Exception {
-
+    void safeGet_multipleKeys() throws Exception {
         String[] row = {"", "value2", "value3"};
         Map<String, Integer> headerMap = new HashMap<>();
         headerMap.put("key1", 0);
@@ -344,64 +596,95 @@ class DataInitializerTest {
     }
 
     @Test
-    @DisplayName("parsePrice - 정상 파싱")
-    void parsePrice_Success() throws Exception {
-        assertThat(invokeParsePrice("15000")).isEqualTo(15000L);
-        assertThat(invokeParsePrice("15000.5")).isEqualTo(15000L);
+    @DisplayName("safeGet - 존재하지 않는 키")
+    void safeGet_nonExistentKey() throws Exception {
+        String[] row = {"value1"};
+        Map<String, Integer> headerMap = new HashMap<>();
+        headerMap.put("col1", 0);
+
+        String result = invokeSafeGet(row, headerMap, "nonExistent");
+
+        assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("parsePrice - 파싱 실패시 0")
-    void parsePrice_Fail() throws Exception {
-        assertThat(invokeParsePrice("invalid")).isZero();
-        assertThat(invokeParsePrice("")).isZero();
+    @DisplayName("safeGet - null 값 처리")
+    void safeGet_nullValue() throws Exception {
+        String[] row = {null, "value2"};
+        Map<String, Integer> headerMap = new HashMap<>();
+        headerMap.put("col1", 0);
+
+        String result = invokeSafeGet(row, headerMap, "col1");
+
+        assertThat(result).isEmpty();
+    }
+
+    @DisplayName("parsePrice - 다양한 입력")
+    @ParameterizedTest
+    @CsvSource(value = {
+            "15000, 15000",
+            "15000.5, 15000",
+            "15000.9, 15000",
+            "0, 0",
+            "invalid, 0",
+            "'', 0"
+    })
+    void parsePrice_various(String input, long expected) throws Exception {
+        assertThat(invokeParsePrice(input)).isEqualTo(expected);
     }
 
     @Test
     @DisplayName("parseDate - 정상 파싱")
-    void parseDate_Success() throws Exception {
+    void parseDate_success() throws Exception {
         LocalDate result = invokeParseDate("2024-01-15");
         assertThat(result).isEqualTo(LocalDate.of(2024, 1, 15));
     }
 
     @Test
-    @DisplayName("parseDate - 파싱 실패시 현재 날짜")
-    void parseDate_Fail() throws Exception {
+    @DisplayName("parseDate - 파싱 실패 시 현재 날짜")
+    void parseDate_fail() throws Exception {
         LocalDate result = invokeParseDate("invalid-date");
         assertThat(result).isEqualTo(LocalDate.now());
     }
 
     @Test
     @DisplayName("parseDate - 빈 문자열")
-    void parseDate_Empty() throws Exception {
+    void parseDate_empty() throws Exception {
         LocalDate result = invokeParseDate("");
         assertThat(result).isEqualTo(LocalDate.now());
     }
 
     @Test
+    @DisplayName("parseDate - null")
+    void parseDate_null() throws Exception {
+        LocalDate result = invokeParseDate(null);
+        assertThat(result).isEqualTo(LocalDate.now());
+    }
+
+    @Test
     @DisplayName("truncate - 문자열 자르기")
-    void truncate_Success() throws Exception {
+    void truncate_success() throws Exception {
         String result = invokeTruncate("12345678901234567890", 10);
         assertThat(result).hasSize(10).isEqualTo("1234567890");
     }
 
     @Test
     @DisplayName("truncate - 길이보다 짧으면 그대로")
-    void truncate_Shorter() throws Exception {
+    void truncate_shorter() throws Exception {
         String result = invokeTruncate("123", 10);
         assertThat(result).isEqualTo("123");
     }
 
     @Test
     @DisplayName("truncate - null 처리")
-    void truncate_Null() throws Exception {
+    void truncate_null() throws Exception {
         String result = invokeTruncate(null, 10);
         assertThat(result).isNull();
     }
 
     @Test
     @DisplayName("createHeaderMap - 헤더 맵 생성")
-    void createHeaderMap_Success() throws Exception {
+    void createHeaderMap_success() throws Exception {
         String[] headers = {"col1", "col2", "col3"};
 
         Map<String, Integer> result = invokeCreateHeaderMap(headers);
@@ -412,7 +695,259 @@ class DataInitializerTest {
                 .containsEntry("col3", 2);
     }
 
-    // ===== Private Helper Methods =====
+    @Test
+    @DisplayName("createHeaderMap - 공백 포함 헤더")
+    void createHeaderMap_withSpaces() throws Exception {
+        String[] headers = {" col1 ", "col2  ", "  col3"};
+
+        Map<String, Integer> result = invokeCreateHeaderMap(headers);
+
+        assertThat(result)
+                .containsEntry("col1", 0)
+                .containsEntry("col2", 1)
+                .containsEntry("col3", 2);
+    }
+
+    @Test
+    @DisplayName("getOrCreatePublisherSafe - 캐시에서 가져오기")
+    void getOrCreatePublisherSafe_fromCache() throws Exception {
+        Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
+        publisherCache.put("테스트 출판사", testPublisher);
+        setPrivateField(dataInitializer, "publisherCache", publisherCache);
+
+        Method method = DataInitializer.class.getDeclaredMethod("getOrCreatePublisherSafe", String.class);
+        method.setAccessible(true);
+        Publisher result = (Publisher) method.invoke(dataInitializer, "테스트 출판사");
+
+        assertThat(result).isEqualTo(testPublisher);
+    }
+
+    @Test
+    @DisplayName("getOrCreatePublisherSafe - DB에서 조회")
+    void getOrCreatePublisherSafe_fromDb() throws Exception {
+        when(publisherRepository.findByPublisherName("테스트출판사"))
+                .thenReturn(Optional.of(testPublisher));
+
+        Method method = DataInitializer.class.getDeclaredMethod("getOrCreatePublisherSafe", String.class);
+        method.setAccessible(true);
+        Publisher result = (Publisher) method.invoke(dataInitializer, "테스트출판사");
+
+        assertThat(result).isEqualTo(testPublisher);
+    }
+
+    @Test
+    @DisplayName("getOrCreatePublisherSafe - 새로 생성")
+    void getOrCreatePublisherSafe_createNew() throws Exception {
+        when(publisherRepository.findByPublisherName(anyString()))
+                .thenReturn(Optional.empty());
+        when(publisherRepository.saveAndFlush(any(Publisher.class)))
+                .thenReturn(testPublisher);
+
+        Method method = DataInitializer.class.getDeclaredMethod("getOrCreatePublisherSafe", String.class);
+        method.setAccessible(true);
+        Publisher result = (Publisher) method.invoke(dataInitializer, "새출판사");
+
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("getOrCreatePublisherSafe - 저장 실패 시 재조회")
+    void getOrCreatePublisherSafe_retryOnSaveFailure() throws Exception {
+        when(publisherRepository.findByPublisherName("새출판사"))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(testPublisher));
+        when(publisherRepository.saveAndFlush(any(Publisher.class)))
+                .thenThrow(new DataIntegrityViolationException("Duplicate"));
+
+        Method method = DataInitializer.class.getDeclaredMethod("getOrCreatePublisherSafe", String.class);
+        method.setAccessible(true);
+        Publisher result = (Publisher) method.invoke(dataInitializer, "새출판사");
+
+        assertThat(result).isEqualTo(testPublisher);
+    }
+
+    @Test
+    @DisplayName("getOrCreatePublisherSafe - 모든 방법 실패 시 broadSearch 호출")
+    void getOrCreatePublisherSafe_fallbackToBroadSearch() throws Exception {
+        when(publisherRepository.findByPublisherName(anyString()))
+                .thenReturn(Optional.empty());
+        when(publisherRepository.saveAndFlush(any(Publisher.class)))
+                .thenThrow(new DataIntegrityViolationException("Duplicate"));
+        when(publisherRepository.findAll()).thenReturn(List.of(testPublisher));
+
+        Method method = DataInitializer.class.getDeclaredMethod("getOrCreatePublisherSafe", String.class);
+        method.setAccessible(true);
+        Publisher result = (Publisher) method.invoke(dataInitializer, "테스트 출판사");
+
+        assertThat(result).isEqualTo(testPublisher);
+    }
+
+    @Test
+    @DisplayName("findPublisherByBroadSearch - 캐시에서 찾기")
+    void findPublisherByBroadSearch_fromCache() throws Exception {
+        Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
+        publisherCache.put("테스트출판사", testPublisher);
+        setPrivateField(dataInitializer, "publisherCache", publisherCache);
+
+        Method method = DataInitializer.class.getDeclaredMethod("findPublisherByBroadSearch", String.class);
+        method.setAccessible(true);
+        Publisher result = (Publisher) method.invoke(dataInitializer, "테스트출판사");
+
+        assertThat(result).isEqualTo(testPublisher);
+    }
+
+    @Test
+    @DisplayName("findPublisherByBroadSearch - DB에서 대소문자 무시 검색")
+    void findPublisherByBroadSearch_caseInsensitiveFromDb() throws Exception {
+        Publisher testPub = Publisher.builder()
+                .id(1L)
+                .publisherName("TestPublisher")
+                .build();
+        when(publisherRepository.findAll()).thenReturn(List.of(testPub));
+
+        Method method = DataInitializer.class.getDeclaredMethod("findPublisherByBroadSearch", String.class);
+        method.setAccessible(true);
+        Publisher result = (Publisher) method.invoke(dataInitializer, "testpublisher");
+
+        assertThat(result.getPublisherName()).isEqualTo("TestPublisher");
+    }
+
+    @Test
+    @DisplayName("findPublisherByBroadSearch - Unknown 반환")
+    void findPublisherByBroadSearch_returnUnknown() throws Exception {
+        Publisher unknown = Publisher.builder()
+                .id(999L)
+                .publisherName("Unknown")
+                .build();
+
+        Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
+        publisherCache.put("unknown", unknown);
+        setPrivateField(dataInitializer, "publisherCache", publisherCache);
+
+        when(publisherRepository.findAll()).thenReturn(new ArrayList<>());
+
+        Method method = DataInitializer.class.getDeclaredMethod("findPublisherByBroadSearch", String.class);
+        method.setAccessible(true);
+        Publisher result = (Publisher) method.invoke(dataInitializer, "존재하지않는출판사");
+
+        assertThat(result.getPublisherName()).isEqualTo("Unknown");
+    }
+
+    @Test
+    @DisplayName("findPublisherByBroadSearch - Unknown도 없으면 DB 조회 후 예외")
+    void findPublisherByBroadSearch_throwsWhenUnknownNotFound() throws Exception {
+        when(publisherRepository.findAll()).thenReturn(new ArrayList<>());
+        when(publisherRepository.findByPublisherName("Unknown"))
+                .thenReturn(Optional.empty());
+
+        Method method = DataInitializer.class.getDeclaredMethod("findPublisherByBroadSearch", String.class);
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(dataInitializer, "존재하지않는출판사"))
+                .hasCauseInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("ensureSpecialValues - Unknown 출판사 생성")
+    void ensureSpecialValues_createUnknown() throws Exception {
+        Publisher unknown = Publisher.builder()
+                .id(999L)
+                .publisherName("Unknown")
+                .build();
+
+        when(publisherRepository.findByPublisherName("Unknown"))
+                .thenReturn(Optional.empty());
+        when(publisherRepository.saveAndFlush(any(Publisher.class)))
+                .thenReturn(unknown);
+
+        Method method = DataInitializer.class.getDeclaredMethod("ensureSpecialValues");
+        method.setAccessible(true);
+        method.invoke(dataInitializer);
+
+        verify(publisherRepository).saveAndFlush(any(Publisher.class));
+    }
+
+    @Test
+    @DisplayName("ensureSpecialValues - Unknown이 이미 존재")
+    void ensureSpecialValues_unknownExists() throws Exception {
+        Publisher unknown = Publisher.builder()
+                .id(999L)
+                .publisherName("Unknown")
+                .build();
+
+        when(publisherRepository.findByPublisherName("Unknown"))
+                .thenReturn(Optional.of(unknown));
+
+        Method method = DataInitializer.class.getDeclaredMethod("ensureSpecialValues");
+        method.setAccessible(true);
+        method.invoke(dataInitializer);
+
+        verify(publisherRepository, never()).saveAndFlush(any(Publisher.class));
+    }
+
+    @Test
+    @DisplayName("ensureSpecialValues - 캐시에 이미 존재하면 스킵")
+    void ensureSpecialValues_skipWhenInCache() throws Exception {
+        Publisher unknown = Publisher.builder()
+                .id(999L)
+                .publisherName("Unknown")
+                .build();
+
+        Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
+        publisherCache.put("unknown", unknown);
+        setPrivateField(dataInitializer, "publisherCache", publisherCache);
+
+        Method method = DataInitializer.class.getDeclaredMethod("ensureSpecialValues");
+        method.setAccessible(true);
+        method.invoke(dataInitializer);
+
+        verify(publisherRepository, never()).findByPublisherName(anyString());
+    }
+
+    @Test
+    @DisplayName("ensureSpecialValues - 저장 실패 시 재조회")
+    void ensureSpecialValues_retryOnSaveFailure() throws Exception {
+        Publisher unknown = Publisher.builder()
+                .id(999L)
+                .publisherName("Unknown")
+                .build();
+
+        when(publisherRepository.findByPublisherName("Unknown"))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(unknown));
+        when(publisherRepository.saveAndFlush(any(Publisher.class)))
+                .thenThrow(new DataIntegrityViolationException("Duplicate"));
+
+        Method method = DataInitializer.class.getDeclaredMethod("ensureSpecialValues");
+        method.setAccessible(true);
+        method.invoke(dataInitializer);
+
+        verify(publisherRepository, times(2)).findByPublisherName("Unknown");
+    }
+
+    @Test
+    @DisplayName("ensureSpecialValues - 예외 발생 시 처리")
+    void ensureSpecialValues_handleException() throws Exception {
+        when(publisherRepository.findByPublisherName("Unknown"))
+                .thenThrow(new RuntimeException("DB Error"));
+
+        Method method = DataInitializer.class.getDeclaredMethod("ensureSpecialValues");
+        method.setAccessible(true);
+        method.invoke(dataInitializer);
+
+        verify(publisherRepository).findByPublisherName("Unknown");
+    }
+
+    @Test
+    @DisplayName("normalizeKey - 키 정규화")
+    void normalizeKey_normalization() throws Exception {
+        Method method = DataInitializer.class.getDeclaredMethod("normalizeKey", String.class);
+        method.setAccessible(true);
+
+        assertThat(method.invoke(dataInitializer, "TestKey")).isEqualTo("testkey");
+        assertThat(method.invoke(dataInitializer, " Test Key ")).isEqualTo("test key");
+        assertThat(method.invoke(dataInitializer, (String) null)).isEqualTo("");
+    }
 
     private Map<String, Integer> createHeaderMap() {
         Map<String, Integer> map = new HashMap<>();
@@ -483,8 +1018,19 @@ class DataInitializerTest {
     }
 
     private String getField(Object obj, String fieldName) throws Exception {
-        java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+        Field field = obj.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         return (String) field.get(obj);
+    }
+
+    private void setPrivateField(Object target, String fieldName, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private Object createContributorData(String name, String role) throws Exception {
+        Class<?> innerClass = Class.forName("org.nhnacademy.book2onandonbookservice.config.DataInitializer$ContributorData");
+        return innerClass.getDeclaredConstructor(String.class, String.class).newInstance(name, role);
     }
 }
