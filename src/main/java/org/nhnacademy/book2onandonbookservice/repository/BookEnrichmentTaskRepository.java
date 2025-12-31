@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.repository;
 
 import jakarta.persistence.LockModeType;
 import java.util.List;
+import java.util.Optional;
 import org.nhnacademy.book2onandonbookservice.entity.BookEnrichmentTask;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,16 +23,6 @@ public interface BookEnrichmentTaskRepository extends JpaRepository<BookEnrichme
             + "OR (t.aiStatus = 'PENDING' OR (t.aiStatus = 'FAILED' AND t.aiRetryCount < 3))")
     List<BookEnrichmentTask> findTasksToProcess(Pageable pageable);
 
-    @Modifying
-    @Transactional
-    @Query("""
-        UPDATE BookEnrichmentTask t 
-        SET t.aladinStatus = CASE WHEN t.aladinStatus != 'DONE' THEN 'PROCESSING' ELSE t.aladinStatus END,
-            t.aiStatus = CASE WHEN t.aiStatus != 'DONE' THEN 'PROCESSING' ELSE t.aiStatus END
-        WHERE t.bookId = :bookId 
-        AND (t.aladinStatus IN ('PENDING', 'FAILED') OR t.aiStatus IN ('PENDING', 'FAILED'))
-    """)
-    int markAsProcessing(@Param("bookId") Long bookId);
 
     // 초기화용
     @Modifying
@@ -51,12 +42,26 @@ public interface BookEnrichmentTaskRepository extends JpaRepository<BookEnrichme
     @Query("UPDATE BookEnrichmentTask t "
             + "SET t.aladinStatus = 'PENDING', t.aladinRetryCount = 0 "
             + "WHERE t.aladinStatus = 'FAILED' AND (t.aladinFailReason LIKE '%limit%' OR t.aladinFailReason LIKE '%429%')")
-    void resetAladinQuotaFailedTasks();
+    int resetAladinQuotaFailedTasks();
 
     @Modifying
     @Transactional
     @Query("UPDATE BookEnrichmentTask t "
             + "SET t.aiStatus = 'PENDING', t.aiRetryCount = 0 "
             + "WHERE t.aiStatus = 'FAILED' AND (t.aiFailReason LIKE '%limit%' OR t.aiFailReason LIKE '%quota%')")
-    void resetAiQuotaFailedTasks();
+    int resetAiQuotaFailedTasks();
+
+    // 알라딘 일시적 오류 조회 (retryCount >= 3인 FAILED 작업)
+    @Query("SELECT t FROM BookEnrichmentTask t "
+            + "WHERE t.aladinStatus = 'FAILED' AND t.aladinRetryCount >= 3")
+    List<BookEnrichmentTask> findAladinMaxRetriedTasks();
+
+    // AI 일시적 오류 조회 (retryCount >= 3인 FAILED 작업)
+    @Query("SELECT t FROM BookEnrichmentTask t "
+            + "WHERE t.aiStatus = 'FAILED' AND t.aiRetryCount >= 3")
+    List<BookEnrichmentTask> findAiMaxRetriedTasks();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM BookEnrichmentTask t WHERE t.bookId = :bookId")
+    Optional<BookEnrichmentTask> findByIdForUpdate(@Param("bookId") Long bookId);
 }
