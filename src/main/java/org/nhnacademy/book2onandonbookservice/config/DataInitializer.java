@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.config;
 import com.opencsv.CSVReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -163,7 +164,7 @@ public class DataInitializer implements ApplicationRunner {
     private void saveBatchSafe(List<Book> batch) {
         try {
             bookBatchService.saveBooksInBatch(batch);
-            Thread.sleep(2500);
+            Thread.sleep(1500);
         } catch (InterruptedException e) {
             log.error("배치 휴식 중 인터럽트 발생", e);
             Thread.currentThread().interrupt();
@@ -202,8 +203,6 @@ public class DataInitializer implements ApplicationRunner {
         if (!StringUtils.hasText(pubName)) {
             pubName = "Unknown";
         }
-        String finalPubName = pubName;
-        String pubKey = normalizeKey(finalPubName);
         Publisher publisher = getOrCreatePublisherSafe(pubName);
 
         long price = parsePrice(safeGet(row, h, "PRC_VALUE"));
@@ -279,7 +278,13 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private String normalizeKey(String str) {
-        return str == null ? "" : str.trim().toLowerCase();
+        if (str == null) return "";
+
+        // 1. 유니코드 정규화 (자소 분리 현상 해결: NFD -> NFC)
+        String nfc = Normalizer.normalize(str, Normalizer.Form.NFC);
+
+        // 2. 소문자 변환 및 앞뒤 공백 제거
+        return nfc.trim().toLowerCase();
     }
 
     // 정규식을 이용해 "이름"과 "역할"을 분리
@@ -365,7 +370,8 @@ public class DataInitializer implements ApplicationRunner {
 
     private Contributor getOrCreateContributor(String name) {
         // 1. 키를 소문자로 변환
-        String key = normalizeKey(name);
+        String cleanName = Normalizer.normalize(name.trim(), Normalizer.Form.NFC);
+        String key = normalizeKey(cleanName);
 
         // 2. 캐시 찾을 땐 'key'(소문자), 저장할 땐 'name'(원본) 사용
         return contributorCache.computeIfAbsent(key, k -> {
@@ -432,7 +438,7 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private Publisher getOrCreatePublisherSafe(String rawName) {
-        String cleanName = rawName.trim();
+        String cleanName = Normalizer.normalize(rawName.trim(), Normalizer.Form.NFC);
         String key = normalizeKey(cleanName);
 
         // 1. 캐시 수동 확인 (computeIfAbsent 대신 명시적으로 확인)
