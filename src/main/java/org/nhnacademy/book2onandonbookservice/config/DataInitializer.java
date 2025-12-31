@@ -29,6 +29,7 @@ import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.nhnacademy.book2onandonbookservice.service.BookBatchService;
+import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
@@ -46,6 +47,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ContributorRepository contributorRepository;
     private final BookEnrichmentTaskRepository taskRepository;
     private final BookBatchService bookBatchService;
+    private final ImageUploadService imageUploadService;
     private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
     private final Set<String> processedIsbns = new HashSet<>();
     private final Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
@@ -161,9 +163,12 @@ public class DataInitializer implements ApplicationRunner {
     private void saveBatchSafe(List<Book> batch) {
         try {
             bookBatchService.saveBooksInBatch(batch);
+            Thread.sleep(2500);
+        } catch (InterruptedException e) {
+            log.error("배치 휴식 중 인터럽트 발생", e);
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
-            log.error("배치 저장 중 오류 발생 (Batch Size: {}). 이 배치는 스킵됩니다. 원인: {}", batch.size(), e.getMessage());
-            // 필요하다면 여기서 개별 저장 시도 로직을 넣을 수도 있음
+            log.error("배치 저장 중 오류 발생 (Batch Size: {}): {}", batch.size(), e.getMessage());
         }
     }
 
@@ -185,6 +190,11 @@ public class DataInitializer implements ApplicationRunner {
         // 필수값이 없으면 스킵
         if (!StringUtils.hasText(isbn) || !StringUtils.hasText(title)) {
             return null;
+        }
+        String rawImageUrl = safeGet(row, h, "IMAGE_URL");
+        String minioImageUrl = null;
+        if(StringUtils.hasText(rawImageUrl)){
+            minioImageUrl = imageUploadService.uploadImageFromUrl(rawImageUrl);
         }
 
         // 출판사 처리 (캐시 조회 -> 없으면 저장 후 캐시 등록)
@@ -211,7 +221,6 @@ public class DataInitializer implements ApplicationRunner {
 
         long price = parsePrice(safeGet(row, h, "PRC_VALUE"));
         long defaultDiscountedPrice = (long) (price * 0.9);
-        String imageUrl = safeGet(row, h, "IMAGE_URL");
 
         // Book Entity 생성
         Book book = Book.builder()
@@ -226,7 +235,7 @@ public class DataInitializer implements ApplicationRunner {
                 .isWrapped(true) // 포장 가능 여부
                 .status(BookStatus.ON_SALE)
                 .volume(safeGet(row, h, "VLM_NM")) //volume
-                .thumbnail(StringUtils.hasText(imageUrl)? imageUrl : null)
+                .thumbnail(minioImageUrl)
                 .build();
 
         //연관관계 설정: 출판사
@@ -240,10 +249,11 @@ public class DataInitializer implements ApplicationRunner {
         if (StringUtils.hasText(rawAuthorStr)) {
             parseAndAddContributors(book, rawAuthorStr);
         }
-        if (StringUtils.hasText(imageUrl)) {
+        if (StringUtils.hasText(minioImageUrl)) {
             book.getImages().add(BookImage.builder()
                     .book(book)
-                    .imagePath(imageUrl)
+                    .imagePath(minioImageUrl)
+                    .isThumbnail(true)
                     .build());
         }
 

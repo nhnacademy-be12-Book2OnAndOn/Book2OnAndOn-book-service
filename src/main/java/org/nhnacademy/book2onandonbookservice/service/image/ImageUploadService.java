@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.exception.ImageUploadException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -106,7 +107,6 @@ public class ImageUploadService {
                             .build()
             );
 
-            log.info("이미지 업로드 성공: {}", objectName);
             return publicUrl + "/" + rootBucket + "/" + objectName;
 
         } catch (Exception e) {
@@ -116,32 +116,20 @@ public class ImageUploadService {
     }
 
     public String uploadImageFromUrl(String imageUrl){
-        if(imageUrl==null || imageUrl.isBlank()){
+        if (!StringUtils.hasText(imageUrl)) {
             return null;
         }
 
-        try{
-            URL url = URI.create(imageUrl).toURL();
+        // 1. 화질 개선: _1.jpg(또는 다른 숫자)를 _5.jpg로 변경 시도
+        // 정규식을 사용하여 파일명 끝의 _숫자 부분을 _5로 바꿉니다.
+        String highResUrl = imageUrl.replaceAll("_(\\d+)\\.jpg$", "_5.jpg");
 
-            try(InputStream inputStream = url.openStream()){
-                String savedFileName = UUID.randomUUID() + ".jpg";
-                String objectName = bookFolder + "/" + savedFileName;
-
-                minioClient.putObject(
-                        PutObjectArgs.builder()
-                                .bucket(rootBucket)
-                                .object(objectName)
-                                .stream(inputStream, -1, 10485760) //10MB
-                                .contentType("image/jpeg")
-                                .build()
-                );
-
-                log.info("외부 이미지 다운로드 및 업로드 성공함: {}", objectName);
-                return publicUrl + "/" + rootBucket + "/" + objectName;
-            }
+        try {
+            // 먼저 고화질 URL로 시도
+            return uploadInternal(highResUrl, "image/jpeg");
         } catch (Exception e) {
-            log.warn("외부 이미지 다운로드 실패 (무시하고 진행): {}",imageUrl, e);
-            return null;
+            // 2. 실패 시 원본 URL로 최종 시도
+            return uploadOriginalUrl(imageUrl);
         }
     }
 
@@ -169,6 +157,33 @@ public class ImageUploadService {
 
         } catch (Exception e) {
             log.error("MINIO 이미지 삭제 실패 : URL={}", imageUrl, e);
+        }
+    }
+    private String uploadOriginalUrl(String imageUrl) {
+        try {
+            return uploadInternal(imageUrl, "image/jpeg");
+        } catch (Exception e) {
+            log.error("원본 이미지 다운로드까지 실패 (무시하고 진행): {}", imageUrl, e);
+            return null;
+        }
+    }
+    private String uploadInternal(String imageUrl, String contentType) throws Exception {
+        URL url = URI.create(imageUrl).toURL();
+
+        try (InputStream inputStream = url.openStream()) {
+            String savedFileName = UUID.randomUUID() + ".jpg";
+            String objectName = bookFolder + "/" + savedFileName;
+
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(rootBucket)
+                            .object(objectName)
+                            .stream(inputStream, -1, 10485760) // 최대 10MB
+                            .contentType(contentType)
+                            .build()
+            );
+
+            return publicUrl + "/" + rootBucket + "/" + objectName;
         }
     }
 }

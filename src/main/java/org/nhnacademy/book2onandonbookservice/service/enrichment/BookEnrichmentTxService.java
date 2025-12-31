@@ -369,25 +369,13 @@ public class BookEnrichmentTxService {
 
         if (book.getImages() == null) return;
 
-        boolean found = false;
-        for (BookImage img : book.getImages()) {
-            if (img == null) continue;
+        book.getImages().removeIf(BookImage::isThumbnail);
 
-            if (img.isThumbnail()) img.setThumbnail(false);
-
-            if (newInternalUrl.equals(img.getImagePath())) {
-                img.setThumbnail(true);
-                found = true;
-            }
-        }
-
-        if (!found) {
-            BookImage newImg = BookImage.builder()
-                    .book(book)
-                    .imagePath(newInternalUrl)
-                    .isThumbnail(true)
-                    .build();
-            book.getImages().add(newImg);
-        }
+        BookImage newImg = BookImage.builder()
+                .book(book)
+                .imagePath(newInternalUrl)
+                .isThumbnail(true)
+                .build();
+        book.getImages().add(newImg);
     }
 }
