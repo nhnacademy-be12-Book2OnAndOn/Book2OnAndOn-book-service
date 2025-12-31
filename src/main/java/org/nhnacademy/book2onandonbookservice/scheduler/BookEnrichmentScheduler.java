@@ -30,12 +30,16 @@ public class BookEnrichmentScheduler {
     @Transactional
     @EventListener(ApplicationReadyEvent.class)
     public void initMigration() {
+        if(taskRepository.count()>0){
+            log.info("보강 작업 테이블이 이미 존재합니다. initMigration 스킵");
+            return;
+        }
         log.info("보강 작업 테이블 초기화 시작...");
         taskRepository.initTasksFromBook();
         log.info("보강 작업 테이블 초기화 완료!");
     }
 
-    // 5초마다 실행 (API 호출 간격 조절 역할)
+    // 10초마다 실행 (API 호출 간격 조절 역할)
     @Scheduled(fixedDelay = 10000)
     @SchedulerLock(name = "enrichment_batch", lockAtLeastFor = "1s", lockAtMostFor = "50s")
     public void processEnrichmentBatch() {
@@ -50,29 +54,15 @@ public class BookEnrichmentScheduler {
 
         for(BookEnrichmentTask task: tasks){
 
-            int updated = taskRepository.markAsProcessing(task.getBookId());
-
-            if (updated == 0) {
-                log.info("이미 처리 중인 작업입니다 (BookId: {})", task.getBookId());
-                continue;
-            }
-
             try{
-                enrichmentService.enrichBookData(task);
-                enrichmentService.updateTaskStatus(task);
-            }catch (Exception e){
-                log.error("치명적 오류 발생", e);
-            }finally {
-                try{
-                    taskRepository.save(task);
-                }catch (Exception saveEx){
-                    log.error("Task 상태 저장 실패", saveEx);
-                }
+                enrichmentService.enrichBookDataWithStatusUpdate(task.getBookId());
+            } catch (Exception e){
+                log.error("치명적 오류 발생 (BookId: {})", task.getBookId(), e);
             }
 
             try{
                 Thread.sleep(5000);
-            }catch (InterruptedException e){
+            } catch (InterruptedException e){
                 Thread.currentThread().interrupt();
             }
         }
@@ -82,17 +72,80 @@ public class BookEnrichmentScheduler {
 
     // 매일 자정 실행
     @Scheduled(cron = "0 0 0 * * *")
+    @SchedulerLock(name = "enrichment_revive", lockAtLeastFor = "5s", lockAtMostFor = "3m")
     @Transactional
     public void reviveQuotaVictims() {
         log.info("자정입니다. API 한도 초과로 실패했던 작업들만 선별하여 부활시킵니다.");
 
-        // 억울하게 죽은(한도초과) 애들만 살려냄.
-        // 데이터가 이상해서 죽은 애들은 살리지 않음 -> 언젠가 작업 큐가 0이 됨.
-        taskRepository.resetAladinQuotaFailedTasks();
-        taskRepository.resetAiQuotaFailedTasks();
+        reviveAladinTasks();
+        reviveAiTasks();
 
         log.info("부활작업 완료");
     }
-    
+
+    private void reviveAladinTasks() {
+        int quotaRevived = taskRepository.resetAladinQuotaFailedTasks();
+        log.info("알라딘 Quota 실패 부활: {}건", quotaRevived);
+
+        List<BookEnrichmentTask> maxRetriedTasks = taskRepository.findAladinMaxRetriedTasks();
+        int temporaryRevived = 0;
+
+        for (BookEnrichmentTask task : maxRetriedTasks) {
+            String reason = task.getAladinFailReason();
+            if (isTemporaryError(reason)) {
+                task.resetAladinStatus();
+                temporaryRevived++;
+                log.debug("알라딘 일시적 오류 부활 (BookId: {}): {}",
+                        task.getBookId(), reason);
+            } else {
+                log.debug("알라딘 영구 실패로 판단 (BookId: {}): {}",
+                        task.getBookId(), reason);
+            }
+        }
+
+        if (temporaryRevived > 0) {
+            taskRepository.saveAll(maxRetriedTasks);
+            log.info("알라딘 일시적 오류 부활: {}건", temporaryRevived);
+        }
+    }
+
+    private void reviveAiTasks() {
+        // AI는 대부분 TooManyRequests이므로 무조건 부활
+        int aiRevived = taskRepository.resetAiQuotaFailedTasks();
+        log.info("AI 실패 부활: {}건 (대부분 TooManyRequests)", aiRevived);
+
+        // 추가: 3번 실패한 AI 작업도 모두 부활 (AI는 거의 일시적 오류)
+        List<BookEnrichmentTask> maxRetriedAiTasks = taskRepository.findAiMaxRetriedTasks();
+
+        for (BookEnrichmentTask task : maxRetriedAiTasks) {
+            task.resetAiStatus();
+            log.debug("AI 최대 재시도 초과 작업 부활 (BookId: {})", task.getBookId());
+        }
+
+        if (!maxRetriedAiTasks.isEmpty()) {
+            taskRepository.saveAll(maxRetriedAiTasks);
+            log.info("AI 최대 재시도 작업 부활: {}건", maxRetriedAiTasks.size());
+        }
+    }
+
+    private boolean isTemporaryError(String reason) {
+        if (reason == null) return false;
+
+        String lower = reason.toLowerCase();
+
+        // 일시적 오류 패턴
+        return lower.contains("timeout") ||
+                lower.contains("timed out") ||
+                lower.contains("network") ||
+                lower.contains("connection") ||
+                lower.contains("503") ||  // Service Unavailable
+                lower.contains("502") ||  // Bad Gateway
+                lower.contains("500") ||  // Internal Server Error
+                lower.contains("504") ||  // Gateway Timeout
+                lower.contains("too many") ||
+                lower.contains("rate limit") ||
+                lower.contains("quota") ||
+                lower.contains("429");
+    }
 
 }

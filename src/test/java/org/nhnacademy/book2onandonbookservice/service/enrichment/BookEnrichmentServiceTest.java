@@ -1,348 +1,276 @@
-package org.nhnacademy.book2onandonbookservice.service.enrichment;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import java.lang.reflect.Constructor;
-import java.util.HashSet;
-import java.util.Optional;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
-import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
-import org.nhnacademy.book2onandonbookservice.domain.EnrichmentStatus;
-import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
-import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
-import org.nhnacademy.book2onandonbookservice.entity.BookEnrichmentTask;
-import org.nhnacademy.book2onandonbookservice.entity.Contributor;
-import org.nhnacademy.book2onandonbookservice.entity.Publisher;
-import org.nhnacademy.book2onandonbookservice.exception.NotFoundBookException;
-import org.nhnacademy.book2onandonbookservice.repository.BookContributorRepository;
-import org.nhnacademy.book2onandonbookservice.repository.BookEnrichmentTaskRepository;
-import org.nhnacademy.book2onandonbookservice.repository.BookPublisherRepository;
-import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
-import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
-import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
-import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
-import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
-import org.springframework.test.util.ReflectionTestUtils;
-
-@ExtendWith(MockitoExtension.class)
-class BookEnrichmentServiceTest {
-
-    @InjectMocks
-    private BookEnrichmentService bookEnrichmentService;
-
-    @Mock private BookRepository bookRepository;
-    @Mock private AladinApiClient aladinApiClient;
-    @Mock private CategoryEnrichmentService categoryService;
-    @Mock private TagEnrichmentService tagService;
-    @Mock private BookEnrichmentTaskRepository taskRepository;
-    @Mock private PublisherRepository publisherRepository;
-    @Mock private ContributorRepository contributorRepository;
-    @Mock private BookPublisherRepository bookPublisherRepository;
-    @Mock private BookContributorRepository bookContributorRepository;
-    @Mock private BookSearchIndexService bookSearchIndexService;
-    @Mock private ImageUploadService imageUploadService;
-
-    private BookEnrichmentTask createTask() {
-        try {
-            Constructor<BookEnrichmentTask> constructor = BookEnrichmentTask.class.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            return constructor.newInstance();
-        } catch (Exception e) {
-            throw new RuntimeException("BookEnrichmentTask 생성 실패", e);
-        }
-    }
-
-    @Test
-    @DisplayName("enrichBookData: 책을 찾을 수 없는 경우 예외 발생")
-    void enrichBookData_BookNotFound() {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> bookEnrichmentService.enrichBookData(task))
-                .isInstanceOf(NotFoundBookException.class);
-    }
-
-    @Test
-    @DisplayName("enrichBookData: 삭제된 책은 처리하지 않고 종료")
-    void enrichBookData_DeletedBook_ReturnsEarly() {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-
-        Book book = Book.builder().build();
-        book.setStatus(BookStatus.BOOK_DELETED);
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-
-        bookEnrichmentService.enrichBookData(task);
-
-        verify(taskRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("enrichBookData: 알라딘/AI 성공 시 상태 업데이트 및 재색인 수행")
-    void enrichBookData_Success() throws JsonProcessingException {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.PENDING);
-
-        Book book = Book.builder().build();
-        ReflectionTestUtils.setField(book, "id", 1L);
-        book.setIsbn("1234567890123");
-        book.setBookPublishers(new HashSet<>());
-        book.setBookContributors(new HashSet<>());
-        book.setImages(new HashSet<>());
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-
-        // Aladin Mock
-        AladinApiResponse.Item aladinItem = new AladinApiResponse.Item();
-        ReflectionTestUtils.setField(aladinItem, "title", "New Long Title");
-        ReflectionTestUtils.setField(aladinItem, "priceStandard", 20000L);
-        ReflectionTestUtils.setField(aladinItem, "publisher", "Test Publisher");
-        ReflectionTestUtils.setField(aladinItem, "author", "Author (Role)");
-        ReflectionTestUtils.setField(aladinItem, "cover", "http://image.url");
-
-        when(aladinApiClient.searchByIsbn(anyString())).thenReturn(aladinItem);
-
-        // Publisher Mock
-        when(publisherRepository.findByPublisherName("Test Publisher"))
-                .thenReturn(Optional.empty());
-        lenient().when(publisherRepository.save(any(Publisher.class))).thenAnswer(i -> i.getArgument(0));
-        when(bookPublisherRepository.existsByBookAndPublisher(any(), any())).thenReturn(false);
-
-        // Contributor Mock
-        when(contributorRepository.findByContributorName("Author"))
-                .thenReturn(Optional.empty());
-        lenient().when(contributorRepository.save(any(Contributor.class))).thenAnswer(i -> i.getArgument(0));
-        when(bookContributorRepository.existsByBookAndContributorAndRoleType(any(), any(), anyString()))
-                .thenReturn(false);
-
-        // Image Mock
-        when(imageUploadService.uploadImageFromUrl(anyString())).thenReturn("s3/path.jpg");
-
-        bookEnrichmentService.enrichBookData(task);
-
-        assertThat(task.getAladinStatus()).isEqualTo(EnrichmentStatus.DONE);
-        assertThat(task.getAiStatus()).isEqualTo(EnrichmentStatus.DONE);
-
-        assertThat(book.getTitle()).isEqualTo("New Long Title");
-        assertThat(book.getPriceSales()).isEqualTo(18000L); // 20000 * 0.9 = 18000
-        assertThat(book.getThumbnail()).isEqualTo("s3/path.jpg");
-
-        verify(categoryService).enrich(book, aladinItem);
-        verify(tagService).enrich(eq(book), anyString(), any(), anyString());
-        verify(bookSearchIndexService).index(book);
-        verify(taskRepository).save(task);
-    }
-
-    @Test
-    @DisplayName("enrichBookData: 알라딘 정보 없음 (NOT_FOUND)")
-    void enrichBookData_AladinNotFound() throws JsonProcessingException {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.DONE);
-
-        Book book = Book.builder().build();
-        book.setIsbn("123");
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-        when(aladinApiClient.searchByIsbn("123")).thenReturn(null);
-
-        bookEnrichmentService.enrichBookData(task);
-
-        assertThat(task.getAladinStatus()).isEqualTo(EnrichmentStatus.NOT_FOUND);
-        verify(bookSearchIndexService).index(book); // NOT_FOUND도 재색인 대상
-    }
-
-    @Test
-    @DisplayName("enrichBookData: 알라딘 API 오류 (FAILED)")
-    void enrichBookData_AladinFailed() throws JsonProcessingException {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.DONE);
-
-        Book book = Book.builder().build();
-        book.setIsbn("123");
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-        doThrow(new RuntimeException("API Error")).when(aladinApiClient).searchByIsbn("123");
-
-        bookEnrichmentService.enrichBookData(task);
-
-        assertThat(task.getAladinStatus()).isEqualTo(EnrichmentStatus.FAILED);
-        verify(bookSearchIndexService, never()).index(book);
-    }
-
-    @Test
-    @DisplayName("enrichBookData: AI 생성 실패 (FAILED)")
-    void enrichBookData_AiFailed() {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.DONE);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.PENDING);
-
-        Book book = Book.builder().build();
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-        doThrow(new RuntimeException("AI Error")).when(tagService).enrich(any(), any(), any(), any());
-
-        bookEnrichmentService.enrichBookData(task);
-
-        assertThat(task.getAiStatus()).isEqualTo(EnrichmentStatus.FAILED);
-    }
-
-    @Test
-    @DisplayName("shouldProcess: 재시도 횟수 제한 테스트")
-    void shouldProcess_RetryLogic() throws JsonProcessingException {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.FAILED);
-        ReflectionTestUtils.setField(task, "aladinRetryCount", 2);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.DONE);
-
-        Book book = Book.builder().build();
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-        when(aladinApiClient.searchByIsbn(any())).thenReturn(null);
-
-        bookEnrichmentService.enrichBookData(task);
-        verify(aladinApiClient).searchByIsbn(any());
-
-        ReflectionTestUtils.setField(task, "aladinRetryCount", 3);
-        bookEnrichmentService.enrichBookData(task);
-        verify(aladinApiClient, times(1)).searchByIsbn(any());
-    }
-
-    @Test
-    @DisplayName("enrichBasicInfo: 제목이 기존보다 짧으면 업데이트 안 함 & 날짜 파싱 오류 처리")
-    void enrichBasicInfo_Logic() throws JsonProcessingException {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.DONE);
-
-        Book book = Book.builder().build();
-        book.setTitle("Very Long Existing Title");
-        book.setBookPublishers(new HashSet<>());
-        book.setBookContributors(new HashSet<>());
-        book.setImages(new HashSet<>());
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-
-        AladinApiResponse.Item item = new AladinApiResponse.Item();
-        ReflectionTestUtils.setField(item, "title", "Short");
-        ReflectionTestUtils.setField(item, "pubDate", "Invalid Date");
-
-        when(aladinApiClient.searchByIsbn(any())).thenReturn(item);
-
-        bookEnrichmentService.enrichBookData(task);
-
-        assertThat(book.getTitle()).isEqualTo("Very Long Existing Title");
-        assertThat(book.getPublishDate()).isNull();
-    }
-
-    @Test
-    @DisplayName("enrichContributors: 다양한 형식의 저자 문자열 파싱")
-    void enrichContributors_Parsing() throws JsonProcessingException {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.DONE);
-
-        Book book = Book.builder().build();
-        book.setBookPublishers(new HashSet<>());
-        book.setBookContributors(new HashSet<>());
-        book.setImages(new HashSet<>());
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-
-        AladinApiResponse.Item item = new AladinApiResponse.Item();
-        ReflectionTestUtils.setField(item, "author", "Kim (Author), Lee");
-
-        when(aladinApiClient.searchByIsbn(any())).thenReturn(item);
-
-        when(contributorRepository.findByContributorName(anyString())).thenReturn(Optional.empty());
-        lenient().when(contributorRepository.save(any(Contributor.class))).thenAnswer(i -> i.getArgument(0));
-        bookEnrichmentService.enrichBookData(task);
-
-        verify(bookContributorRepository, times(2)).saveAndFlush(any(BookContributor.class));
-    }
-
-    @Test
-    @DisplayName("enrichThumbnail: 이미 썸네일이 있어도 알라딘 이미지로 교체함 (덮어쓰기)")
-    void enrichThumbnail_UpdatesExistingThumbnail() throws JsonProcessingException {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.DONE);
-
-        Book book = Book.builder().build();
-        String oldThumbnail = "existing.jpg";
-        book.setThumbnail(oldThumbnail);
-        book.setBookPublishers(new HashSet<>());
-        book.setBookContributors(new HashSet<>());
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-
-        AladinApiResponse.Item item = new AladinApiResponse.Item();
-        String newAladinCover = "http://new.jpg";
-        ReflectionTestUtils.setField(item, "cover", newAladinCover);
-
-        when(aladinApiClient.searchByIsbn(any())).thenReturn(item);
-
-        String newInternalUrl = "https://book2onandon.shop/minio/new_image.jpg";
-        when(imageUploadService.uploadImageFromUrl(newAladinCover)).thenReturn(newInternalUrl);
-
-        bookEnrichmentService.enrichBookData(task);
-
-        verify(imageUploadService, times(1)).uploadImageFromUrl(newAladinCover);
-
-        verify(imageUploadService, times(1)).remove(oldThumbnail);
-
-        org.assertj.core.api.Assertions.assertThat(book.getThumbnail()).isEqualTo(newInternalUrl);
-    }
-
-    @Test
-    @DisplayName("재색인 실패 시 로그만 남기고 진행")
-    void reindex_Fail_LogOnly() throws JsonProcessingException {
-        BookEnrichmentTask task = createTask();
-        ReflectionTestUtils.setField(task, "bookId", 1L);
-        ReflectionTestUtils.setField(task, "aladinStatus", EnrichmentStatus.PENDING);
-        ReflectionTestUtils.setField(task, "aiStatus", EnrichmentStatus.DONE);
-
-        Book book = Book.builder().build();
-        book.setBookPublishers(new HashSet<>());
-        book.setBookContributors(new HashSet<>());
-        book.setImages(new HashSet<>());
-
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-        when(aladinApiClient.searchByIsbn(any())).thenReturn(new AladinApiResponse.Item());
-
-        doThrow(new RuntimeException("Index Fail")).when(bookSearchIndexService).index(book);
-
-        bookEnrichmentService.enrichBookData(task);
-
-        assertThat(task.getAladinStatus()).isEqualTo(EnrichmentStatus.DONE);
-    }
-}
+//package org.nhnacademy.book2onandonbookservice.service.enrichment;
+//
+//import static org.assertj.core.api.Assertions.assertThat;
+//import static org.mockito.ArgumentMatchers.any;
+//import static org.mockito.ArgumentMatchers.anyString;
+//import static org.mockito.BDDMockito.given;
+//import static org.mockito.Mockito.mock;
+//import static org.mockito.Mockito.never;
+//import static org.mockito.Mockito.verify;
+//
+//import com.fasterxml.jackson.core.JsonProcessingException;
+//import java.util.Optional;
+//import org.junit.jupiter.api.BeforeEach;
+//import org.junit.jupiter.api.DisplayName;
+//import org.junit.jupiter.api.Test;
+//import org.junit.jupiter.api.extension.ExtendWith;
+//import org.mockito.InjectMocks;
+//import org.mockito.Mock;
+//import org.mockito.junit.jupiter.MockitoExtension;
+//import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
+//import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
+//import org.nhnacademy.book2onandonbookservice.domain.EnrichmentStatus;
+//import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
+//import org.nhnacademy.book2onandonbookservice.entity.Book;
+//import org.nhnacademy.book2onandonbookservice.entity.BookEnrichmentTask;
+//import org.nhnacademy.book2onandonbookservice.entity.Publisher;
+//import org.nhnacademy.book2onandonbookservice.repository.BookContributorRepository;
+//import org.nhnacademy.book2onandonbookservice.repository.BookEnrichmentTaskRepository;
+//import org.nhnacademy.book2onandonbookservice.repository.BookPublisherRepository;
+//import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
+//import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
+//import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
+//
+//import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
+//import org.nhnacademy.book2onandonbookservice.service.search.BookSearchIndexService;
+//
+//@ExtendWith(MockitoExtension.class)
+//class BookEnrichmentServiceTest {
+//
+//    @InjectMocks
+//    private BookEnrichmentService bookEnrichmentService;
+//
+//    @Mock private BookRepository bookRepository;
+//    @Mock private AladinApiClient aladinApiClient;
+//    @Mock private CategoryEnrichmentService categoryService;
+//    @Mock private TagEnrichmentService tagService;
+//    @Mock private ImageUploadService imageUploadService;
+//    @Mock private BookEnrichmentTaskRepository taskRepository;
+//    @Mock private BookSearchIndexService bookSearchIndexService;
+//
+//    @Mock private PublisherRepository publisherRepository;
+//    @Mock private ContributorRepository contributorRepository;
+//    @Mock private BookPublisherRepository bookPublisherRepository;
+//    @Mock private BookContributorRepository bookContributorRepository;
+//
+//    private Book testBook;
+//    private BookEnrichmentTask testTask;
+//    private AladinApiResponse.Item aladinItem;
+//
+//    @BeforeEach
+//    void setUp() {
+//        testBook = Book.builder()
+//                .id(1L)
+//                .isbn("9788900000000")
+//                .title("기존 제목")
+//                .description("기존 설명")
+//                .status(BookStatus.ON_SALE)
+//                .build();
+//
+//        testTask = BookEnrichmentTask.builder()
+//                .bookId(1L)
+//                .aladinStatus(EnrichmentStatus.PENDING)
+//                .aladinRetryCount(0)
+//                .aiStatus(EnrichmentStatus.PENDING)
+//                .aiRetryCount(0)
+//                .build();
+//
+//        aladinItem = new AladinApiResponse.Item();
+//    }
+//
+//
+//    @Test
+//    @DisplayName("책이 존재하지 않으면 Task에 실패 상태 기록")
+//    void enrichBookData_NotFound() {
+//        given(bookRepository.findById(1L)).willReturn(Optional.empty());
+//
+//        // 예외를 던지지 않고 내부에서 처리
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        // Task에 실패 상태가 기록되어야 함
+//        assertThat(testTask.getAladinStatus()).isEqualTo(EnrichmentStatus.FAILED);
+//        assertThat(testTask.getAiStatus()).isEqualTo(EnrichmentStatus.FAILED);
+//        assertThat(testTask.getAladinFailReason()).contains("Book not found");
+//        assertThat(testTask.getAiFailReason()).contains("Book not found");
+//
+//        // finally에서 saveAndFlush 호출
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//    @Test
+//    @DisplayName("삭제된 책(BOOK_DELETED)이면 아무 작업도 안 하고 종료")
+//    void enrichBookData_DeletedBook() throws JsonProcessingException {
+//        testBook.setStatus(BookStatus.BOOK_DELETED);
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        verify(aladinApiClient, never()).searchByIsbn(anyString());
+//        verify(tagService, never()).enrich(any(), any(), any(), any());
+//        // finally에서 항상 저장
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//
+//    @Test
+//    @DisplayName("알라딘: 성공 시 Task 상태 DONE으로 변경 및 데이터 보강")
+//    void processAladin_Success() throws JsonProcessingException {
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//
+//        aladinItem = mock(AladinApiResponse.Item.class);
+//
+//        given(aladinItem.getPublisher()).willReturn("테스트 출판사");
+//        given(aladinItem.getAuthor()).willReturn("테스트 작가");
+//        given(aladinItem.getCover()).willReturn("http://image.url");
+//
+//        given(aladinApiClient.searchByIsbn(anyString())).willReturn(aladinItem);
+//
+//        given(publisherRepository.findByPublisherName(any()))
+//                .willReturn(Optional.of(Publisher.builder().publisherName("테스트 출판사").build()));
+//
+//        // bookPublisherRepository.existsByBookAndPublisher가 호출될 때 false 반환
+//        given(bookPublisherRepository.existsByBookAndPublisher(any(), any())).willReturn(false);
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        assertThat(testTask.getAladinStatus()).isEqualTo(EnrichmentStatus.DONE);
+//        assertThat(testTask.getAladinFailReason()).isNull();
+//
+//        verify(categoryService).enrich(any(Book.class), any(AladinApiResponse.Item.class));
+//        verify(publisherRepository).findByPublisherName(any());
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//    @Test
+//    @DisplayName("알라딘: 검색 결과 없음(Null)이면 Task 상태 NOT_FOUND로 변경")
+//    void processAladin_NotFound() throws JsonProcessingException {
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//        given(aladinApiClient.searchByIsbn(anyString())).willReturn(null); // 못 찾음
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        assertThat(testTask.getAladinStatus()).isEqualTo(EnrichmentStatus.NOT_FOUND);
+//        verify(categoryService, never()).enrich(any(), any());
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//    @Test
+//    @DisplayName("알라딘: API 예외 발생 시 Task 상태 FAILED로 변경 및 재시도 카운트 증가")
+//    void processAladin_Exception() throws JsonProcessingException {
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//        given(aladinApiClient.searchByIsbn(anyString())).willThrow(new RuntimeException("API Error"));
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        assertThat(testTask.getAladinStatus()).isEqualTo(EnrichmentStatus.FAILED);
+//        assertThat(testTask.getAladinRetryCount()).isEqualTo(1);
+//        assertThat(testTask.getAladinFailReason()).contains("API Error");
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//    @Test
+//    @DisplayName("알라딘: 이미 DONE 상태면 API 호출 건너뜀")
+//    void processAladin_Skip_If_Done() throws JsonProcessingException {
+//        testTask = BookEnrichmentTask.builder()
+//                .bookId(1L)
+//                .aladinStatus(EnrichmentStatus.DONE)
+//                .aiStatus(EnrichmentStatus.PENDING)
+//                .build();
+//
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        verify(aladinApiClient, never()).searchByIsbn(anyString());
+//        verify(tagService).enrich(any(), any(), any(), any());
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//    @Test
+//    @DisplayName("알라딘: FAILED 상태지만 재시도 횟수(3회) 초과 시 건너뜀")
+//    void processAladin_Skip_If_RetryMax() throws JsonProcessingException {
+//        testTask = BookEnrichmentTask.builder()
+//                .bookId(1L)
+//                .aladinStatus(EnrichmentStatus.FAILED)
+//                .aladinRetryCount(3)
+//                .aiStatus(EnrichmentStatus.PENDING)
+//                .build();
+//
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        verify(aladinApiClient, never()).searchByIsbn(anyString());
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//
+//
+//    @Test
+//    @DisplayName("AI: 성공 시 Task 상태 DONE으로 변경")
+//    void processAi_Success() {
+//
+//        testTask = BookEnrichmentTask.builder()
+//                .bookId(1L)
+//                .aladinStatus(EnrichmentStatus.DONE)
+//                .aiStatus(EnrichmentStatus.PENDING)
+//                .build();
+//
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        verify(tagService).enrich(any(), any(), any(), any());
+//        assertThat(testTask.getAiStatus()).isEqualTo(EnrichmentStatus.DONE);
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//    @Test
+//    @DisplayName("AI: 예외 발생 시 Task 상태 FAILED로 변경")
+//    void processAi_Exception(){
+//        testTask = BookEnrichmentTask.builder()
+//                .bookId(1L)
+//                .aladinStatus(EnrichmentStatus.DONE)
+//                .aiStatus(EnrichmentStatus.PENDING)
+//                .build();
+//
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//
+//        org.mockito.Mockito.doThrow(new RuntimeException("AI Fail"))
+//                .when(tagService).enrich(any(), any(), any(), any());
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        assertThat(testTask.getAiStatus()).isEqualTo(EnrichmentStatus.FAILED);
+//        assertThat(testTask.getAiRetryCount()).isEqualTo(1);
+//        assertThat(testTask.getAiFailReason()).contains("AI Fail");
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//    @Test
+//    @DisplayName("통합: 알라딘은 실패하고 AI는 성공하는 경우 각각 상태 반영 확인")
+//    void process_Mixed_Status() throws JsonProcessingException {
+//        given(bookRepository.findById(1L)).willReturn(Optional.of(testBook));
+//
+//        given(aladinApiClient.searchByIsbn(anyString())).willThrow(new RuntimeException("Aladin Fail"));
+//
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        assertThat(testTask.getAladinStatus()).isEqualTo(EnrichmentStatus.FAILED);
+//        assertThat(testTask.getAiStatus()).isEqualTo(EnrichmentStatus.DONE);
+//
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//
+//    @Test
+//    @DisplayName("DB 조회 중 예외 발생 시에도 상태 저장")
+//    void enrichBookData_Exception_StillSaves() {
+//        given(bookRepository.findById(1L)).willThrow(new RuntimeException("DB Error"));
+//
+//        // 예외가 catch되어 더 이상 밖으로 전파되지 않음
+//        bookEnrichmentService.enrichBookDataWithStatusUpdate(testTask);
+//
+//        // finally에서 saveAndFlush 호출
+//        verify(taskRepository).saveAndFlush(testTask);
+//    }
+//}

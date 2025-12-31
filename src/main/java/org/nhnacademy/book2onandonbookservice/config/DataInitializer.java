@@ -47,7 +47,7 @@ public class DataInitializer implements ApplicationRunner {
     private final BookEnrichmentTaskRepository taskRepository;
     private final BookBatchService bookBatchService;
     private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-
+    private final Set<String> processedIsbns = new HashSet<>();
     private final Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
     private final Map<String, Contributor> contributorCache = new ConcurrentHashMap<>();
     /*
@@ -67,7 +67,7 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         if (bookRepository.count() > 0) {
             log.info("데이터가 이미 존재합니다. 초기화를 건너뜁니다.");
-            taskRepository.initTasksFromBook();
+            initializeEnrichmentTasks();
             return;
         }
 
@@ -86,11 +86,19 @@ public class DataInitializer implements ApplicationRunner {
         for (Resource resource : resources) {
             processCsvFile(resource);
         }
-        taskRepository.initTasksFromBook();
+        initializeEnrichmentTasks();
         long endTime = System.currentTimeMillis();
         log.info("전체 초기화 완료! 소요 시간: {}초", (endTime - startTime) / 1000);
     }
-
+    private void initializeEnrichmentTasks() {
+        try {
+            log.info("보강 작업 테이블(BookEnrichmentTask) 초기화 쿼리 실행...");
+            taskRepository.initTasksFromBook();
+            log.info("보강 작업 테이블 초기화 완료.");
+        } catch (Exception e) {
+            log.error("보강 작업 테이블 초기화 실패", e);
+        }
+    }
     private void preloadCaches() {
         log.info("캐시 워밍업 중 (기존 데이터 로드)...");
         publisherRepository.findAll().forEach(p -> publisherCache.put(normalizeKey(p.getPublisherName()), p));
@@ -122,12 +130,17 @@ public class DataInitializer implements ApplicationRunner {
             for (int i = 0; i < dataRows.size(); i++) {
                 Book book = processSingleRow(dataRows.get(i), headerMap, i);
                 if (book != null) {
-                    bookBatch.add(book);
+                    if (!processedIsbns.contains(book.getIsbn())) {
+                        bookBatch.add(book);
+                        processedIsbns.add(book.getIsbn());
+                    } else {
+                        log.debug("중복된 ISBN 발견, 스킵: {}", book.getIsbn());
+                    }
                 }
 
                 // 1000개가 모이면 DB로
                 if (bookBatch.size() >= 1000) {
-                    bookBatchService.saveBooksInBatch(bookBatch);
+                    saveBatchSafe(bookBatch);
                     bookBatch.clear();
                     if (i % 10000 == 0) {
                         log.info("{} 건 처리 완료...", i);
@@ -137,11 +150,20 @@ public class DataInitializer implements ApplicationRunner {
 
             // 남은 데이터 처리
             if (!bookBatch.isEmpty()) {
-                bookBatchService.saveBooksInBatch(bookBatch);
+                saveBatchSafe(bookBatch);
             }
 
         } catch (Exception e) {
             log.error("파일 처리 중 치명적 오류 발생: {}", resource.getFilename(), e);
+        }
+    }
+
+    private void saveBatchSafe(List<Book> batch) {
+        try {
+            bookBatchService.saveBooksInBatch(batch);
+        } catch (Exception e) {
+            log.error("배치 저장 중 오류 발생 (Batch Size: {}). 이 배치는 스킵됩니다. 원인: {}", batch.size(), e.getMessage());
+            // 필요하다면 여기서 개별 저장 시도 로직을 넣을 수도 있음
         }
     }
 
@@ -172,13 +194,19 @@ public class DataInitializer implements ApplicationRunner {
         }
         String finalPubName = pubName;
         String pubKey = normalizeKey(finalPubName);
-        Publisher publisher = publisherCache.computeIfAbsent(pubKey, name -> {
-            try {
-                return publisherRepository.save(Publisher.builder().publisherName(finalPubName).build());
-            } catch (Exception e) {
-                return publisherRepository.findByPublisherName(finalPubName)
-                        .orElseThrow(() -> new RuntimeException("출판사 처리 실패: " + finalPubName));
-            }
+        Publisher publisher = publisherCache.computeIfAbsent(pubKey, key -> {
+            // 1. 먼저 DB 조회
+            return publisherRepository.findByPublisherName(finalPubName)
+                    .orElseGet(() -> {
+                        // 2. 없으면 저장 시도
+                        try {
+                            return publisherRepository.save(Publisher.builder().publisherName(finalPubName).build());
+                        } catch (Exception e) {
+                            // 3. 동시에 다른 스레드가 저장했거나 캐시 엇박자로 충돌 시 재조회
+                            return publisherRepository.findByPublisherName(finalPubName)
+                                    .orElseThrow(() -> new RuntimeException("출판사 처리 실패(DB 불일치): " + finalPubName));
+                        }
+                    });
         });
 
         long price = parsePrice(safeGet(row, h, "PRC_VALUE"));

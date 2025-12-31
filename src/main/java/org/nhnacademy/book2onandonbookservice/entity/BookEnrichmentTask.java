@@ -34,17 +34,20 @@ public class BookEnrichmentTask {
     private String aladinFailReason;
 
     @Column(name="aladin_retry_count")
-    private int aladinRetryCount;
+    @Builder.Default
+    private int aladinRetryCount=0;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "ai_status", nullable = false)
-    private EnrichmentStatus aiStatus;
+    @Builder.Default
+    private EnrichmentStatus aiStatus= EnrichmentStatus.PENDING;
 
     @Column(name="ai_fail_reason", columnDefinition = "TEXT")
     private String aiFailReason;
 
     @Column(name="ai_retry_count")
-    private int aiRetryCount;
+    @Builder.Default
+    private int aiRetryCount=0;
 
 
     /// 상태 변경 로직
@@ -65,6 +68,11 @@ public class BookEnrichmentTask {
         this.aladinStatus = EnrichmentStatus.NOT_FOUND;
         this.aladinFailReason = "ISBN 조회 결과 없음 (Aladin API)";
     }
+    public void resetAladinStatus() {
+        this.aladinStatus = EnrichmentStatus.PENDING;
+        this.aladinRetryCount = 0;
+        this.aladinFailReason = null;
+    }
 
     // --- AI 메서드 ---
     public void markAiDone(){
@@ -78,5 +86,23 @@ public class BookEnrichmentTask {
         this.aiFailReason = reason;
     }
 
+    public void resetAiStatus() {
+        this.aiStatus = EnrichmentStatus.PENDING;
+        this.aiRetryCount = 0;
+        this.aiFailReason = null;
+    }
+
+
+    public void markAllDoneBecauseBookDeleted() {
+        this.aladinStatus = EnrichmentStatus.DONE;
+        this.aladinFailReason = null;
+        this.aiStatus = EnrichmentStatus.DONE;
+        this.aiFailReason = null;
+    }
+
+    public void markAllFailedBecauseBookMissing() {
+        markAladinFailed("Book not found");
+        markAiFailed("Book not found");
+    }
 
 }

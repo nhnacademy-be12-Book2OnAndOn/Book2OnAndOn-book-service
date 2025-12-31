@@ -17,6 +17,8 @@ import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
 import org.nhnacademy.book2onandonbookservice.service.enrichment.rate.ApiRateLimiter;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -28,41 +30,47 @@ public class TagEnrichmentService {
     private final TagRepository tagRepository;
     private final BookTagRepository bookTagRepository;
 
-    public void enrich(Book book, String title, String description, String isbn){
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public BookContentDto generateContent(String title, String description, String isbn) {
         BookContentDto content;
 
         if (!rateLimiter.tryAcquireGroq()) {
             throw new GroqQuotaExceededException("Groq quota exceeded (429/limit)");
         }
 
-        try{
+        try {
             content = groqApiClient.extractContent(title, description, isbn);
-        }catch(Exception groqEx){
-            if(!rateLimiter.tryAcquireGemini()){
+        } catch (Exception groqEx) {
+            if (!rateLimiter.tryAcquireGemini()) {
                 throw new GeminiQuotaExceededException("Gemini quota exceeded (429/limit)");
             }
-
-            try{
-                content = geminiApiClient.extractContent(title,description,isbn);
-            }catch (Exception geminiEx){
+            try {
+                content = geminiApiClient.extractContent(title, description, isbn);
+            } catch (Exception geminiEx) {
                 throw new GeminiTagGenerationException("태그/챕터 생성실패 (Groq->Gemini)", geminiEx);
             }
         }
 
-        if(content==null){
-            throw new TagGenerationFailedException("AI 응답이 null");
-        }
+        if (content == null) throw new TagGenerationFailedException("AI 응답이 null");
+        if (content.hasNoTags()) throw new TagGenerationFailedException("태그 생성 실패 (빈 결과)");
+        if (content.hasNoChapter()) throw new TagGenerationFailedException("챕터 생성 실패 (빈 결과)");
 
-        if(content.hasNoTags()){
-            throw new TagGenerationFailedException("태그 생성 실패 (빈 결과)");
-        }
+        return content;
+    }
 
-        if(content.hasNoChapter()){
-            throw new TagGenerationFailedException("챕터 생성 실패 (빈 결과)");
-        }
-
+    /**
+     * 2) DB 반영만 수행 (트랜잭션 안에서)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void applyContent(Book book, BookContentDto content) {
         saveTags(book, content.getTags());
         book.setChapter(content.getChapter());
+    }
+
+    @Transactional
+    public void enrich(Book book, String title, String description, String isbn) {
+        BookContentDto content = generateContent(title, description, isbn);
+        applyContent(book, content);
     }
 
     private void saveTags(Book book, List<String> tagNames){
