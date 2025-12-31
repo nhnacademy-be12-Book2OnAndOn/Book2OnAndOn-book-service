@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +36,7 @@ import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.nhnacademy.book2onandonbookservice.service.BookBatchService;
+import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.core.io.Resource;
 
@@ -44,6 +46,8 @@ class DataInitializerTest {
     @Mock
     private BookRepository bookRepository;
 
+    @Mock
+    ImageUploadService imageUploadService;
     @Mock
     private BookEnrichmentTaskRepository taskRepository;
 
@@ -157,8 +161,8 @@ class DataInitializerTest {
 
         dataInitializer.processCsvFile(resource);
 
-        verify(bookBatchService).saveBooksInBatch(
-                argThat(list -> list.size() == 1 && (list.get(0)).getTitle().equals("정상책")));
+        verify(bookBatchService, timeout(2000)).saveBooksInBatch(
+                argThat(list -> list.size() == 1 && list.get(0).getTitle().equals("정상책")));
     }
 
     @Test
