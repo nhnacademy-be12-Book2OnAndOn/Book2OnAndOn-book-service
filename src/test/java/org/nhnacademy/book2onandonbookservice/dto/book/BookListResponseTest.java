@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.dto.book;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.*;
 
 import java.time.LocalDate;
@@ -138,7 +139,7 @@ class BookListResponseTest {
         assertThat(dto.getTitle()).isEqualTo("Title");
 
         BookListResponse allArgs = new BookListResponse(
-                1L, "Title", "Vol", 1000L, 900L, 4.5, LocalDate.now(),
+                1L, "Title", "Vol", 1000L, 900L, 4.5, BookStatus.BOOK_DELETED, LocalDate.now(),
                 List.of("C"), List.of("P"), List.of("T"), List.of("Cat"), "thumb.jpg"
         );
         assertThat(allArgs.getId()).isEqualTo(1L);

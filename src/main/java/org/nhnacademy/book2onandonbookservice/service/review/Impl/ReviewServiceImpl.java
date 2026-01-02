@@ -59,6 +59,7 @@ public class ReviewServiceImpl implements ReviewService {
         if (!isPurchased) {
             throw new BookNotPurchasedException();
         }
+
         //리뷰가 이미 존재하면 커스텀 예외에서 리뷰가 이미 존재 메시지를 뱉음
         if (reviewRepository.existsByBookIdAndUserId(bookId, userId)) {
             throw new ReviewAlreadyExistsException();

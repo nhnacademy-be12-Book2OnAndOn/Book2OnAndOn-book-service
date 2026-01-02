@@ -263,10 +263,7 @@ public class BookServiceImpl implements BookService {
         long likeCount = bookLikeRepository.countByBookId(bookId);
 
         // 비로그인: null, 로그인: true/false
-        Boolean likedByCurrentUser = null;
-        if (userId != null) {
-            likedByCurrentUser = bookLikeRepository.existsByBookIdAndUserId(bookId, userId);
-        }
+        Boolean likedByCurrentUser = (userId != null) ? bookLikeRepository.existsByBookIdAndUserId(bookId, userId) : null;
 
         return BookDetailResponse.from(book, likeCount, likedByCurrentUser);
     }

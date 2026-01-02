@@ -134,7 +134,7 @@ public class ImageUploadService {
             try {
                 return uploadInternal(imageUrl, "image/jpeg");
             } catch (RejectedExecutionException | InterruptedIOException ie) {
-                // ★ 핵심 수정: 시스템 종료나 쓰레드 풀 종료로 인한 에러는 ERROR 로그 안 찍음
+                // 시스템 종료나 쓰레드 풀 종료로 인한 에러는 ERROR 로그 안 찍음
                 log.warn("이미지 업로드 중단 (시스템 종료 또는 재시작 감지): {}", imageUrl);
                 return null;
             } catch (java.io.FileNotFoundException fe) {
