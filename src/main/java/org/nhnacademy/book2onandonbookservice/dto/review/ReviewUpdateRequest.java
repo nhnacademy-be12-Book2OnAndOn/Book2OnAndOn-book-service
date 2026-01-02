@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.dto.review;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,6 +28,9 @@ public class ReviewUpdateRequest {
     @Min(value = 1, message = "별점은 최소 1점입니다.")
     @Max(value = 5, message = "별점은 최대 5점입니다.")
     private Integer score;  // 평가 점수
+
+    private String writerName;
+    private LocalDate writerDate;
 
     private List<Long> deleteImageIds;
 }

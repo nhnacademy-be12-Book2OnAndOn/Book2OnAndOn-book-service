@@ -14,6 +14,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +63,7 @@ public class Review {
     // 리뷰 작성일
     @Column(name = "review_date", nullable = false)
     @Setter
-    private LocalDateTime createdAt;
+    private LocalDate createdAt;
 
     // 도서 아이디
     @ManyToOne(fetch = FetchType.LAZY)
@@ -74,6 +75,10 @@ public class Review {
     @Column(name = "user_id", nullable = false)
     @Setter
     private Long userId;
+
+    @Column(name = "writer_name", nullable = false)
+    private String writerName; // 작성자 이름 저장
+
 
     // 리뷰 이미지 매핑
     @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)

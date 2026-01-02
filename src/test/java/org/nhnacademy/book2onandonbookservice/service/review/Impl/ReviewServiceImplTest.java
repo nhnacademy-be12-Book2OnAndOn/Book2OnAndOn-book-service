@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -198,7 +199,7 @@ class ReviewServiceImplTest {
         // Given
         Pageable pageable = PageRequest.of(0, 10);
         Review review = Review.builder().id(1L).book(book).userId(userId).title("R1").content("C1")
-                .createdAt(LocalDateTime.now()).score(5).build();
+                .createdAt(LocalDate.now()).score(5).build();
         Page<Review> page = new PageImpl<>(List.of(review));
 
         given(bookRepository.findById(bookId)).willReturn(Optional.of(book));
@@ -230,7 +231,7 @@ class ReviewServiceImplTest {
         // Given
         Pageable pageable = PageRequest.of(0, 10);
         Review review = Review.builder().id(1L).book(book).userId(userId).title("R1").content("C1")
-                .createdAt(LocalDateTime.now()).score(5).build();
+                .createdAt(LocalDate.now()).score(5).build();
         Page<Review> page = new PageImpl<>(List.of(review));
 
         given(reviewRepository.findAllByUserId(userId, pageable)).willReturn(page);

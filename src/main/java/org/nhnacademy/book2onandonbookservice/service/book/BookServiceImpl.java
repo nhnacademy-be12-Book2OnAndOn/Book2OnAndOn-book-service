@@ -110,6 +110,8 @@ public class BookServiceImpl implements BookService {
                 .orElseThrow(() -> new NotFoundBookException(bookId));
         int oldStock = book.getStockCount();
         // 1. 단순 필드 업데이트
+        log.debug("도서수정 목차: {}", request.getChapter());
+        log.debug("도서수정 설명: {}", request.getDescriptionHtml());
         bookFactory.updateFields(book, request);
 
         //재고 변경 감지 및 Redis 동기화

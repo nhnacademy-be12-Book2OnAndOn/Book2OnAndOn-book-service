@@ -1,6 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.service.enrichment;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
@@ -11,6 +12,7 @@ import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CategoryEnrichmentService {
 
     private final CategoryRepository categoryRepository;
@@ -19,7 +21,9 @@ public class CategoryEnrichmentService {
         String categoryPath = aladinData.getCategoryName();
 
         if(!StringUtils.hasText(categoryPath)){
-            throw new CategoryResolveException("알라딘 카테고리 정보 없음");
+            log.warn("알라딘 카테고리 정보 없음. isbn={}, title={}",
+                    book.getIsbn(), book.getTitle());
+            return;
         }
 
         Category leaf = resolveCategoryTree(categoryPath);

@@ -1,6 +1,7 @@
 package org.nhnacademy.book2onandonbookservice.service.review.Impl;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,7 @@ public class ReviewServiceImpl implements ReviewService {
         Book book = bookRepository.findById(bookId).orElseThrow(() -> new NotFoundBookException(bookId));
         Long userId = util.getUserId();
 
-        //1. 구매 검증 (Redis 조회 -> 없으면 API 호출 -> 캐싱까지 자동처리
+//        1. 구매 검증 (Redis 조회 -> 없으면 API 호출 -> 캐싱까지 자동처리
         boolean isPurchased = purchaseVerificationService.verifyPurchase(userId,bookId );
 
         // 구매가 false면 커스텀 예외에서 배송 후 리뷰작성 메시지를 뱉음
@@ -70,7 +71,8 @@ public class ReviewServiceImpl implements ReviewService {
                 .title(req.getTitle())
                 .content(req.getContent())
                 .score(req.getScore())
-                .createdAt(LocalDateTime.now())
+                .writerName(req.getWriterName())
+                .createdAt(LocalDate.now())
                 .build();
 
         boolean hasImage = false;
@@ -123,6 +125,13 @@ public class ReviewServiceImpl implements ReviewService {
     public Page<ReviewDto> getReviewListByUserId(Long userId, Pageable pageable) {
         Page<Review> reviewPage = reviewRepository.findAllByUserId(userId, pageable);
         return reviewPage.map(ReviewDto::from);
+    }
+
+    @Override
+    public ReviewDto getReview(Long reviewId) {
+        Review review = reviewRepository.findById(reviewId).orElseThrow(()-> new NotFoundReviewException(reviewId));
+
+        return ReviewDto.from(review);
     }
 
     /*
