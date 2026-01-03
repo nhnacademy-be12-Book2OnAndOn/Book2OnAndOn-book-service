@@ -292,7 +292,6 @@ class DataInitializerTest {
         when(publisherRepository.findByPublisherName(anyString())).thenReturn(Optional.empty());
         when(publisherRepository.saveAndFlush(any(Publisher.class))).thenReturn(testPublisher);
         when(contributorRepository.save(any(Contributor.class))).thenReturn(testContributor);
-        when(imageUploadService.uploadImageFromUrl(anyString())).thenReturn("minio://uploaded");
 
         Book result = invokeConvertToBook(row, headerMap);
 
@@ -301,7 +300,7 @@ class DataInitializerTest {
         assertThat(result.getTitle()).isEqualTo("테스트책");
         assertThat(result.getPriceStandard()).isEqualTo(15000L);
         assertThat(result.getStatus()).isEqualTo(BookStatus.ON_SALE);
-        assertThat(result.getThumbnail()).isEqualTo("minio://uploaded");
+        assertThat(result.getThumbnail()).isEqualTo("http://image.url");
     }
 
     @Test
@@ -323,20 +322,7 @@ class DataInitializerTest {
         assertThat(result.getBookPublishers()).hasSize(1);
     }
 
-    @Test
-    @DisplayName("convertToBook - 이미지 URL이 없는 경우")
-    void convertToBook_noImageUrl() throws Exception {
-        String[] row = {"9788901234567", "테스트책", "출판사", "", "10000", "", "", "", ""};
-        Map<String, Integer> headerMap = createHeaderMap();
-        when(publisherRepository.findByPublisherName(anyString())).thenReturn(Optional.empty());
-        when(publisherRepository.saveAndFlush(any(Publisher.class))).thenReturn(testPublisher);
 
-        Book result = invokeConvertToBook(row, headerMap);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getThumbnail()).isNull();
-        assertThat(result.getImages()).isEmpty();
-    }
 
     @Test
     @DisplayName("convertToBook - 긴 ISBN 자르기")

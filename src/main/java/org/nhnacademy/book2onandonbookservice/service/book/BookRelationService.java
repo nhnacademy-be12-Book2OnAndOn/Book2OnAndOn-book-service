@@ -108,17 +108,29 @@ public class BookRelationService {
     }
 
     /// 태그 설정: 태그명이 없으면 무시, 없는 태그 -> 신규 생성
-    private void setTags(Book book, Set<String> tagNames) {
-        if (tagNames == null || tagNames.isEmpty()) {
-            return;
-        }
+    private void setTags(Book book, Set<String> tagNamesInput) {
+        Set<String> newTagNames = (tagNamesInput == null) ? new HashSet<>() :
+                tagNamesInput.stream()
+                        .filter(StringUtils::isNotBlank)
+                        .map(String::trim)
+                        .collect(Collectors.toSet());
 
-        for (String tagName : tagNames.stream().distinct().toList()) {
-            if (StringUtils.isNotBlank(tagName)) {
+        book.getBookTags().removeIf(bookTag ->
+                !newTagNames.contains(bookTag.getTag().getTagName().trim())
+        );
+
+        Set<String> existingTagNames = book.getBookTags().stream()
+                .map(bt -> bt.getTag().getTagName().trim())
+                .collect(Collectors.toSet());
+
+        for (String tagName : newTagNames) {
+            if (!existingTagNames.contains(tagName)) {
+
                 Tag tag = tagRepository.findByTagName(tagName)
                         .orElseGet(() -> tagRepository.save(Tag.builder()
                                 .tagName(tagName)
                                 .build()));
+
                 BookTagPK pk = new BookTagPK(book.getId(), tag.getId());
                 BookTag bookTag = BookTag.builder()
                         .pk(pk)
@@ -158,22 +170,82 @@ public class BookRelationService {
 
         // 태그: null 이 아니면 전체 교체
         if (request.getTagNames() != null) {
-            book.getBookTags().clear();
             setTags(book, request.getTagNames());
         }
 
         // 출판사: ID 목록 또는 이름이 들어온 경우 전체 교체
         if (request.getPublisherIds() != null || StringUtils.isNotBlank(request.getPublisherName())) {
-            book.getBookPublishers().clear();
-            setPublishers(book, request.getPublisherIds(), request.getPublisherName());
+            updatePublishersSafely(book, request.getPublisherIds(), request.getPublisherName());
         }
 
         // 기여자: null 이면 건드리지 않고, 빈 문자열이면 모두 제거
         if (request.getContributorName() != null) {
-            book.getBookContributors().clear();
-            setContributors(book, request.getContributorName());
+            updateContributorsSafely(book, request.getContributorName());
         }
 
+    }
+
+    private void updatePublishersSafely(Book book, List<Long> publisherIds, String publisherName) {
+        Set<Publisher> targetPublishers = new HashSet<>();
+
+        if (publisherIds != null && !publisherIds.isEmpty()) {
+            targetPublishers.addAll(publisherRepository.findAllById(publisherIds));
+        }
+
+        if (StringUtils.isNotBlank(publisherName)) {
+            Publisher namedPublisher = publisherRepository.findByPublisherName(publisherName)
+                    .orElseGet(() -> publisherRepository.save(
+                            Publisher.builder().publisherName(publisherName).build()
+                    ));
+            targetPublishers.add(namedPublisher);
+        }
+
+        Set<Long> targetIds = targetPublishers.stream().map(Publisher::getId).collect(Collectors.toSet());
+        book.getBookPublishers().removeIf(bp -> !targetIds.contains(bp.getPublisher().getId()));
+
+        for (Publisher publisher : targetPublishers) {
+            if (!book.hasPublisher(publisher)) {
+                book.addPublisher(publisher);
+            }
+        }
+    }
+
+    private void updateContributorsSafely(Book book, String contributorName) {
+        if (contributorName.trim().isEmpty()) {
+            book.getBookContributors().clear();
+            return;
+        }
+
+        Set<String> targetNames = Arrays.stream(contributorName.split(","))
+                .map(String::trim)
+                .filter(this::notBlank)
+                .collect(Collectors.toSet());
+
+        Set<Contributor> targetContributors = new HashSet<>();
+        for (String name : targetNames) {
+            Contributor contributor = contributorRepository.findByContributorName(name)
+                    .orElseGet(() -> contributorRepository.save(
+                            Contributor.builder().contributorName(name).build()
+                    ));
+            targetContributors.add(contributor);
+        }
+
+        book.getBookContributors().removeIf(bc ->
+                !targetNames.contains(bc.getContributor().getContributorName()));
+
+        for (Contributor contributor : targetContributors) {
+            boolean exists = book.getBookContributors().stream()
+                    .anyMatch(bc -> bc.getContributor().getId().equals(contributor.getId()));
+
+            if (!exists) {
+                BookContributor newContributor = BookContributor.builder()
+                        .book(book)
+                        .contributor(contributor)
+                        .roleType("지은이")
+                        .build();
+                book.getBookContributors().add(newContributor);
+            }
+        }
     }
 
     /// 공통 문자열 유틸

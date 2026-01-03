@@ -48,8 +48,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ContributorRepository contributorRepository;
     private final BookEnrichmentTaskRepository taskRepository;
     private final BookBatchService bookBatchService;
-    private final ImageUploadService imageUploadService;
-    private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+    private PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
     private final Set<String> processedIsbns = new HashSet<>();
     private final Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
     private final Map<String, Contributor> contributorCache = new ConcurrentHashMap<>();
@@ -164,10 +163,6 @@ public class DataInitializer implements ApplicationRunner {
     private void saveBatchSafe(List<Book> batch) {
         try {
             bookBatchService.saveBooksInBatch(batch);
-            Thread.sleep(1500);
-        } catch (InterruptedException e) {
-            log.error("배치 휴식 중 인터럽트 발생", e);
-            Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.error("배치 저장 중 오류 발생 (Batch Size: {}): {}", batch.size(), e.getMessage());
         }
@@ -193,10 +188,6 @@ public class DataInitializer implements ApplicationRunner {
             return null;
         }
         String rawImageUrl = safeGet(row, h, "IMAGE_URL");
-        String minioImageUrl = null;
-        if(StringUtils.hasText(rawImageUrl)){
-            minioImageUrl = imageUploadService.uploadImageFromUrl(rawImageUrl);
-        }
 
         // 출판사 처리 (캐시 조회 -> 없으면 저장 후 캐시 등록)
         String pubName = safeGet(row, h, "PUBLISHER_NM");
@@ -221,7 +212,7 @@ public class DataInitializer implements ApplicationRunner {
                 .isWrapped(true) // 포장 가능 여부
                 .status(BookStatus.ON_SALE)
                 .volume(safeGet(row, h, "VLM_NM")) //volume
-                .thumbnail(minioImageUrl)
+                .thumbnail(rawImageUrl)
                 .build();
 
         //연관관계 설정: 출판사
@@ -235,10 +226,10 @@ public class DataInitializer implements ApplicationRunner {
         if (StringUtils.hasText(rawAuthorStr)) {
             parseAndAddContributors(book, rawAuthorStr);
         }
-        if (StringUtils.hasText(minioImageUrl)) {
+        if (StringUtils.hasText(rawImageUrl)) {
             book.getImages().add(BookImage.builder()
                     .book(book)
-                    .imagePath(minioImageUrl)
+                    .imagePath(rawImageUrl)
                     .isThumbnail(true)
                     .build());
         }

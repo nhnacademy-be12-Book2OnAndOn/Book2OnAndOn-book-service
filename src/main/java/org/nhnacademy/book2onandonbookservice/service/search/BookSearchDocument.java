@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import java.time.LocalDate;
 import java.util.List;
@@ -12,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
@@ -115,6 +117,9 @@ public class BookSearchDocument {
 
     @Field(type = FieldType.Double)
     private Double reviewRating; // 평점
+
+    @Field(type = FieldType.Text)
+    private BookStatus status;
 
     // --- Ollama (BGE-M3) 1024차원 벡터 ---
     @Field(type = FieldType.Dense_Vector, dims = 1024)

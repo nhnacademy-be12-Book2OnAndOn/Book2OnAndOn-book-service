@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.dto.review;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
 import org.nhnacademy.book2onandonbookservice.entity.ReviewImage;
 
@@ -22,8 +23,9 @@ class ReviewDtoTest {
     void from_Success_WithImages() {
         Review review = mock(Review.class);
         ReviewImage reviewImage = mock(ReviewImage.class);
+        Book book = mock(Book.class);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
 
         when(review.getId()).thenReturn(1L);
         when(review.getUserId()).thenReturn(100L);
@@ -35,6 +37,8 @@ class ReviewDtoTest {
         when(reviewImage.getId()).thenReturn(10L);
         when(reviewImage.getImagePath()).thenReturn("/img/review1.jpg");
         when(review.getImages()).thenReturn(List.of(reviewImage));
+        when(review.getBook()).thenReturn(book);
+
 
         ReviewDto result = ReviewDto.from(review);
 
@@ -43,7 +47,7 @@ class ReviewDtoTest {
         assertThat(result.getTitle()).isEqualTo("Review Title");
         assertThat(result.getContent()).isEqualTo("Content");
         assertThat(result.getScore()).isEqualTo(5);
-        assertThat(result.getCreatedAt()).isEqualTo(now.toLocalDate());
+        assertThat(result.getWriterDate()).isEqualTo(now);
 
         assertThat(result.getImages()).hasSize(1);
         assertThat(result.getImages().get(0).getId()).isEqualTo(10L);
@@ -54,8 +58,8 @@ class ReviewDtoTest {
     @DisplayName("성공: 이미지가 없는 Review 엔티티 변환")
     void from_Success_NoImages() {
         Review review = mock(Review.class);
-        LocalDateTime now = LocalDateTime.now();
-
+        LocalDate now = LocalDate.now();
+        Book book = mock(Book.class);
         when(review.getId()).thenReturn(2L);
         when(review.getUserId()).thenReturn(200L);
         when(review.getTitle()).thenReturn("Title");
@@ -63,6 +67,7 @@ class ReviewDtoTest {
         when(review.getScore()).thenReturn(3);
         when(review.getCreatedAt()).thenReturn(now);
         when(review.getImages()).thenReturn(Collections.emptyList());
+        when(review.getBook()).thenReturn(book);
 
         ReviewDto result = ReviewDto.from(review);
 
@@ -84,7 +89,7 @@ class ReviewDtoTest {
         assertThat(noArgs).isNotNull();
 
         ReviewDto allArgs = new ReviewDto(
-                1L, 2L, 3L, "Title", "Content", 5, LocalDate.now(), Collections.emptyList()
+                1L, 2L, 3L, "BookTitle","nickname","Title", "Content", 5, LocalDate.now(), Collections.emptyList()
         );
         assertThat(allArgs.getId()).isEqualTo(1L);
         assertThat(allArgs.getBookId()).isEqualTo(2L);

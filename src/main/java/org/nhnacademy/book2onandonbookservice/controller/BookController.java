@@ -17,6 +17,7 @@ import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService.BookL
 import org.nhnacademy.book2onandonbookservice.service.book.BookService;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
+import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -57,13 +58,15 @@ public class BookController {
         Long userId = util.getUserId();
         String guestId = util.getGuestId();
         BookDetailResponse response = bookService.getBookDetail(bookId, userId, guestId);
+
         return ResponseEntity.ok(response);
     }
 
     /// 베스트셀러 조회 API GET /books/bestsellers?period=DAILY
     @GetMapping("/bestsellers")
-    public ResponseEntity<List<BookListResponse>> getBestsellers(@RequestParam("period") String period) {
-        List<BookListResponse> bestsellers = bookService.getBestsellers(period.toUpperCase());
+    public ResponseEntity<Page<BookListResponse>> getBestsellers(@RequestParam("period") String period,
+                                                                 @SpringQueryMap Pageable pageable) {
+        Page<BookListResponse> bestsellers = bookService.getBestsellers(period.toUpperCase(),pageable);
         return ResponseEntity.ok(bestsellers);
     }
 

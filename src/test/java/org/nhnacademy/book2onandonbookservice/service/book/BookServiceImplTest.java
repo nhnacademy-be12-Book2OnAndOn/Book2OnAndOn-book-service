@@ -276,9 +276,9 @@ class BookServiceImplTest {
     @Test
     @DisplayName("베스트셀러 조회 - 주문 서비스 연동")
     void getBestsellers() {
-
         List<Long> ids = List.of(1L, 2L);
-        when(orderServiceClient.getBestSellersBookIds("WEEK")).thenReturn(ids);
+
+        when(orderServiceClient.getBestSellersBookIds("WEEKLY")).thenReturn(ids);
 
         Book b1 = new Book();
         ReflectionTestUtils.setField(b1, "id", 1L);
@@ -290,17 +290,20 @@ class BookServiceImplTest {
 
         when(bookRepository.findAllById(ids)).thenReturn(List.of(b1, b2));
 
-        List<BookListResponse> result = bookService.getBestsellers("WEEK");
+        Page<BookListResponse> result = bookService.getBestsellers("WEEKLY", PageRequest.of(0, 10));
 
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getId()).isEqualTo(1L);
+        assertThat(result).hasSize(1); // 삭제된 b2는 제외되고 b1만 나와야 함
+        assertThat(result.getContent().get(0).getId()).isEqualTo(1L);
     }
 
     @Test
     @DisplayName("베스트셀러 조회 - 결과 없음")
     void getBestsellers_Empty() {
-        when(orderServiceClient.getBestSellersBookIds("WEEK")).thenReturn(Collections.emptyList());
-        List<BookListResponse> result = bookService.getBestsellers("WEEK");
+        when(orderServiceClient.getBestSellersBookIds("WEEKLY")).thenReturn(Collections.emptyList());
+
+
+        Page<BookListResponse> result = bookService.getBestsellers("WEEKLY", PageRequest.of(0, 10));
+
         assertThat(result).isEmpty();
     }
 

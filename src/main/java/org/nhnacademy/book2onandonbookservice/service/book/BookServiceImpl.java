@@ -110,6 +110,8 @@ public class BookServiceImpl implements BookService {
                 .orElseThrow(() -> new NotFoundBookException(bookId));
         int oldStock = book.getStockCount();
         // 1. 단순 필드 업데이트
+        log.debug("도서수정 목차: {}", request.getChapter());
+        log.debug("도서수정 설명: {}", request.getDescriptionHtml());
         bookFactory.updateFields(book, request);
 
         //재고 변경 감지 및 Redis 동기화
@@ -261,23 +263,20 @@ public class BookServiceImpl implements BookService {
         long likeCount = bookLikeRepository.countByBookId(bookId);
 
         // 비로그인: null, 로그인: true/false
-        Boolean likedByCurrentUser = null;
-        if (userId != null) {
-            likedByCurrentUser = bookLikeRepository.existsByBookIdAndUserId(bookId, userId);
-        }
+        Boolean likedByCurrentUser = (userId != null) ? bookLikeRepository.existsByBookIdAndUserId(bookId, userId) : null;
 
         return BookDetailResponse.from(book, likeCount, likedByCurrentUser);
     }
 
     /// 베스트셀러 조회 및 캐싱
-    @Cacheable(value = "bestsellers", key = "#period", cacheManager = "bestsellersCacheManager") //redis
+    @Cacheable(value = "bestsellers", key = "#period + '-' + #pageable.pageNumber", cacheManager = "bestsellersCacheManager") //redis
     @Override
-    public List<BookListResponse> getBestsellers(String period) {
+    public Page<BookListResponse> getBestsellers(String period, Pageable pageable) {
         List<Long> bookIds = orderServiceClient.getBestSellersBookIds(period);
-        //기간별로 받아옵니다 DAILY, WEEK
+        //기간별로 받아옵니다 DAILY, WEEKLY
 
         if (bookIds.isEmpty()) {
-            return Collections.emptyList();
+            return Page.empty(pageable);
         }
 
         List<Book> books = bookRepository.findAllById(bookIds); //bookId 리스트로 관련된 book 엔티티를 찾습니다.
@@ -287,11 +286,15 @@ public class BookServiceImpl implements BookService {
                 .collect(Collectors.toMap(Book::getId,
                         Function.identity())); //Function.identity: 스트림의 요소 그 자체를 값으로 사용하는 것 Book 객체 자체
 
-        return bookIds.stream()
-                .filter(bookMap::containsKey)
+        List<BookListResponse> content = bookIds.stream()
+                .filter(bookMap::containsKey) // DB에는 없는데 Order에는 있는 경우(삭제된 책 등) 방지
                 .map(bookMap::get)
                 .map(BookListResponse::from)
                 .toList();
+        long total = content.size();
+
+        log.debug("베스트셀러 요청 들어옴: {}", content.size());
+        return new PageImpl<>(content, pageable, total);
     }
 
     @Override

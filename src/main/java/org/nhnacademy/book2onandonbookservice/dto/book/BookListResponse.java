@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
@@ -28,6 +29,7 @@ public class BookListResponse {
     private Long priceStandard; // 도서 정가
     private Long priceSales; // 도서 판매가
     private Double rating; //평점
+    private BookStatus status;
 
     private LocalDate publisherDate;
     private List<String> contributorNames;  // 기여자 정보
@@ -63,6 +65,7 @@ public class BookListResponse {
                 .rating(book.getRating())
                 .publisherDate(book.getPublishDate())
                 .thumbnail(resolvedImage)
+                .status(book.getStatus())
                 .contributorNames(book.getBookContributors().stream()
                         .map(bc -> bc.getContributor().getContributorName())
                         .toList()

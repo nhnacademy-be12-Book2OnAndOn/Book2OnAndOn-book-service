@@ -36,6 +36,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class UserControllerTest {
     @Autowired
     MockMvc mockMvc;
+
     @MockitoBean
     UserHeaderUtil util;
 
@@ -65,7 +66,8 @@ class UserControllerTest {
 
         mockMvc.perform(get("/internal/users/{userId}/reviews", userId)
                         .param("page", "0")
-                        .param("size", "10")).andExpect(status().isOk())
+                        .param("size", "10"))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id", is(1)))
                 .andExpect(jsonPath("$.content[0].title", is("USER REVIEW")));
     }
@@ -73,7 +75,6 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /books/likes/me - 내가 좋아요한 도서 ID 리스트 조회 API")
     void getMyLikedBooks() throws Exception {
-        // given
         Long userId = 10L;
 
         BookListResponse bookInfo = BookListResponse.builder()
@@ -98,12 +99,10 @@ class UserControllerTest {
         mockMvc.perform(get("/internal/users/likes/me")
                         .param("page", "0")
                         .param("size", "10")
-                        .param("sort", "createdAt,desc")) // 정렬 조건 테스트
+                        .param("sort", "createdAt,desc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].bookLikeId").value(100L))
                 .andExpect(jsonPath("$.content[0].bookInfo.id").value(1L))
                 .andExpect(jsonPath("$.content[0].bookInfo.title").value("테스트 도서"));
-
     }
-
 }
