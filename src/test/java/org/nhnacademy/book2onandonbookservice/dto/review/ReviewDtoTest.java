@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.dto.review;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
 import org.nhnacademy.book2onandonbookservice.entity.ReviewImage;
 
@@ -22,6 +23,7 @@ class ReviewDtoTest {
     void from_Success_WithImages() {
         Review review = mock(Review.class);
         ReviewImage reviewImage = mock(ReviewImage.class);
+        Book book = mock(Book.class);
 
         LocalDate now = LocalDate.now();
 
@@ -35,6 +37,8 @@ class ReviewDtoTest {
         when(reviewImage.getId()).thenReturn(10L);
         when(reviewImage.getImagePath()).thenReturn("/img/review1.jpg");
         when(review.getImages()).thenReturn(List.of(reviewImage));
+        when(review.getBook()).thenReturn(book);
+
 
         ReviewDto result = ReviewDto.from(review);
 
@@ -55,7 +59,7 @@ class ReviewDtoTest {
     void from_Success_NoImages() {
         Review review = mock(Review.class);
         LocalDate now = LocalDate.now();
-
+        Book book = mock(Book.class);
         when(review.getId()).thenReturn(2L);
         when(review.getUserId()).thenReturn(200L);
         when(review.getTitle()).thenReturn("Title");
@@ -63,6 +67,7 @@ class ReviewDtoTest {
         when(review.getScore()).thenReturn(3);
         when(review.getCreatedAt()).thenReturn(now);
         when(review.getImages()).thenReturn(Collections.emptyList());
+        when(review.getBook()).thenReturn(book);
 
         ReviewDto result = ReviewDto.from(review);
 

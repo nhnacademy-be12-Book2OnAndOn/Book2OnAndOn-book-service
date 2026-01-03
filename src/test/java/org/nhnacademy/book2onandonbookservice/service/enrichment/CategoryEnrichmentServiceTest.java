@@ -2,6 +2,7 @@ package org.nhnacademy.book2onandonbookservice.service.enrichment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,19 +32,18 @@ class CategoryEnrichmentServiceTest {
     private CategoryRepository categoryRepository;
 
     @Test
-    @DisplayName("enrich: 카테고리 정보가 null이거나 비어있으면 예외 발생")
-    void enrich_NoCategoryInfo() {
+    @DisplayName("enrich: 카테고리 정보가 null이거나 비어있으면 조용히 종료(예외 X)")
+    void enrich_NoCategoryInfo_ShouldNotThrow() {
         Book book = new Book();
         AladinApiResponse.Item item = new AladinApiResponse.Item();
-        
+
         ReflectionTestUtils.setField(item, "categoryName", "");
 
-        assertThatThrownBy(() -> categoryEnrichmentService.enrich(book, item))
-                .isInstanceOf(CategoryResolveException.class);
+        assertDoesNotThrow(() -> categoryEnrichmentService.enrich(book, item));
 
         ReflectionTestUtils.setField(item, "categoryName", null);
-        assertThatThrownBy(() -> categoryEnrichmentService.enrich(book, item))
-                .isInstanceOf(CategoryResolveException.class);
+
+        assertDoesNotThrow(() -> categoryEnrichmentService.enrich(book, item));
     }
 
     @Test

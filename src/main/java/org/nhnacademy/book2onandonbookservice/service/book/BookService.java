@@ -36,7 +36,7 @@ public interface BookService {
     BookDetailResponse getBookDetail(Long bookId, Long currentUserId, String guestId);
 
     //베스트셀러 조회 및 캐싱
-    List<BookListResponse> getBestsellers(String period);
+    Page<BookListResponse> getBestsellers(String period, Pageable pageable);
 
     //신간 도서를 출간일 최신순으로 조회하고 캐싱
     Page<BookListResponse> getNewArrivals(Long categoryId, Pageable pageable);

@@ -269,14 +269,14 @@ public class BookServiceImpl implements BookService {
     }
 
     /// 베스트셀러 조회 및 캐싱
-    @Cacheable(value = "bestsellers", key = "#period", cacheManager = "bestsellersCacheManager") //redis
+    @Cacheable(value = "bestsellers", key = "#period + '-' + #pageable.pageNumber", cacheManager = "bestsellersCacheManager") //redis
     @Override
-    public List<BookListResponse> getBestsellers(String period) {
+    public Page<BookListResponse> getBestsellers(String period, Pageable pageable) {
         List<Long> bookIds = orderServiceClient.getBestSellersBookIds(period);
-        //기간별로 받아옵니다 DAILY, WEEK
+        //기간별로 받아옵니다 DAILY, WEEKLY
 
         if (bookIds.isEmpty()) {
-            return Collections.emptyList();
+            return Page.empty(pageable);
         }
 
         List<Book> books = bookRepository.findAllById(bookIds); //bookId 리스트로 관련된 book 엔티티를 찾습니다.
@@ -286,11 +286,15 @@ public class BookServiceImpl implements BookService {
                 .collect(Collectors.toMap(Book::getId,
                         Function.identity())); //Function.identity: 스트림의 요소 그 자체를 값으로 사용하는 것 Book 객체 자체
 
-        return bookIds.stream()
-                .filter(bookMap::containsKey)
+        List<BookListResponse> content = bookIds.stream()
+                .filter(bookMap::containsKey) // DB에는 없는데 Order에는 있는 경우(삭제된 책 등) 방지
                 .map(bookMap::get)
                 .map(BookListResponse::from)
                 .toList();
+        long total = content.size();
+
+        log.debug("베스트셀러 요청 들어옴: {}", content.size());
+        return new PageImpl<>(content, pageable, total);
     }
 
     @Override

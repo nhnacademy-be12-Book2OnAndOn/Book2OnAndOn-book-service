@@ -48,8 +48,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ContributorRepository contributorRepository;
     private final BookEnrichmentTaskRepository taskRepository;
     private final BookBatchService bookBatchService;
-    private final ImageUploadService imageUploadService;
-    private final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+    private PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
     private final Set<String> processedIsbns = new HashSet<>();
     private final Map<String, Publisher> publisherCache = new ConcurrentHashMap<>();
     private final Map<String, Contributor> contributorCache = new ConcurrentHashMap<>();

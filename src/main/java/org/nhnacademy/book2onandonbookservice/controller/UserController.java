@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/internal/users")
 public class UserController {
     private final ReviewService reviewService;
-    private final BookRepository bookRepository;
     private final BookLikeService bookLikeService;
     private final UserHeaderUtil util;
 

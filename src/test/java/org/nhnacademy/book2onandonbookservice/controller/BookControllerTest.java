@@ -96,12 +96,19 @@ class BookControllerTest {
     @DisplayName("베스트 셀러 조회")
     void getBestSellers() throws Exception {
         String period = "DAILY";
-        List<BookListResponse> responses = List.of(BookListResponse.builder().id(1L).title("베스트 셀러를 조회해보자!").build());
-        given(bookService.getBestsellers(period)).willReturn(responses);
 
-        mockMvc.perform(get("/books/bestsellers").param("period", period))
+        Page<BookListResponse> responses = new PageImpl<>(
+                List.of(BookListResponse.builder().id(1L).title("베스트 셀러를 조회해보자!").build())
+        );
+
+        given(bookService.getBestsellers(any(String.class), any(Pageable.class))).willReturn(responses);
+
+        mockMvc.perform(get("/books/bestsellers")
+                        .param("period", period)
+                        .param("page", "0")
+                        .param("size", "20"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("베스트 셀러를 조회해보자!"))
+                .andExpect(jsonPath("$.content[0].title").value("베스트 셀러를 조회해보자!"))
                 .andDo(print());
     }
 
