@@ -57,6 +57,7 @@ public class BookController {
         Long userId = util.getUserId();
         String guestId = util.getGuestId();
         BookDetailResponse response = bookService.getBookDetail(bookId, userId, guestId);
+
         return ResponseEntity.ok(response);
     }
 

@@ -3,6 +3,8 @@ package org.nhnacademy.book2onandonbookservice.dto.review;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -28,4 +30,6 @@ public class ReviewCreateRequest {
     @Max(value = 5, message = "별점은 최대 5점입니다.")
     private Integer score;  // 평가 점수
 
+    private String writerName;
+    private LocalDate writerDate;
 }

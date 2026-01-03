@@ -111,6 +111,7 @@ public class BookSearchIndexService {
                 .publishDate(book.getPublishDate())
                 .priceStandard(book.getPriceStandard())
                 .priceSales(book.getPriceSales())
+                .status(book.getStatus())
                 // 정렬/가중치 필드 (엔티티에 없으면 0으로 초기화하거나 계산 로직 필요)
                 .popularity(popularity) // 좋아요 순
                 .reviewCount(reviewCount) //리뷰 수

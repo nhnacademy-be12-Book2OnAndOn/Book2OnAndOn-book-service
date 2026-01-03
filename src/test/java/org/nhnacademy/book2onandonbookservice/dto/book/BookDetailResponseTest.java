@@ -67,7 +67,7 @@ class BookDetailResponseTest {
         BookImage img = mock(BookImage.class); when(img.getImagePath()).thenReturn("img.jpg");
         when(book.getImages()).thenReturn(Set.of(img));
 
-        Review r1 = mock(Review.class); when(r1.getId()).thenReturn(1L); when(r1.getCreatedAt()).thenReturn(LocalDateTime.now());
+        Review r1 = mock(Review.class); when(r1.getId()).thenReturn(1L); when(r1.getCreatedAt()).thenReturn(LocalDate.now());
         when(book.getReviews()).thenReturn(Set.of(r1));
 
         BookDetailResponse response = BookDetailResponse.from(book, 100L, true);
@@ -129,7 +129,7 @@ class BookDetailResponseTest {
         when(book.getBookTags()).thenReturn(Collections.emptySet());
         when(book.getBookPublishers()).thenReturn(Collections.emptySet());
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
         Review r1 = mock(Review.class); when(r1.getId()).thenReturn(1L); when(r1.getCreatedAt()).thenReturn(now.minusDays(5));
         Review r2 = mock(Review.class); when(r2.getId()).thenReturn(2L); when(r2.getCreatedAt()).thenReturn(now.minusDays(1)); // 1등
         Review r3 = mock(Review.class); when(r3.getId()).thenReturn(3L); when(r3.getCreatedAt()).thenReturn(now.minusDays(2)); // 2등

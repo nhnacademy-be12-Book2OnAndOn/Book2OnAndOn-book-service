@@ -98,6 +98,8 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     @Query("SELECT b.stockCount From Book b where b.id = :id")
     Integer findStockCountById(@Param("id") Long id);
 
+    List<Book> findTop100ByThumbnailIsNotNullAndThumbnailNotLike(String myDomain);
+
     interface BookIdAndIsbn {
         Long getId();
 

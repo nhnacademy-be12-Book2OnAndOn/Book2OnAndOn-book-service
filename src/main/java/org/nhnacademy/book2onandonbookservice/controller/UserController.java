@@ -5,6 +5,7 @@ import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.dto.book.MyLikedBookResponse;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
+import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.service.book.BookLikeService;
 import org.nhnacademy.book2onandonbookservice.service.review.ReviewService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/internal/users")
 public class UserController {
     private final ReviewService reviewService;
+    private final BookRepository bookRepository;
     private final BookLikeService bookLikeService;
     private final UserHeaderUtil util;
 
