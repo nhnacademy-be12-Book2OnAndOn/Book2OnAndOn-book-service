@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.service.search;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
@@ -31,7 +32,7 @@ public class BookReindexService {
     @Transactional
     public void reindexAll() {
         long lastId = 0L;
-        int pageSize = 1000;
+        int pageSize = 100;
         log.info("=== Book reindex 시작 ===");
         while (true) {
             Pageable limit = PageRequest.of(0, pageSize);
@@ -42,16 +43,27 @@ public class BookReindexService {
                 break;
             }
 
-            List<BookSearchDocument> documentList = new ArrayList<>();
-            for (Book book : books) {
+            List<BookSearchDocument> documentList = books.stream()
+                    .map(book -> {
+                        try {
+                            // 임베딩 없이 객체만 먼저 생성 (DB Lazy Loading 수행됨)
+                            return bookSearchIndexService.createDocumentWithoutEmbedding(book);
+                        } catch (Exception e) {
+                            log.error("객체 변환 실패 bookId={}", book.getId(), e);
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            documentList.parallelStream().forEach(doc -> {
                 try {
-                    // IndexService에 createDocument 메서드가 public으로 열려 있어야 함!
-                    BookSearchDocument doc = bookSearchIndexService.createDocument(book);
-                    documentList.add(doc);
+                    bookSearchIndexService.injectEmbedding(doc);
                 } catch (Exception e) {
-                    log.error("변환 실패 bookId={}", book.getId(), e);
+                    log.error("임베딩 주입 실패 id={}", doc.getId(), e);
                 }
-            }
+            });
+
             if (!documentList.isEmpty()) {
                 try {
                     bookSearchRepository.saveAll(documentList);
@@ -60,9 +72,7 @@ public class BookReindexService {
                     log.error("배치 저장 중 에러 발생", e);
                 }
             }
-            Book lastBook = books.get(books.size() - 1);
-            lastId = lastBook.getId();
-
+            lastId = books.get(books.size() - 1).getId();
             entityManager.clear();
         }
 

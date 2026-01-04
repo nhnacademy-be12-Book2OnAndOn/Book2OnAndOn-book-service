@@ -7,6 +7,7 @@ import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -51,19 +52,12 @@ public interface BookRepository extends JpaRepository<Book, Long> {
    Page<Book> findBooksByCategoryIdsSorted(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
     /// 검색 동기화용 (정렬 X)
-    @Query("""
-            SELECT b
-            FROM Book b
-            WHERE b.category.id IN :categoryIds
-            """)
+    @EntityGraph(attributePaths = {"category", "bookContributors", "bookContributors.contributor"})
+    @Query("SELECT b FROM Book b WHERE b.category.id IN :categoryIds")
     Page<Book> findBooksByCategoryIds(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
-    @Query("""
-            SELECT DISTINCT b
-            FROM Book b
-            JOIN b.bookTags bt
-            WHERE bt.tag.id = :tagId
-            """)
+    @EntityGraph(attributePaths = {"category", "bookContributors", "bookContributors.contributor"})
+    @Query("SELECT DISTINCT b FROM Book b JOIN b.bookTags bt WHERE bt.tag.id = :tagId")
     Page<Book> findByTagId(Long tagId, Pageable pageable);
 
 
@@ -92,13 +86,15 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     //판매 중 이거나 재고 없음인 책만 조회 (삭제된 책 제외)
     Page<Book> findByStatusNot(BookStatus status, Pageable pageable);
 
-    List<Book> findAllByIdGreaterThan(Long idIsGreaterThan, Pageable limit);
-
+    @EntityGraph(attributePaths = {"category", "bookContributors", "bookContributors.contributor"})
+    @Query("SELECT b FROM Book b WHERE b.id > :lastId ORDER BY b.id ASC")
+    List<Book> findAllByIdGreaterThan(@Param("lastId") Long lastId, Pageable limit);
     // 재고만 쏙 가져오는 쿼리
     @Query("SELECT b.stockCount From Book b where b.id = :id")
     Integer findStockCountById(@Param("id") Long id);
 
     List<Book> findTop100ByThumbnailIsNotNullAndThumbnailNotLike(String myDomain);
+
 
     interface BookIdAndIsbn {
         Long getId();

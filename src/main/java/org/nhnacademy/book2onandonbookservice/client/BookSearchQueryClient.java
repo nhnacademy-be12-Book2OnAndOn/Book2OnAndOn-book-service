@@ -36,11 +36,13 @@ public class BookSearchQueryClient {
     private String embeddingField;
 
     private static final String[] SEARCH_FIELDS_WITH_BOOST = {
-            "title^80.0",            // 제목
-            "tagNames^20.0",         // 태그
-            "categoryNames^10.0",    // 카테고리명
-            "contributorNames^5.0", // 저자
-            "publisherNames^5.0"   // 출판사
+            "title^100.0",            // 제목
+            "contributorNames^90.0",  // 저자
+            "tagNames^80.0",          // 태그
+            "isbn^70.0",              // ISBN (Keyword 타입이라 boost 적용 시 주의 필요, Text로 변경 고려)
+            "publisherNames^60.0",    // 출판사
+            "description^50.0",       // 설명
+            "reviewContent^40.0"      // 리뷰 (Document에 필드 추가 필요)
     };
 
     private static final int VECTOR_K = 30;

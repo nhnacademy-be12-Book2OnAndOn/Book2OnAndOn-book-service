@@ -13,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
@@ -28,6 +29,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 // nori 분석기 설정 (한글 분석기)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Builder
+@Setter
 @AllArgsConstructor
 public class BookSearchDocument {
     @Id

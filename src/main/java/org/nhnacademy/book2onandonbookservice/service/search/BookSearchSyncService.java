@@ -2,11 +2,13 @@ package org.nhnacademy.book2onandonbookservice.service.search;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
+import org.nhnacademy.book2onandonbookservice.repository.BookSearchRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +26,7 @@ public class BookSearchSyncService {
     private static final int PAGE_SIZE = 1000;
 
     private final BookRepository bookRepository;
+    private final BookSearchRepository bookSearchRepository;
     private final BookSearchIndexService bookSearchIndexService;
     private final CategoryRepository categoryRepository;
 
@@ -69,10 +72,21 @@ public class BookSearchSyncService {
                 break;
             }
 
-            for (Book book : page.getContent()) {
-                bookSearchIndexService.index(book);
-                totalReindexed++;
-            }
+            List<BookSearchDocument> docs = page.getContent().parallelStream()
+                    .map(book -> {
+                        try {
+                            return bookSearchIndexService.createDocument(book);
+                        } catch (Exception e) {
+                            log.error("Sync 변환 실패 bookId={}", book.getId(), e);
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            bookSearchRepository.saveAll(docs);
+
+            totalReindexed += docs.size();
 
             if (!page.hasNext()) {
                 break;
