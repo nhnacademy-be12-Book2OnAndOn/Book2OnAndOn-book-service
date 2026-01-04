@@ -1,6 +1,5 @@
 package org.nhnacademy.book2onandonbookservice.repository;
 
-import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
@@ -9,7 +8,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -86,7 +84,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     //판매 중 이거나 재고 없음인 책만 조회 (삭제된 책 제외)
     Page<Book> findByStatusNot(BookStatus status, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "bookContributors", "bookContributors.contributor"})
+    // default_batch_fetch_size가 걸려있어 entityGraph 안해도됨 또한 book 엔티티보면 list가 아닌 set이라 ㄱㅊ
     @Query("SELECT b FROM Book b WHERE b.id > :lastId ORDER BY b.id ASC")
     List<Book> findAllByIdGreaterThan(@Param("lastId") Long lastId, Pageable limit);
     // 재고만 쏙 가져오는 쿼리

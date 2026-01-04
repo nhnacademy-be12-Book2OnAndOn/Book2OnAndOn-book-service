@@ -17,6 +17,18 @@
         "icu_normalizer": {
           "type": "icu_normalizer",
           "name": "nfkc"
+        },
+        "synonym_filter": {
+          "type": "synonym",
+          "synonyms": [
+            "아기, 유아",
+            "학생, 제자",
+            "구입, 구매",
+            "예쁜, 아름다운",
+            "슬픈, 우울한",
+            "기질, 특성",
+            "LA, 로스엔젤레스"
+          ]
         }
       },
       "analyzer": {
@@ -26,7 +38,8 @@
           "filter": [
             "nori_pos_filter",
             "lowercase",
-            "icu_normalizer"
+            "icu_normalizer",
+            "synonym_filter"
           ]
         },
         "korean_search": {
@@ -35,7 +48,8 @@
           "filter": [
             "nori_pos_filter",
             "lowercase",
-            "icu_normalizer"
+            "icu_normalizer",
+            "synonym_filter"
           ]
         }
       }
@@ -89,6 +103,10 @@
         "fields": {
           "keyword": { "type": "keyword" }
         }
+      },
+      "reviewContent": {
+        "type": "text",
+        "analyzer": "korean_search"
       },
       "publishDate": { "type": "date" },
       "priceStandard": { "type": "long" },

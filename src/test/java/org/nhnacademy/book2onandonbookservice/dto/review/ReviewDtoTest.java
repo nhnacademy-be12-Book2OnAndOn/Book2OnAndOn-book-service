@@ -7,7 +7,6 @@ import org.nhnacademy.book2onandonbookservice.entity.Review;
 import org.nhnacademy.book2onandonbookservice.entity.ReviewImage;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 

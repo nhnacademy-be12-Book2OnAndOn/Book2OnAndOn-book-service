@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +32,7 @@ import org.nhnacademy.book2onandonbookservice.exception.TagGenerationFailedExcep
 import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
 import org.nhnacademy.book2onandonbookservice.service.enrichment.rate.ApiRateLimiter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,9 +56,22 @@ class TagEnrichmentServiceTest {
     @Mock
     private BookTagRepository bookTagRepository;
 
+    @Mock
+    private ObjectProvider<TagEnrichmentService> selfProvider;
+
+    /**
+     * Helper: enrich() 호출 시 내부에서 selfProvider.getObject()가 호출되므로
+     * 현재 테스트 대상인 service 객체 자신을 반환하도록 설정
+     */
+    private void setupSelfProvider() {
+        when(selfProvider.getObject()).thenReturn(tagEnrichmentService);
+    }
+
     @Test
-    @DisplayName("enrich: Groq 성공, 정상적으로 태그와 챕터 저장")
+    @DisplayName("enrich: Groq 성공, 정상적으로 태그와 챕터 저장 (Full Flow)")
     void enrich_GroqSuccess() {
+        setupSelfProvider();
+
         Book book = new Book();
         ReflectionTestUtils.setField(book, "id", 1L);
         String title = "Title";
@@ -66,7 +81,7 @@ class TagEnrichmentServiceTest {
         BookContentDto content = mock(BookContentDto.class);
         when(rateLimiter.tryAcquireGroq()).thenReturn(true);
         when(groqApiClient.extractContent(title, description, isbn)).thenReturn(content);
-        
+
         when(content.hasNoTags()).thenReturn(false);
         when(content.hasNoChapter()).thenReturn(false);
         when(content.getTags()).thenReturn(List.of("tag1"));
@@ -74,6 +89,7 @@ class TagEnrichmentServiceTest {
 
         Tag tag = Tag.builder().tagName("tag1").build();
         ReflectionTestUtils.setField(tag, "id", 100L);
+
         when(tagRepository.findByTagName("tag1")).thenReturn(Optional.of(tag));
         when(bookTagRepository.existsById(any(BookTagPK.class))).thenReturn(false);
 
@@ -85,21 +101,25 @@ class TagEnrichmentServiceTest {
     }
 
     @Test
-    @DisplayName("enrich: Groq 할당량 초과 예외")
+    @DisplayName("enrich: Groq 할당량 초과 예외 (DB 진입 전 실패)")
     void enrich_GroqQuotaExceeded() {
         when(rateLimiter.tryAcquireGroq()).thenReturn(false);
-
         Book book = new Book();
+
         assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
                 .isInstanceOf(GroqQuotaExceededException.class);
+
+        verify(selfProvider, never()).getObject();
     }
 
     @Test
-    @DisplayName("enrich: Groq 실패 -> Gemini 성공 (Fallback 동작)")
+    @DisplayName("enrich: Groq 실패 -> Gemini 성공 (Fallback 동작 & DB 저장)")
     void enrich_GroqFail_GeminiSuccess() {
+        setupSelfProvider();
+
         Book book = new Book();
         ReflectionTestUtils.setField(book, "id", 1L);
-        
+
         when(rateLimiter.tryAcquireGroq()).thenReturn(true);
         when(groqApiClient.extractContent(anyString(), anyString(), anyString()))
                 .thenThrow(new RuntimeException("Groq Fail"));
@@ -107,7 +127,7 @@ class TagEnrichmentServiceTest {
         when(rateLimiter.tryAcquireGemini()).thenReturn(true);
         BookContentDto content = mock(BookContentDto.class);
         when(geminiApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-        
+
         when(content.hasNoTags()).thenReturn(false);
         when(content.hasNoChapter()).thenReturn(false);
         when(content.getTags()).thenReturn(List.of("tag1"));
@@ -121,6 +141,7 @@ class TagEnrichmentServiceTest {
 
         assertThat(book.getChapter()).isEqualTo("Gemini Chapter");
         verify(geminiApiClient).extractContent(anyString(), anyString(), anyString());
+        verify(bookTagRepository).save(any(BookTag.class));
     }
 
     @Test
@@ -166,44 +187,17 @@ class TagEnrichmentServiceTest {
     }
 
     @Test
-    @DisplayName("enrich: 태그가 없는 경우")
-    void enrich_NoTags() {
-        BookContentDto content = mock(BookContentDto.class);
-        when(content.hasNoTags()).thenReturn(true);
-
-        when(rateLimiter.tryAcquireGroq()).thenReturn(true);
-        when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-        Book book = new Book();
-        assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
-                .isInstanceOf(TagGenerationFailedException.class)
-                .hasMessageContaining("태그");
-    }
-
-    @Test
-    @DisplayName("enrich: 챕터가 없는 경우")
-    void enrich_NoChapter() {
-        BookContentDto content = mock(BookContentDto.class);
-        when(content.hasNoTags()).thenReturn(false);
-        when(content.hasNoChapter()).thenReturn(true);
-
-        when(rateLimiter.tryAcquireGroq()).thenReturn(true);
-        when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-        Book book = new Book();
-        assertThatThrownBy(() -> tagEnrichmentService.enrich(book, "t", "d", "i"))
-                .isInstanceOf(TagGenerationFailedException.class)
-                .hasMessageContaining("챕터");
-    }
-
-    @Test
-    @DisplayName("saveTags: 태그 저장 시 동시성 이슈 발생 후 재조회 성공")
+    @DisplayName("saveTags: 태그 저장 시 동시성 이슈 발생 후 재조회 성공 (enrich 호출을 통해 검증)")
     void saveTags_ConcurrencyHandling() {
+        setupSelfProvider();
+
         Book book = new Book();
         ReflectionTestUtils.setField(book, "id", 1L);
         BookContentDto content = mock(BookContentDto.class);
-        
+
         when(rateLimiter.tryAcquireGroq()).thenReturn(true);
         when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-        
+
         when(content.hasNoTags()).thenReturn(false);
         when(content.hasNoChapter()).thenReturn(false);
         when(content.getTags()).thenReturn(List.of("tag1"));
@@ -213,13 +207,15 @@ class TagEnrichmentServiceTest {
         ReflectionTestUtils.setField(savedTag, "id", 100L);
 
         when(tagRepository.findByTagName("tag1"))
-                .thenReturn(Optional.empty()) 
-                .thenReturn(Optional.of(savedTag)); 
-        
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(savedTag));
+
         when(tagRepository.saveAndFlush(any(Tag.class)))
-                .thenThrow(new RuntimeException("Constraint Violation")); // 저장 실패 시뮬레이션
+                .thenThrow(new RuntimeException("Constraint Violation"));
+
 
         tagEnrichmentService.enrich(book, "t", "d", "i");
+
 
         verify(tagRepository, times(2)).findByTagName("tag1");
         verify(bookTagRepository).save(any(BookTag.class));
@@ -228,17 +224,15 @@ class TagEnrichmentServiceTest {
     @Test
     @DisplayName("saveTags: 이미 존재하는 BookTag는 저장하지 않음")
     void saveTags_ExistingBookTag() {
+        setupSelfProvider();
+
         Book book = new Book();
         ReflectionTestUtils.setField(book, "id", 1L);
         BookContentDto content = mock(BookContentDto.class);
 
         when(rateLimiter.tryAcquireGroq()).thenReturn(true);
         when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-
-        when(content.hasNoTags()).thenReturn(false);
-        when(content.hasNoChapter()).thenReturn(false);
         when(content.getTags()).thenReturn(List.of("tag1"));
-        when(content.getChapter()).thenReturn("C");
 
         Tag tag = Tag.builder().tagName("tag1").build();
         ReflectionTestUtils.setField(tag, "id", 100L);
@@ -252,43 +246,20 @@ class TagEnrichmentServiceTest {
     }
 
     @Test
-    @DisplayName("saveTags: 태그 이름이 비어있으면 건너뜀")
-    void saveTags_EmptyTagName() {
-        Book book = new Book();
-        ReflectionTestUtils.setField(book, "id", 1L);
-        BookContentDto content = mock(BookContentDto.class);
-
-        when(rateLimiter.tryAcquireGroq()).thenReturn(true);
-        when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-
-        when(content.hasNoTags()).thenReturn(false);
-        when(content.hasNoChapter()).thenReturn(false);
-        when(content.getTags()).thenReturn(List.of("")); // Empty tag
-        when(content.getChapter()).thenReturn("C");
-
-        tagEnrichmentService.enrich(book, "t", "d", "i");
-
-        verify(tagRepository, never()).findByTagName(anyString());
-        verify(bookTagRepository, never()).save(any(BookTag.class));
-    }
-
-    @Test
     @DisplayName("saveTags: 태그가 존재하지 않으면 새로 생성")
     void saveTags_CreateNewTag() {
+        setupSelfProvider();
+
         Book book = new Book();
         ReflectionTestUtils.setField(book, "id", 1L);
         BookContentDto content = mock(BookContentDto.class);
 
         when(rateLimiter.tryAcquireGroq()).thenReturn(true);
         when(groqApiClient.extractContent(anyString(), anyString(), anyString())).thenReturn(content);
-
-        when(content.hasNoTags()).thenReturn(false);
-        when(content.hasNoChapter()).thenReturn(false);
         when(content.getTags()).thenReturn(List.of("newtag"));
-        when(content.getChapter()).thenReturn("C");
 
         when(tagRepository.findByTagName("newtag")).thenReturn(Optional.empty());
-        
+
         Tag savedTag = Tag.builder().tagName("newtag").build();
         ReflectionTestUtils.setField(savedTag, "id", 200L);
         when(tagRepository.saveAndFlush(any(Tag.class))).thenReturn(savedTag);

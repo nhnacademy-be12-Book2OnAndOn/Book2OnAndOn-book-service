@@ -83,6 +83,13 @@ public class BookSearchIndexService {
             categoryIds.add(0, String.valueOf(category.getId()));
             category = category.getParent();
         }
+        List<String> reviewContent = new ArrayList<>();
+        if (book.getReviews() != null) {
+            reviewContent = book.getReviews().stream()
+                    .map(review -> review.getContent()) // Review 객체의 내용 필드 Getter
+                    .filter(StringUtils::hasText)
+                    .toList();
+        }
 
         List<String> contributorNames = book.getBookContributors().stream()
                 .map(bc -> bc.getContributor().getContributorName())
@@ -121,6 +128,7 @@ public class BookSearchIndexService {
                 .popularity(popularity)
                 .reviewCount(reviewCount)
                 .reviewRating(reviewRating)
+                .reviewContent(reviewContent)
                 .embedding(null) // 임베딩은 일단 null (병렬 처리 단계에서 채움)
                 .build();
     }
@@ -152,6 +160,13 @@ public class BookSearchIndexService {
 
         if (doc.getTagNames() != null && !doc.getTagNames().isEmpty()) {
             sb.append("태그: ").append(String.join(", ", doc.getTagNames())).append("\n");
+        }
+        if (doc.getReviewContent() != null && !doc.getReviewContent().isEmpty()) {
+            String reviews = String.join(" ", doc.getReviewContent());
+            if (reviews.length() > 1000) { // 예: 리뷰는 1000자로 제한
+                reviews = reviews.substring(0, 1000);
+            }
+            sb.append("리뷰: ").append(reviews).append("\n");
         }
 
         if (StringUtils.hasText(doc.getDescription())) {

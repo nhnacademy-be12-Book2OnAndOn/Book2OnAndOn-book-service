@@ -4,9 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
+@Setter
 @NoArgsConstructor
 public class AladinApiResponse {
 
@@ -14,6 +16,7 @@ public class AladinApiResponse {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @Getter
+    @Setter
     @NoArgsConstructor
     public static class Item {
         private String title;

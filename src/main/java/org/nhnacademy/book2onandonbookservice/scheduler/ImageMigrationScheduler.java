@@ -40,7 +40,6 @@ public class ImageMigrationScheduler {
         List<Book> targets = bookRepository.findTop100ByThumbnailIsNotNullAndThumbnailNotLike("%" + minioDomain + "%");
 
         if (targets.isEmpty()) {
-             // log.info("이미지 마이그레이션 대상 없음 (모두 완료됨)");
             return;
         }
 

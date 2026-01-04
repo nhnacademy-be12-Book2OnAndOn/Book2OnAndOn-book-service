@@ -32,7 +32,7 @@ public class BookReindexService {
     @Transactional
     public void reindexAll() {
         long lastId = 0L;
-        int pageSize = 100;
+        int pageSize = 1000;
         log.info("=== Book reindex 시작 ===");
         while (true) {
             Pageable limit = PageRequest.of(0, pageSize);

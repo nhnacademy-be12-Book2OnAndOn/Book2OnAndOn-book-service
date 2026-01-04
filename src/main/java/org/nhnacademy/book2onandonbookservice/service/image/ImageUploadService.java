@@ -6,8 +6,10 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.SetBucketPolicyArgs;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -128,11 +130,11 @@ public class ImageUploadService {
 
         try {
             // 먼저 고화질 URL로 시도
-            return uploadInternal(highResUrl, "image/jpeg");
+            return uploadInternal(highResUrl);
         } catch (Exception e) {
             // 2. 실패 시 원본 URL로 최종 시도
             try {
-                return uploadInternal(imageUrl, "image/jpeg");
+                return uploadInternal(imageUrl);
             } catch (RejectedExecutionException | InterruptedIOException ie) {
                 // 시스템 종료나 쓰레드 풀 종료로 인한 에러는 ERROR 로그 안 찍음
                 log.warn("이미지 업로드 중단 (시스템 종료 또는 재시작 감지): {}", imageUrl);
@@ -173,30 +175,26 @@ public class ImageUploadService {
             log.error("MINIO 이미지 삭제 실패 : URL={}", imageUrl, e);
         }
     }
-    private String uploadOriginalUrl(String imageUrl) {
-        try {
-            return uploadInternal(imageUrl, "image/jpeg");
-        } catch (Exception e) {
-            log.error("원본 이미지 다운로드까지 실패 (무시하고 진행): {}", imageUrl, e);
-            return null;
-        }
-    }
-    private String uploadInternal(String imageUrl, String contentType) throws Exception {
+
+    private String uploadInternal(String imageUrl) throws IOException {
         URL url = URI.create(imageUrl).toURL();
 
         try (InputStream inputStream = url.openStream()) {
             String savedFileName = UUID.randomUUID() + ".jpg";
             String objectName = bookFolder + "/" + savedFileName;
 
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(rootBucket)
-                            .object(objectName)
-                            .stream(inputStream, -1, 10485760) // 최대 10MB
-                            .contentType(contentType)
-                            .build()
-            );
-
+            try {
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(rootBucket)
+                                .object(objectName)
+                                .stream(inputStream, -1, 10485760) // 최대 10MB
+                                .contentType("image/jpeg")
+                                .build()
+                );
+            } catch (Exception e) {
+                throw new IOException("MinIO upload failed for " + imageUrl, e);
+            }
             return publicUrl + "/" + rootBucket + "/" + objectName;
         }
     }

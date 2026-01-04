@@ -2,16 +2,12 @@ package org.nhnacademy.book2onandonbookservice.controller;
 
 
 import jakarta.validation.Valid;
-import jakarta.ws.rs.Path;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
-import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewCreateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewUpdateRequest;
-import org.nhnacademy.book2onandonbookservice.entity.Review;
 import org.nhnacademy.book2onandonbookservice.service.review.PurchaseVerificationService;
 import org.nhnacademy.book2onandonbookservice.service.review.ReviewService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;

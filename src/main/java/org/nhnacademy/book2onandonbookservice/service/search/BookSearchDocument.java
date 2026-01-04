@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import java.time.LocalDate;
 import java.util.List;
@@ -50,6 +49,7 @@ public class BookSearchDocument {
     //설명
     @Field(type = FieldType.Text, analyzer = "korean_search")
     private String description;
+
 
 
     // 기여자 이름
@@ -119,6 +119,9 @@ public class BookSearchDocument {
 
     @Field(type = FieldType.Double)
     private Double reviewRating; // 평점
+
+    @Field(type = FieldType.Text, analyzer = "korean_search")
+    private List<String> reviewContent;
 
     @Field(type = FieldType.Text)
     private BookStatus status;

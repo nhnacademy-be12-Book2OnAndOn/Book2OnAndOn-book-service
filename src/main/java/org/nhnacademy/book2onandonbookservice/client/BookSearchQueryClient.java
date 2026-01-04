@@ -42,7 +42,7 @@ public class BookSearchQueryClient {
             "isbn^70.0",              // ISBN (Keyword 타입이라 boost 적용 시 주의 필요, Text로 변경 고려)
             "publisherNames^60.0",    // 출판사
             "description^50.0",       // 설명
-            "reviewContent^40.0"      // 리뷰 (Document에 필드 추가 필요)
+            "reviewContent^40.0"      // 리뷰
     };
 
     private static final int VECTOR_K = 30;

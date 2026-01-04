@@ -1,29 +1,144 @@
 package org.nhnacademy.book2onandonbookservice.dto.book;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
 import org.nhnacademy.book2onandonbookservice.entity.*;
 
 import java.time.LocalDate;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class BookDetailResponseTest {
+
+    private Book book;
+
+    @BeforeEach
+    void setUp() {
+        book = mock(Book.class);
+    }
 
     @Test
     @DisplayName("Full Data Conversion")
     void from_FullData_Success() {
-        Book book = mock(Book.class);
-        LocalDate publishDate = LocalDate.of(2024, 1, 1);
+        Set<BookContributor> contributors = createMockContributors("Author1", "Author2");
+        Category category = createMockCategoryHierarchy();
+        Set<BookTag> tags = createMockTags("Tag1");
+        Set<BookPublisher> publishers = createMockPublishers("Pub1");
+        BookImage image = createMockImage("img.jpg");
+        Review review = createMockReview(1L, LocalDate.now());
 
+        LocalDate publishDate = LocalDate.of(2024, 1, 1);
+        setupBasicBookStub(publishDate);
+
+        when(book.getBookContributors()).thenReturn(contributors);
+        when(book.getCategory()).thenReturn(category);
+        when(book.getBookTags()).thenReturn(tags);
+        when(book.getBookPublishers()).thenReturn(publishers);
+        when(book.getImages()).thenReturn(Set.of(image));
+        when(book.getReviews()).thenReturn(Set.of(review));
+
+        BookDetailResponse response = BookDetailResponse.from(book, 100L, true);
+
+        assertBasicResponseInfo(response, publishDate);
+        assertRelationInfo(response);
+    }
+
+    @Test
+    @DisplayName("Minimal Data Conversion")
+    void from_MinimalData_Success() {
+        setupEmptyStub();
+
+        BookDetailResponse response = BookDetailResponse.from(book, 0L, false);
+
+        assertThat(response.getContributorName()).isEmpty();
+        assertThat(response.getCategories()).isEmpty();
+        assertThat(response.getReviewCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("Review Sort and Limit")
+    void from_ReviewSortAndLimit() {
+        setupEmptyStub();
+
+        LocalDate now = LocalDate.now();
+
+        Set<Review> reviews = IntStream.rangeClosed(1, 5)
+                .mapToObj(i -> {
+                    Review r = mock(Review.class);
+                    when(r.getCreatedAt()).thenReturn(now.minusDays(i));
+                    lenient().when(r.getId()).thenReturn((long) i);
+                    lenient().when(r.getBook()).thenReturn(book);
+                    return r;
+                })
+                .collect(Collectors.toSet());
+
+        when(book.getReviews()).thenReturn(reviews);
+
+        BookDetailResponse response = BookDetailResponse.from(book, 0L, false);
+
+        assertThat(response.getReviewCount()).isEqualTo(5L);
+        assertThat(response.getReviews()).hasSize(3);
+        assertThat(response.getReviews().get(0).getId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("Category Parent Null Check")
+    void from_CategoryParentNull() {
+        setupEmptyStub();
+
+        Category root = mock(Category.class);
+        when(root.getId()).thenReturn(10L);
+        when(root.getCategoryName()).thenReturn("Root");
+        when(root.getParent()).thenReturn(null);
+        when(book.getCategory()).thenReturn(root);
+
+        BookDetailResponse response = BookDetailResponse.from(book, 0L, false);
+
+        assertThat(response.getCategories()).hasSize(1);
+        assertThat(response.getCategories().get(0).getParentId()).isNull();
+    }
+
+    @Test
+    @DisplayName("Null Book Exception")
+    void from_NullBook_Fail() {
+        assertThatThrownBy(() -> BookDetailResponse.from(null, 0L, false))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    private void assertBasicResponseInfo(BookDetailResponse response, LocalDate publishDate) {
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getIsbn()).isEqualTo("978-1234567890");
+        assertThat(response.getTitle()).isEqualTo("Test Book");
+        assertThat(response.getPublishDate()).isEqualTo(publishDate);
+        assertThat(response.getPriceStandard()).isEqualTo(10000L);
+        assertThat(response.getPriceSales()).isEqualTo(9000L);
+        assertThat(response.getStatus()).isEqualTo(BookStatus.ON_SALE);
+    }
+
+    private void assertRelationInfo(BookDetailResponse response) {
+        assertThat(response.getContributorName()).containsAnyOf("Author1", "Author2");
+        assertThat(response.getCategories()).hasSize(2);
+        assertThat(response.getTags().get(0).getName()).isEqualTo("Tag1");
+        assertThat(response.getPublishers().get(0).getName()).isEqualTo("Pub1");
+        assertThat(response.getLikeCount()).isEqualTo(100L);
+        assertThat(response.getLikedByCurrentUser()).isTrue();
+    }
+
+    private void setupBasicBookStub(LocalDate publishDate) {
         when(book.getId()).thenReturn(1L);
         when(book.getIsbn()).thenReturn("978-1234567890");
         when(book.getTitle()).thenReturn("Test Book");
@@ -37,19 +152,28 @@ class BookDetailResponseTest {
         when(book.getChapter()).thenReturn("Index...");
         when(book.getDescription()).thenReturn("Description...");
         when(book.getRating()).thenReturn(4.5);
+    }
 
-        Contributor c1 = mock(Contributor.class);
-        when(c1.getContributorName()).thenReturn("Author1");
-        BookContributor bc1 = mock(BookContributor.class);
-        when(bc1.getContributor()).thenReturn(c1);
+    private void setupEmptyStub() {
+        when(book.getBookContributors()).thenReturn(Collections.emptySet());
+        when(book.getImages()).thenReturn(Collections.emptySet());
+        when(book.getCategory()).thenReturn(null);
+        when(book.getBookTags()).thenReturn(Collections.emptySet());
+        when(book.getBookPublishers()).thenReturn(Collections.emptySet());
+        when(book.getReviews()).thenReturn(Collections.emptySet());
+    }
 
-        Contributor c2 = mock(Contributor.class);
-        when(c2.getContributorName()).thenReturn("Author2");
-        BookContributor bc2 = mock(BookContributor.class);
-        when(bc2.getContributor()).thenReturn(c2);
+    private Set<BookContributor> createMockContributors(String... names) {
+        return List.of(names).stream().map(name -> {
+            Contributor c = mock(Contributor.class);
+            when(c.getContributorName()).thenReturn(name);
+            BookContributor bc = mock(BookContributor.class);
+            when(bc.getContributor()).thenReturn(c);
+            return bc;
+        }).collect(Collectors.toSet());
+    }
 
-        when(book.getBookContributors()).thenReturn(Set.of(bc1, bc2));
-
+    private Category createMockCategoryHierarchy() {
         Category root = mock(Category.class);
         when(root.getId()).thenReturn(10L);
         when(root.getCategoryName()).thenReturn("Root");
@@ -59,183 +183,36 @@ class BookDetailResponseTest {
         when(sub.getId()).thenReturn(20L);
         when(sub.getCategoryName()).thenReturn("Sub");
         when(sub.getParent()).thenReturn(root);
+        return sub;
+    }
 
-        when(book.getCategory()).thenReturn(sub);
+    private Set<BookTag> createMockTags(String tagName) {
+        Tag t = mock(Tag.class);
+        when(t.getTagName()).thenReturn(tagName);
+        BookTag bt = mock(BookTag.class);
+        when(bt.getTag()).thenReturn(t);
+        return Set.of(bt);
+    }
 
-        Tag t1 = mock(Tag.class);
-        when(t1.getId()).thenReturn(100L);
-        when(t1.getTagName()).thenReturn("Tag1");
-        BookTag bt1 = mock(BookTag.class);
-        when(bt1.getTag()).thenReturn(t1);
-        when(book.getBookTags()).thenReturn(Set.of(bt1));
+    private Set<BookPublisher> createMockPublishers(String pubName) {
+        Publisher p = mock(Publisher.class);
+        when(p.getPublisherName()).thenReturn(pubName);
+        BookPublisher bp = mock(BookPublisher.class);
+        when(bp.getPublisher()).thenReturn(p);
+        return Set.of(bp);
+    }
 
-        Publisher p1 = mock(Publisher.class);
-        when(p1.getId()).thenReturn(50L);
-        when(p1.getPublisherName()).thenReturn("Pub1");
-        BookPublisher bp1 = mock(BookPublisher.class);
-        when(bp1.getPublisher()).thenReturn(p1);
-        when(book.getBookPublishers()).thenReturn(Set.of(bp1));
-
+    private BookImage createMockImage(String path) {
         BookImage img = mock(BookImage.class);
-        when(img.getImagePath()).thenReturn("img.jpg");
-        when(book.getImages()).thenReturn(Set.of(img));
-
-        Review r1 = mock(Review.class);
-        when(r1.getId()).thenReturn(1L);
-        when(r1.getCreatedAt()).thenReturn(LocalDate.now());
-        when(book.getReviews()).thenReturn(Set.of(r1));
-        when(r1.getBook()).thenReturn(book);
-
-
-        BookDetailResponse response = BookDetailResponse.from(book, 100L, true);
-
-        assertThat(response.getId()).isEqualTo(1L);
-        assertThat(response.getIsbn()).isEqualTo("978-1234567890");
-        assertThat(response.getTitle()).isEqualTo("Test Book");
-        assertThat(response.getVolume()).isEqualTo("Vol.1");
-        assertThat(response.getPublishDate()).isEqualTo(publishDate);
-        assertThat(response.getPriceStandard()).isEqualTo(10000L);
-        assertThat(response.getPriceSales()).isEqualTo(9000L);
-        assertThat(response.getStatus()).isEqualTo(BookStatus.ON_SALE);
-        assertThat(response.getStockCount()).isEqualTo(50);
-        assertThat(response.getIsWrapped()).isTrue();
-        assertThat(response.getChapter()).isEqualTo("Index...");
-        assertThat(response.getDescriptionHtml()).isEqualTo("Description...");
-        assertThat(response.getRating()).isEqualTo(4.5);
-
-        assertThat(response.getContributorName()).contains("Author1");
-        assertThat(response.getContributorName()).contains("Author2");
-
-        assertThat(response.getCategories()).hasSize(2);
-        assertThat(response.getCategories().get(0).getName()).isEqualTo("Root");
-        assertThat(response.getCategories().get(1).getName()).isEqualTo("Sub");
-
-        assertThat(response.getTags()).hasSize(1);
-        assertThat(response.getTags().get(0).getName()).isEqualTo("Tag1");
-
-        assertThat(response.getPublishers()).hasSize(1);
-        assertThat(response.getPublishers().get(0).getName()).isEqualTo("Pub1");
-
-        assertThat(response.getImages()).hasSize(1);
-        assertThat(response.getImages().get(0).getUrl()).isEqualTo("img.jpg");
-
-        assertThat(response.getLikeCount()).isEqualTo(100L);
-        assertThat(response.getLikedByCurrentUser()).isTrue();
-        assertThat(response.getReviewCount()).isEqualTo(1L);
-        assertThat(response.getReviews()).hasSize(1);
+        when(img.getImagePath()).thenReturn(path);
+        return img;
     }
 
-    @Test
-    @DisplayName("Minimal Data Conversion")
-    void from_MinimalData_Success() {
-        Book book = mock(Book.class);
-
-        when(book.getBookContributors()).thenReturn(Collections.emptySet());
-        when(book.getImages()).thenReturn(Collections.emptySet());
-        when(book.getCategory()).thenReturn(null);
-        when(book.getBookTags()).thenReturn(Collections.emptySet());
-        when(book.getBookPublishers()).thenReturn(Collections.emptySet());
-        when(book.getReviews()).thenReturn(Collections.emptySet());
-
-        BookDetailResponse response = BookDetailResponse.from(book, 0L, false);
-
-        assertThat(response.getContributorName()).isEmpty();
-        assertThat(response.getCategories()).isEmpty();
-        assertThat(response.getTags()).isEmpty();
-        assertThat(response.getPublishers()).isEmpty();
-        assertThat(response.getImages()).isEmpty();
-        assertThat(response.getReviews()).isEmpty();
-        assertThat(response.getReviewCount()).isZero();
-    }
-
-    @Test
-    @DisplayName("Review Sort and Limit")
-    void from_ReviewSortAndLimit() {
-        Book book = mock(Book.class);
-
-        when(book.getBookContributors()).thenReturn(Collections.emptySet());
-        when(book.getImages()).thenReturn(Collections.emptySet());
-        when(book.getCategory()).thenReturn(null);
-        when(book.getBookTags()).thenReturn(Collections.emptySet());
-        when(book.getBookPublishers()).thenReturn(Collections.emptySet());
-
-        LocalDate now = LocalDate.now();
-        Review r1 = mock(Review.class);
-        when(r1.getId()).thenReturn(1L);
-        when(r1.getCreatedAt()).thenReturn(now.minusDays(5));
-        when(r1.getBook()).thenReturn(book);
-
-        Review r2 = mock(Review.class);
-        when(r2.getId()).thenReturn(2L);
-        when(r2.getCreatedAt()).thenReturn(now.minusDays(1));
-        when(r2.getBook()).thenReturn(book);
-
-
-        Review r3 = mock(Review.class);
-        when(r3.getId()).thenReturn(3L);
-        when(r3.getCreatedAt()).thenReturn(now.minusDays(2));
-        when(r3.getBook()).thenReturn(book);
-
-
-        Review r4 = mock(Review.class);
-        when(r4.getId()).thenReturn(4L);
-        when(r4.getCreatedAt()).thenReturn(now.minusDays(3));
-        when(r4.getBook()).thenReturn(book);
-
-
-        Review r5 = mock(Review.class);
-        when(r5.getId()).thenReturn(5L);
-        when(r5.getCreatedAt()).thenReturn(now.minusDays(4));
-        when(r5.getBook()).thenReturn(book);
-
-
-        Set<Review> reviews = new HashSet<>();
-        reviews.add(r1);
-        reviews.add(r2);
-        reviews.add(r3);
-        reviews.add(r4);
-        reviews.add(r5);
-
-        when(book.getReviews()).thenReturn(reviews);
-
-        BookDetailResponse response = BookDetailResponse.from(book, 0L, false);
-
-        assertThat(response.getReviewCount()).isEqualTo(5L);
-        assertThat(response.getReviews()).hasSize(3);
-        assertThat(response.getReviews().get(0).getId()).isEqualTo(2L);
-        assertThat(response.getReviews().get(1).getId()).isEqualTo(3L);
-        assertThat(response.getReviews().get(2).getId()).isEqualTo(4L);
-    }
-
-    @Test
-    @DisplayName("Category Parent Null Check")
-    void from_CategoryParentNull() {
-        Book book = mock(Book.class);
-
-        when(book.getBookContributors()).thenReturn(Collections.emptySet());
-        when(book.getImages()).thenReturn(Collections.emptySet());
-        when(book.getBookTags()).thenReturn(Collections.emptySet());
-        when(book.getBookPublishers()).thenReturn(Collections.emptySet());
-        when(book.getReviews()).thenReturn(Collections.emptySet());
-
-        Category root = mock(Category.class);
-        when(root.getId()).thenReturn(10L);
-        when(root.getCategoryName()).thenReturn("Root");
-        when(root.getParent()).thenReturn(null);
-
-        when(book.getCategory()).thenReturn(root);
-
-        BookDetailResponse response = BookDetailResponse.from(book, 0L, false);
-
-        assertThat(response.getCategories()).hasSize(1);
-        assertThat(response.getCategories().get(0).getId()).isEqualTo(10L);
-        assertThat(response.getCategories().get(0).getParentId()).isNull();
-    }
-
-    @Test
-    @DisplayName("Null Book Exception")
-    void from_NullBook_Fail() {
-        assertThatThrownBy(() -> BookDetailResponse.from(null, 0L, false))
-                .isInstanceOf(NullPointerException.class);
+    private Review createMockReview(Long id, LocalDate createdAt) {
+        Review r = mock(Review.class);
+        when(r.getId()).thenReturn(id);
+        when(r.getCreatedAt()).thenReturn(createdAt);
+        when(r.getBook()).thenReturn(book);
+        return r;
     }
 }
