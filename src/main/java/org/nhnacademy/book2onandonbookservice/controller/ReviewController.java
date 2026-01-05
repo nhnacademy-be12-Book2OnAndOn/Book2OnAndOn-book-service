@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -63,8 +64,9 @@ public class ReviewController {
 
     //리뷰 작성 가능 자격 확인 API
     @GetMapping("/{bookId}/reviews/eligibility")
-    public ResponseEntity<Boolean> checkReviewEligibility(@PathVariable Long bookId){
-        Long userId = util.getUserId();
+    public ResponseEntity<Boolean> checkReviewEligibility(@PathVariable Long bookId,
+                                                          @RequestHeader("X-User-Id") Long userId){
+//        Long userId = util.getUserId();
 
         boolean isEligible = purchaseVerificationService.verifyPurchase(userId, bookId);
 
