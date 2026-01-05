@@ -68,37 +68,37 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           envs: GITHUB_TOKEN, GITHUB_ACTOR
           script: |
-            echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+              echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
             
-            cd /home/backend/be12-team2
+              cd /home/backend/be12-team2
             
-            SERVICE_NAME="BOOK-SERVICE"
-            EUREKA_URL="http://admin:admin1234@localhost:10437/eureka"
+              SERVICE_NAME="BOOK-SERVICE"
+              EUREKA_URL="http://admin:admin1234@localhost:10437/eureka"
             
-            docker compose pull book-1 book-2
+              docker compose pull book-1 book-2
 
-            # [1] book-1 배포
-            INSTANCE_ID_1="$SERVICE_NAME:book-1"
-            curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_1/status?value=OUT_OF_SERVICE" || true
+              # [1] book-1 배포
+              INSTANCE_ID_1="$SERVICE_NAME:book-1"
+              curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_1/status?value=OUT_OF_SERVICE" || true
             
-            sleep 30
-            
-            docker compose up -d book-1
-            
-            sleep 40
-            
-            curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_1/status?value=UP" || true
-
-            # [2] book-2 배포
-            INSTANCE_ID_2="$SERVICE_NAME:book-2"
-            curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_2/status?value=OUT_OF_SERVICE" || true
-            
-            sleep 30
-            
-            docker compose up -d book-2
-            
-            sleep 40
-            
-            curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_2/status?value=UP" || true
-
-            docker image prune -f
+              sleep 30
+              
+              docker compose up -d book-1
+              
+              sleep 40
+              
+              curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_1/status?value=UP" || true
+  
+              # [2] book-2 배포
+              INSTANCE_ID_2="$SERVICE_NAME:book-2"
+              curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_2/status?value=OUT_OF_SERVICE" || true
+              
+              sleep 30
+              
+              docker compose up -d book-2
+              
+              sleep 40
+              
+              curl -X PUT "$EUREKA_URL/apps/$SERVICE_NAME/$INSTANCE_ID_2/status?value=UP" || true
+  
+              docker image prune -f
