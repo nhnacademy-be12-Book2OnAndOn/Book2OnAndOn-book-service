@@ -66,7 +66,6 @@ public class ReviewController {
     @GetMapping("/{bookId}/reviews/eligibility")
     public ResponseEntity<Boolean> checkReviewEligibility(@PathVariable Long bookId,
                                                           @RequestHeader("X-User-Id") Long userId){
-//        Long userId = util.getUserId();
 
         boolean isEligible = purchaseVerificationService.verifyPurchase(userId, bookId);
 

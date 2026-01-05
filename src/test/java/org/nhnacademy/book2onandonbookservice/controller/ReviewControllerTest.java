@@ -138,7 +138,6 @@ class ReviewControllerTest {
         Long bookId = 1L;
         Long userId = 10L;
 
-        given(userHeaderUtil.getUserId()).willReturn(userId);
         given(purchaseVerificationService.verifyPurchase(userId, bookId)).willReturn(true);
 
         mockMvc.perform(get("/books/{bookId}/reviews/eligibility", bookId)
@@ -146,7 +145,6 @@ class ReviewControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("true"));
 
-        verify(userHeaderUtil).getUserId();
         verify(purchaseVerificationService).verifyPurchase(userId, bookId);
     }
 
@@ -155,7 +153,6 @@ class ReviewControllerTest {
         Long bookId = 1L;
         Long userId = 10L;
 
-        given(userHeaderUtil.getUserId()).willReturn(userId);
         given(purchaseVerificationService.verifyPurchase(userId, bookId)).willReturn(false);
 
         mockMvc.perform(get("/books/{bookId}/reviews/eligibility", bookId)
@@ -163,7 +160,6 @@ class ReviewControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("false"));
 
-        verify(userHeaderUtil).getUserId();
         verify(purchaseVerificationService).verifyPurchase(userId, bookId);
     }
 }
