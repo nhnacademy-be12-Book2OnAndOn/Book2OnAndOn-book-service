@@ -71,7 +71,4 @@ public class ReviewController {
 
         return ResponseEntity.ok(isEligible);
     }
-
-
-
 }
