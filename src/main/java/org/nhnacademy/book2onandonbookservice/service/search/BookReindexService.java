@@ -3,6 +3,7 @@ package org.nhnacademy.book2onandonbookservice.service.search;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
@@ -30,7 +31,7 @@ public class BookReindexService {
     @Async
     @Transactional
     public void reindexAll() {
-        long lastId = 0L;
+        long lastId = 0;
         int pageSize = 1000;
         log.info("=== Book reindex 시작 ===");
         while (true) {
@@ -42,26 +43,32 @@ public class BookReindexService {
                 break;
             }
 
-            List<BookSearchDocument> documentList = new ArrayList<>();
-            for (Book book : books) {
-                try {
-                    // IndexService에 createDocument 메서드가 public으로 열려 있어야 함!
-                    BookSearchDocument doc = bookSearchIndexService.createDocument(book);
-                    documentList.add(doc);
-                } catch (Exception e) {
-                    log.error("변환 실패 bookId={}", book.getId(), e);
-                }
-            }
+            List<BookSearchDocument> documentList = books.stream()
+                    .map(book -> {
+                        try {
+                            return bookSearchIndexService.createDocumentWithoutEmbedding(book);
+                        } catch (Exception e) {
+                            log.error("객체 변환 실패 bookId={}", book.getId(), e);
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            documentList.parallelStream().forEach(doc -> {
+                bookSearchIndexService.injectEmbedding(doc);
+            });
             if (!documentList.isEmpty()) {
                 try {
                     bookSearchRepository.saveAll(documentList);
-                    log.info("배치 저장 완료: {}건 (Last ID: {})", documentList.size(), books.get(books.size()-1).getId());
+                    long batchLastId = documentList.get(documentList.size() - 1).getId();
+                    log.info("배치 저장 완료: {}건 (Last ID: {})", documentList.size(),batchLastId );
+                    lastId = batchLastId;
                 } catch (Exception e) {
                     log.error("배치 저장 중 에러 발생", e);
+                    lastId = books.get(books.size() - 1).getId();
                 }
             }
-            Book lastBook = books.get(books.size() - 1);
-            lastId = lastBook.getId();
 
             entityManager.clear();
         }

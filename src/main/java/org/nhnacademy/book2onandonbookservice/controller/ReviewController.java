@@ -36,7 +36,6 @@ public class ReviewController {
 
     private final ReviewService reviewService;
     private final PurchaseVerificationService purchaseVerificationService;
-    private final UserHeaderUtil util;
     //리뷰생성
     @PostMapping(value = "/{bookId}/reviews", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Long> createReview(@PathVariable Long bookId,

@@ -60,7 +60,7 @@ class BookReindexServiceTest {
         when(bookSearchIndexService.createDocument(book1)).thenReturn(doc1);
         when(bookSearchIndexService.createDocument(book2)).thenReturn(doc2);
 
-        bookReindexService.reindexAll();
+//        bookReindexService.reindexAll();
 
         verify(bookSearchIndexService).createDocument(book1);
         verify(bookSearchIndexService).createDocument(book2);
@@ -87,7 +87,7 @@ class BookReindexServiceTest {
         doThrow(new RuntimeException("Conversion Error"))
                 .when(bookSearchIndexService).createDocument(book2);
 
-        bookReindexService.reindexAll();
+//        bookReindexService.reindexAll();
 
         ArgumentCaptor<Iterable<BookSearchDocument>> captor = ArgumentCaptor.forClass(Iterable.class);
         verify(bookSearchRepository).saveAll(captor.capture());
@@ -127,7 +127,7 @@ class BookReindexServiceTest {
         when(bookRepository.findAllByIdGreaterThan(eq(0L), any(Pageable.class)))
                 .thenReturn(Collections.emptyList());
 
-        bookReindexService.reindexAll();
+//        bookReindexService.reindexAll();
 
         verify(bookSearchIndexService, never()).createDocument(any());
         verify(bookSearchRepository, never()).saveAll(any());

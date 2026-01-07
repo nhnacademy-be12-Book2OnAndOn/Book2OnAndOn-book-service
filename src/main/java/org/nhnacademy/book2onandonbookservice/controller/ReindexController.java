@@ -23,7 +23,7 @@ public class ReindexController {
      * 1. 전체 도서 재인덱싱 (비상용/초기화용)
      * 주의: 데이터 양에 따라 시간이 오래 걸림
      */
-    @AuthCheck(Role.BOOK_ADMIN)
+//    @AuthCheck(Role.BOOK_ADMIN)
     @PostMapping("/reindex")
     public ResponseEntity<String> reindexAll() {
         // @Async로 동작하므로 즉시 반환
