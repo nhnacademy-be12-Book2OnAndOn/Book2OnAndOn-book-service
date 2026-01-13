@@ -47,6 +47,7 @@ public class SearchWarmupConsumer {
                     (message.getCategoryId() != null ? message.getCategoryId() : "all");
 
             if(Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))){
+                log.info("[AI-Warmup] 이미 캐시된 키가 존재하여 종료합니다. Key={}", cacheKey);
                 return;
             }
 
@@ -58,7 +59,10 @@ public class SearchWarmupConsumer {
                     .search(condition, pageable, vector)
                     .getContent();
 
-            if(candidates.isEmpty()) return;
+            if(candidates.isEmpty()){
+                log.info("[AI-Warmup] 검색 결과(후보)가 없어 작업을 중단합니다.");
+                return;
+            }
 
             List<String> texts = candidates.stream()
                     .map(doc -> "제목: "+ doc.getTitle() + " | 설명: "+ doc.getDescription())
@@ -74,6 +78,8 @@ public class SearchWarmupConsumer {
                 String jsonResult = objectMapper.writeValueAsString(recommendations);
                 redisTemplate.opsForValue().set(cacheKey, jsonResult, CACHE_TTL);
                 log.info("[AI-Warmup] 저장 완료. Key={}", cacheKey);
+            }{
+                log.info("[AI-Warmup] Gemini 추천 결과가 비어있어 저장하지 않았습니다."); // ★ 로그 추가
             }
 
         } catch (Exception e) {
