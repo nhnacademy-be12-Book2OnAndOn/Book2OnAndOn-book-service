@@ -46,7 +46,7 @@ public class BookSearchController {
                                               @RequestParam(required = false) Long categoryId){
         String cacheKey = "ai:result:"+keyword+":"+ (categoryId != null? categoryId: "all");
         String json = stringRedisTemplate.opsForValue().get(cacheKey);
-
+        log.info("aisearch 결과: {}", json);
         if(json==null){
             return ResponseEntity.noContent().build();
         }

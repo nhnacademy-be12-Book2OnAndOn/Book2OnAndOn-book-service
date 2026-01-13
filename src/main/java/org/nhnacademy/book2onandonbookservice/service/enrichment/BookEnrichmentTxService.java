@@ -334,12 +334,12 @@ public class BookEnrichmentTxService {
                 role = "지은이";
             }
 
-            Contributor contributor = contributorRepository.findByContributorName(name)
+            Contributor contributor = contributorRepository.findTopByContributorName(name)
                     .orElseGet(() -> {
                         try {
                             return contributorRepository.saveAndFlush(Contributor.builder().contributorName(name).build());
                         } catch (DataIntegrityViolationException e) {
-                            return contributorRepository.findByContributorName(name)
+                            return contributorRepository.findTopByContributorName(name)
                                     .orElseThrow(() -> new RuntimeException("작가 저장 및 재조회 실패: " + name));
                         }
                     });

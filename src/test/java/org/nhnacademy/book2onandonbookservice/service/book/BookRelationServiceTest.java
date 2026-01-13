@@ -92,7 +92,7 @@ class BookRelationServiceTest {
         given(publisherRepository.findByPublisherName("신규 출판사")).willReturn(Optional.empty());
         given(publisherRepository.save(any(Publisher.class))).willAnswer(inv -> inv.getArgument(0));
 
-        given(contributorRepository.findByContributorName(anyString())).willReturn(Optional.empty());
+        given(contributorRepository.findTopByContributorName(anyString())).willReturn(Optional.empty());
         given(contributorRepository.save(any(Contributor.class))).willAnswer(inv -> inv.getArgument(0));
 
 
@@ -154,9 +154,9 @@ class BookRelationServiceTest {
                 .contributorName(contributorStr)
                 .build();
 
-        given(contributorRepository.findByContributorName("작가A")).willReturn(
+        given(contributorRepository.findTopByContributorName("작가A")).willReturn(
                 Optional.of(Contributor.builder().contributorName("작가A").build()));
-        given(contributorRepository.findByContributorName("작가B")).willReturn(Optional.empty());
+        given(contributorRepository.findTopByContributorName("작가B")).willReturn(Optional.empty());
         given(contributorRepository.save(any(Contributor.class))).willAnswer(inv -> inv.getArgument(0));
 
         bookRelationService.applyRelationsForCreate(book, request);

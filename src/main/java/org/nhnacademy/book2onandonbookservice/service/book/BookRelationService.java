@@ -62,7 +62,7 @@ public class BookRelationService {
                 .toList();
 
         for (String name : names) {
-            Contributor contributor = contributorRepository.findByContributorName(name)
+            Contributor contributor = contributorRepository.findTopByContributorName(name)
                     .orElseGet(() -> contributorRepository.save(
                             Contributor.builder()
                                     .contributorName(name)
@@ -223,7 +223,7 @@ public class BookRelationService {
 
         Set<Contributor> targetContributors = new HashSet<>();
         for (String name : targetNames) {
-            Contributor contributor = contributorRepository.findByContributorName(name)
+            Contributor contributor = contributorRepository.findTopByContributorName(name)
                     .orElseGet(() -> contributorRepository.save(
                             Contributor.builder().contributorName(name).build()
                     ));
