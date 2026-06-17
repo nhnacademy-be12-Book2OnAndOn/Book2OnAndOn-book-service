@@ -30,7 +30,6 @@ import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
 import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.nhnacademy.book2onandonbookservice.service.BookBatchService;
-import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
@@ -42,6 +41,7 @@ import org.springframework.util.StringUtils;
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements ApplicationRunner {
+    private static final String UNKNOWN = "Unknown";
 
     private final BookRepository bookRepository;
     private final PublisherRepository publisherRepository;
@@ -192,7 +192,7 @@ public class DataInitializer implements ApplicationRunner {
         // 출판사 처리 (캐시 조회 -> 없으면 저장 후 캐시 등록)
         String pubName = safeGet(row, h, "PUBLISHER_NM");
         if (!StringUtils.hasText(pubName)) {
-            pubName = "Unknown";
+            pubName = UNKNOWN;
         }
         Publisher publisher = getOrCreatePublisherSafe(pubName);
 
@@ -476,20 +476,20 @@ public class DataInitializer implements ApplicationRunner {
                 .findFirst()
                 .orElseGet(() -> {
 
-                    String unknownKey = normalizeKey("Unknown");
+                    String unknownKey = normalizeKey(UNKNOWN);
                     if (publisherCache.containsKey(unknownKey)) {
                         return publisherCache.get(unknownKey);
                     }
 
                     // 진짜 만에 하나 캐시에도 없으면 DB 조회 (절대 save 하지 않음)
-                    return publisherRepository.findByPublisherName("Unknown")
+                    return publisherRepository.findByPublisherName(UNKNOWN)
                             .orElseThrow(() -> new RuntimeException("치명적 오류: Unknown 출판사가 DB에 없습니다."));
                 });
     }
 
     private void ensureSpecialValues() {
         log.info("특수 데이터(Unknown) 사전 확보 중...");
-        String unknownName = "Unknown";
+        String unknownName = UNKNOWN;
         String key = normalizeKey(unknownName);
 
         // 이미 캐시에 있으면 패스

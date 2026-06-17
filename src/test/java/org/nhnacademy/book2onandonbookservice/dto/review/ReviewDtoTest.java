@@ -1,20 +1,18 @@
 package org.nhnacademy.book2onandonbookservice.dto.review;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
 import org.nhnacademy.book2onandonbookservice.entity.ReviewImage;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class ReviewDtoTest {
 

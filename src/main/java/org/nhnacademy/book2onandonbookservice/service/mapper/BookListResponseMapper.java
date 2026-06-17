@@ -5,11 +5,9 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.service.search.BookSearchDocument;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 @Component
 @RequiredArgsConstructor

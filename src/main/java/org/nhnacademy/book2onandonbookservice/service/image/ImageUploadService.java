@@ -16,6 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.exception.ImageUploadException;
+import org.nhnacademy.book2onandonbookservice.exception.InternalImageUploadException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -24,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @Slf4j
 public class ImageUploadService {
+    private static final String IMAGE = "image/jpeg";
     private final MinioClient minioClient;
     private final String minioUrl;
     private final String publicUrl;
@@ -128,23 +130,23 @@ public class ImageUploadService {
 
         try {
             // 먼저 고화질 URL로 시도
-            return uploadInternal(highResUrl, "image/jpeg");
-        } catch (Exception e) {
+            return uploadInternal(highResUrl, IMAGE);
+        } catch (InternalImageUploadException e) {
             // 2. 실패 시 원본 URL로 최종 시도
             try {
-                return uploadInternal(imageUrl, "image/jpeg");
-            } catch (RejectedExecutionException | InterruptedIOException ie) {
-                // 시스템 종료나 쓰레드 풀 종료로 인한 에러는 ERROR 로그 안 찍음
-                log.warn("이미지 업로드 중단 (시스템 종료 또는 재시작 감지): {}", imageUrl);
+                return uploadInternal(imageUrl, IMAGE);
+            } catch (InternalImageUploadException ex) {
+                Throwable cause = ex.getCause();
+                if (cause instanceof RejectedExecutionException || cause instanceof InterruptedIOException) {
+                    log.warn("이미지 업로드 중단 (시스템 종료 또는 재시작 감지): {}", imageUrl);
+                } else if (cause instanceof java.io.FileNotFoundException) {
+                    log.warn("이미지 소스 없음(404): {}", imageUrl);
+                } else {
+                    log.error("이미지 업로드 최종 실패: {}", imageUrl, ex);
+                }
                 return null;
-            } catch (java.io.FileNotFoundException fe) {
-                log.warn("이미지 소스 없음(404): {}", imageUrl);
-                return null;
-            } catch (Exception ex) {
-                // 진짜 에러만 ERROR로 출력
-                log.error("이미지 업로드 최종 실패: {}", imageUrl, ex);
-                return null;
-            }        }
+            }
+        }
     }
 
     public void remove(String imageUrl) {
@@ -173,31 +175,28 @@ public class ImageUploadService {
             log.error("MINIO 이미지 삭제 실패 : URL={}", imageUrl, e);
         }
     }
-    private String uploadOriginalUrl(String imageUrl) {
+
+    private String uploadInternal(String imageUrl, String contentType) {
         try {
-            return uploadInternal(imageUrl, "image/jpeg");
+            URL url = URI.create(imageUrl).toURL();
+
+            try (InputStream inputStream = url.openStream()) {
+                String savedFileName = UUID.randomUUID() + ".jpg";
+                String objectName = bookFolder + "/" + savedFileName;
+
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(rootBucket)
+                                .object(objectName)
+                                .stream(inputStream, -1, 10485760) // 최대 10MB
+                                .contentType(contentType)
+                                .build()
+                );
+
+                return publicUrl + "/" + rootBucket + "/" + objectName;
+            }
         } catch (Exception e) {
-            log.error("원본 이미지 다운로드까지 실패 (무시하고 진행): {}", imageUrl, e);
-            return null;
-        }
-    }
-    private String uploadInternal(String imageUrl, String contentType) throws Exception {
-        URL url = URI.create(imageUrl).toURL();
-
-        try (InputStream inputStream = url.openStream()) {
-            String savedFileName = UUID.randomUUID() + ".jpg";
-            String objectName = bookFolder + "/" + savedFileName;
-
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(rootBucket)
-                            .object(objectName)
-                            .stream(inputStream, -1, 10485760) // 최대 10MB
-                            .contentType(contentType)
-                            .build()
-            );
-
-            return publicUrl + "/" + rootBucket + "/" + objectName;
+            throw new InternalImageUploadException("내부 이미지 업로드 실패", e);
         }
     }
 }

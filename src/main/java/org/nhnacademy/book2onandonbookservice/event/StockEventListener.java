@@ -2,7 +2,6 @@ package org.nhnacademy.book2onandonbookservice.event;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.service.book.StockService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -18,7 +17,7 @@ public class StockEventListener {
      * [재고 확정 리스너]
      * Feign 호출 실패 시, Order 서비스가 보낸 RabbitMQ 메시지를 처리
      */
-    @RabbitListener(queues = RabbitMqConfig.QUEUE_STOCK_CONFIRM)
+    @RabbitListener(queues = "${rabbitmq.queue.confirm}")
     public void handleStockConfirm(String orderNumber) {
         log.info("[RabbitMQ] 재고 확정 메시지 수신 - orderNumber: {}", orderNumber);
         try {
@@ -34,7 +33,7 @@ public class StockEventListener {
      * [재고 취소 리스너]
      * 결제 취소/실패 시 RabbitMQ 메시지 처리
      */
-    @RabbitListener(queues = RabbitMqConfig.QUEUE_STOCK_CANCEL)
+    @RabbitListener(queues = "${rabbitmq.queue.cancel}")
     public void handleStockCancel(String orderNumber) {
         log.info("[RabbitMQ] 재고 취소 메시지 수신 - orderNumber: {}", orderNumber);
         try {

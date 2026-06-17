@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
-import org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.springframework.util.StringUtils;

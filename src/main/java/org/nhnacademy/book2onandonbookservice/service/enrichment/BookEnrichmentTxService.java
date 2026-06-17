@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.AladinApiClient;
 import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
+import org.nhnacademy.book2onandonbookservice.domain.ContributorRole;
 import org.nhnacademy.book2onandonbookservice.domain.EnrichmentStatus;
 import org.nhnacademy.book2onandonbookservice.dto.api.AladinApiResponse;
 import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
@@ -42,6 +43,7 @@ public class BookEnrichmentTxService {
     private final AladinApiClient aladinApiClient;
     private final CategoryEnrichmentService categoryService;
     private final TagEnrichmentService tagService;
+    private final TagGenerationService tagGenerationService;
 
     private final PublisherRepository publisherRepository;
     private final ContributorRepository contributorRepository;
@@ -81,81 +83,86 @@ public class BookEnrichmentTxService {
         BookEnrichmentTask task = taskRepository.findById(bookId).orElse(null);
         Book book = bookRepository.findById(bookId).orElse(null);
 
-        // task가 없으면 스케줄러 대상이 아니지만, 방어적으로 SKIPPED 반환
         if (task == null) {
-            return new FetchResult(bookId, false,
-                    Outcome.SKIPPED, null, null,
-                    Outcome.SKIPPED, null, null,
-                    null);
+            return skippedResult(bookId);
         }
 
         if (book == null) {
-            return new FetchResult(bookId, false,
-                    Outcome.FAILED, "Book not found", null,
-                    Outcome.FAILED, "Book not found", null,
-                    null);
+            return failedResult(bookId, "Book not found");
         }
 
         if (book.getStatus() == BookStatus.BOOK_DELETED) {
-            return new FetchResult(bookId, true,
-                    Outcome.SKIPPED, null, null,
-                    Outcome.SKIPPED, null, null,
-                    null);
+            return deletedResult(bookId);
         }
 
-        Outcome aladinOutcome = Outcome.SKIPPED;
-        String aladinFailReason = null;
-        AladinApiResponse.Item aladinItem = null;
-        String newThumbInternalUrl = null;
-
-        Outcome aiOutcome = Outcome.SKIPPED;
-        String aiFailReason = null;
-        BookContentDto aiContent = null;
-
-        // 알라딘 호출
-        if (shouldProcessAladin(task)) {
-            try {
-                AladinApiResponse.Item item = aladinApiClient.searchByIsbn(book.getIsbn());
-                if (item == null) {
-                    aladinOutcome = Outcome.NOT_FOUND;
-                } else {
-                    aladinOutcome = Outcome.DONE;
-                    aladinItem = item;
-
-                    // 이미지 업로드는 트랜잭션 밖에서
-                    if (StringUtils.hasText(item.getCover())) {
-                        try {
-                            newThumbInternalUrl = imageUploadService.uploadImageFromUrl(item.getCover());
-                        } catch (Exception imgEx) {
-                            log.warn("[이미지 업로드 실패] bookId={}, cover={}", bookId, item.getCover(), imgEx);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                aladinOutcome = Outcome.FAILED;
-                aladinFailReason = e.getMessage();
-            }
-        }
-
-        // AI 호출(생성만)
-        if (shouldProcessAi(task)) {
-            try {
-                String description = book.getDescription();
-                aiContent = tagService.generateContent(book.getTitle(), description, book.getIsbn());
-                aiOutcome = Outcome.DONE;
-            } catch (Exception e) {
-                aiOutcome = Outcome.FAILED;
-                aiFailReason = e.getMessage();
-            }
-        }
+        AladinFetchResult aladinRes = fetchAladinInfo(book, task);
+        AiFetchResult aiRes = fetchAiInfo(book, task);
 
         return new FetchResult(
                 bookId,
                 false,
-                aladinOutcome, aladinFailReason, aladinItem,
-                aiOutcome, aiFailReason, aiContent,
-                newThumbInternalUrl
+                aladinRes.outcome(), aladinRes.failReason(), aladinRes.item(),
+                aiRes.outcome(), aiRes.failReason(), aiRes.content(),
+                aladinRes.newThumbnailUrl()
         );
+    }
+
+    private record AladinFetchResult(Outcome outcome, String failReason, AladinApiResponse.Item item, String newThumbnailUrl) {}
+    private record AiFetchResult(Outcome outcome, String failReason, BookContentDto content) {}
+
+    private FetchResult skippedResult(Long bookId) {
+        return new FetchResult(bookId, false, Outcome.SKIPPED, null, null, Outcome.SKIPPED, null, null, null);
+    }
+
+    private FetchResult failedResult(Long bookId, String reason) {
+        return new FetchResult(bookId, false, Outcome.FAILED, reason, null, Outcome.FAILED, reason, null, null);
+    }
+
+    private FetchResult deletedResult(Long bookId) {
+        return new FetchResult(bookId, true, Outcome.SKIPPED, null, null, Outcome.SKIPPED, null, null, null);
+    }
+
+    private AladinFetchResult fetchAladinInfo(Book book, BookEnrichmentTask task) {
+        if (!shouldProcessAladin(task)) {
+            return new AladinFetchResult(Outcome.SKIPPED, null, null, null);
+        }
+
+        try {
+            AladinApiResponse.Item item = aladinApiClient.searchByIsbn(book.getIsbn());
+            if (item == null) {
+                return new AladinFetchResult(Outcome.NOT_FOUND, null, null, null);
+            }
+
+            String newThumbnailUrl = uploadThumbnail(book.getId(), item.getCover());
+            return new AladinFetchResult(Outcome.DONE, null, item, newThumbnailUrl);
+        } catch (Exception e) {
+            return new AladinFetchResult(Outcome.FAILED, e.getMessage(), null, null);
+        }
+    }
+
+    private String uploadThumbnail(Long bookId, String coverUrl) {
+        if (!StringUtils.hasText(coverUrl)) {
+            return null;
+        }
+        try {
+            return imageUploadService.uploadImageFromUrl(coverUrl);
+        } catch (Exception imgEx) {
+            log.warn("[이미지 업로드 실패] bookId={}, cover={}", bookId, coverUrl, imgEx);
+            return null;
+        }
+    }
+
+    private AiFetchResult fetchAiInfo(Book book, BookEnrichmentTask task) {
+        if (!shouldProcessAi(task)) {
+            return new AiFetchResult(Outcome.SKIPPED, null, null);
+        }
+
+        try {
+            BookContentDto content = tagGenerationService.generateContent(book.getTitle(), book.getDescription(), book.getIsbn());
+            return new AiFetchResult(Outcome.DONE, null, content);
+        } catch (Exception e) {
+            return new AiFetchResult(Outcome.FAILED, e.getMessage(), null);
+        }
     }
 
     // -------------------------
@@ -171,75 +178,98 @@ public class BookEnrichmentTxService {
         }
 
         Book book = bookRepository.findByIdWithRelationsForUpdate(bookId).orElse(null);
+        if (isProcessingAborted(lockedTask, book, r)) {
+            taskRepository.saveAndFlush(lockedTask);
+            return new ApplyResult(false, false, null);
+        }
 
-        // 책이 없으면 무한 재시도 방지: 둘 다 실패로 종결
+        updateTaskStatuses(lockedTask, r);
+
+        ApplyResult aladinRes = applyAladinResult(book, lockedTask, r);
+        boolean aiApplied = applyAiResult(book, lockedTask, r);
+
+        taskRepository.saveAndFlush(lockedTask);
+
+        return new ApplyResult(
+                aladinRes.needReindex() || aiApplied,
+                aladinRes.usedNewThumbnail(),
+                aladinRes.oldThumbnailToDelete()
+        );
+    }
+
+    private boolean isProcessingAborted(BookEnrichmentTask lockedTask, Book book, FetchResult r) {
         if (book == null) {
             lockedTask.markAllFailedBecauseBookMissing();
-            taskRepository.saveAndFlush(lockedTask);
-            return new ApplyResult(false, false, null);
+            return true;
         }
 
-        // 삭제 책이면 둘 다 DONE으로 종결(스케줄러에서 다시 안 잡히게)
         if (book.getStatus() == BookStatus.BOOK_DELETED || r.bookDeleted()) {
             lockedTask.markAllDoneBecauseBookDeleted();
-            taskRepository.saveAndFlush(lockedTask);
-            return new ApplyResult(false, false, null);
+            return true;
         }
 
-        boolean needReindex = false;
-        boolean usedNewThumb = false;
-        String oldThumbnailToDelete = null;
+        return false;
+    }
 
-        // --- 상태 업데이트(원자적) ---
+    private void updateTaskStatuses(BookEnrichmentTask task, FetchResult r) {
         if (r.aladinOutcome() != null) {
-            switch (r.aladinOutcome()) {
-                case DONE -> lockedTask.markAladinDone();
-                case NOT_FOUND -> lockedTask.markAladinNotFound();
-                case FAILED -> lockedTask.markAladinFailed(r.aladinFailReason());
-                case SKIPPED -> { /* no-op */ }
-            }
+            updateAladinStatus(task, r.aladinOutcome(), r.aladinFailReason());
         }
 
         if (r.aiOutcome() != null) {
-            switch (r.aiOutcome()) {
-                case DONE -> lockedTask.markAiDone();
-                case FAILED -> lockedTask.markAiFailed(r.aiFailReason());
-                case NOT_FOUND, SKIPPED -> { /* no-op */ }
-            }
+            updateAiStatus(task, r.aiOutcome(), r.aiFailReason());
+        }
+    }
+
+    private void updateAladinStatus(BookEnrichmentTask task, Outcome outcome, String failReason) {
+        switch (outcome) {
+            case DONE -> task.markAladinDone();
+            case NOT_FOUND -> task.markAladinNotFound();
+            case FAILED -> task.markAladinFailed(failReason);
+            default -> { /* no-op */ }
+        }
+    }
+
+    private void updateAiStatus(BookEnrichmentTask task, Outcome outcome, String failReason) {
+        switch (outcome) {
+            case DONE -> task.markAiDone();
+            case FAILED -> task.markAiFailed(failReason);
+            default -> { /* no-op */ }
+        }
+    }
+
+    private ApplyResult applyAladinResult(Book book, BookEnrichmentTask task, FetchResult r) {
+        if (r.aladinItem() == null || task.getAladinStatus() != EnrichmentStatus.DONE) {
+            return new ApplyResult(false, false, null);
         }
 
-        // --- 알라딘 결과 반영 ---
-        if (r.aladinItem() != null && lockedTask.getAladinStatus() == EnrichmentStatus.DONE) {
-            AladinApiResponse.Item item = r.aladinItem();
+        AladinApiResponse.Item item = r.aladinItem();
+        categoryService.enrich(book, item);
+        enrichBasicInfo(book, item);
+        enrichPublisher(book, item.getPublisher());
+        enrichContributors(book, item.getAuthor());
 
-            categoryService.enrich(book, item);
-            enrichBasicInfo(book, item);
-            enrichPublisher(book, item.getPublisher());
-            enrichContributors(book, item.getAuthor());
+        boolean usedNewThumb = false;
+        String oldThumbnailToDelete = null;
 
-            needReindex = true;
-
-            // 썸네일 DB 반영만(삭제는 커밋 후)
-            if (StringUtils.hasText(r.newThumbnailInternalUrl())) {
-                String before = book.getThumbnail();
-                if (StringUtils.hasText(before) && !r.newThumbnailInternalUrl().equals(before)) {
-                    oldThumbnailToDelete = before;
-                }
-                applyThumbnailNoIO(book, r.newThumbnailInternalUrl());
-                usedNewThumb = true;
+        if (StringUtils.hasText(r.newThumbnailInternalUrl())) {
+            String before = book.getThumbnail();
+            if (StringUtils.hasText(before) && !r.newThumbnailInternalUrl().equals(before)) {
+                oldThumbnailToDelete = before;
             }
+            applyThumbnailNoIO(book, r.newThumbnailInternalUrl());
+            usedNewThumb = true;
         }
 
-        // --- AI 결과 반영 ---
-        if (r.aiContent() != null && lockedTask.getAiStatus() == EnrichmentStatus.DONE) {
+        return new ApplyResult(true, usedNewThumb, oldThumbnailToDelete);
+    }
+
+    private boolean applyAiResult(Book book, BookEnrichmentTask task, FetchResult r) {
+        if (r.aiContent() != null && task.getAiStatus() == EnrichmentStatus.DONE) {
             tagService.applyContent(book, r.aiContent());
-            needReindex = true;
+            return true;
         }
-
-        // task 저장(flush 시 book 변경도 함께 flush됨)
-        taskRepository.saveAndFlush(lockedTask);
-
-        return new ApplyResult(needReindex, usedNewThumb, oldThumbnailToDelete);
+        return false;
     }
 
     // -------------------------
@@ -328,10 +358,10 @@ public class BookEnrichmentTxService {
             Matcher matcher = CONTRIBUTOR_PATTERN.matcher(token);
             if (matcher.find()) {
                 name = matcher.group(1).trim();
-                role = matcher.group(2).trim();
+                role = ContributorRole.fromKorean(matcher.group(2).trim()).getCode();
             } else {
                 name = token;
-                role = "지은이";
+                role = ContributorRole.AUTHOR.getCode();
             }
 
             Contributor contributor = contributorRepository.findTopByContributorName(name)
@@ -352,7 +382,7 @@ public class BookEnrichmentTxService {
                             .roleType(role)
                             .build();
                     bookContributorRepository.saveAndFlush(bc);
-                } catch (Exception e) {
+                } catch (DataIntegrityViolationException e) {
                     log.debug("[중복 방지] 작가 관계 중복 (BookId: {}, Contributor: {})", book.getId(), name);
                 }
             }

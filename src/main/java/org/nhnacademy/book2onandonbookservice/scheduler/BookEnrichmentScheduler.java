@@ -1,22 +1,18 @@
 package org.nhnacademy.book2onandonbookservice.scheduler;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.nhnacademy.book2onandonbookservice.domain.EnrichmentStatus;
 import org.nhnacademy.book2onandonbookservice.entity.BookEnrichmentTask;
 import org.nhnacademy.book2onandonbookservice.repository.BookEnrichmentTaskRepository;
-import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.service.enrichment.BookEnrichmentService;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @Component
@@ -29,6 +25,7 @@ public class BookEnrichmentScheduler {
     // 앱 시작 시 한 번만 실행되거나, 관리자가 호출할 메서드 (작업 테이블 초기화)
     @Transactional
     @EventListener(ApplicationReadyEvent.class)
+    @SchedulerLock(name = "enrichment_init", lockAtLeastFor = "10s", lockAtMostFor = "1m")
     public void initMigration() {
         if(taskRepository.count()>0){
             log.info("보강 작업 테이블이 이미 존재합니다. initMigration 스킵");
@@ -39,34 +36,24 @@ public class BookEnrichmentScheduler {
         log.info("보강 작업 테이블 초기화 완료!");
     }
 
-    // 10초마다 실행 (API 호출 간격 조절 역할)
-    @Scheduled(fixedDelay = 10000)
+    // 5초마다 실행 (배치 사이즈를 1로 줄여 Thread.sleep 제거)
+    @Scheduled(fixedDelay = 5000)
     @SchedulerLock(name = "enrichment_batch", lockAtLeastFor = "1s", lockAtMostFor = "50s")
     public void processEnrichmentBatch() {
-        // 1. 할 일 10개 가져오기 (API Quota 고려하여 소량씩)
-        List<BookEnrichmentTask> tasks = taskRepository.findTasksToProcess(PageRequest.of(0, 10));
+        // 1. 할 일 1개 가져오기
+        List<BookEnrichmentTask> tasks = taskRepository.findTasksToProcess(PageRequest.of(0, 1));
 
         if(tasks.isEmpty()){
             return;
         }
 
-        log.info("배치 작업 시작 - 대상: {}", tasks.size());
-
         for(BookEnrichmentTask task: tasks){
-
             try{
                 enrichmentService.enrichBookDataWithStatusUpdate(task.getBookId());
             } catch (Exception e){
                 log.error("치명적 오류 발생 (BookId: {})", task.getBookId(), e);
             }
-
-            try{
-                Thread.sleep(5000);
-            } catch (InterruptedException e){
-                Thread.currentThread().interrupt();
-            }
         }
-
     }
 
 

@@ -8,18 +8,17 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.nhnacademy.book2onandonbookservice.domain.ContributorRole;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
-import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.BookTag;
 import org.nhnacademy.book2onandonbookservice.entity.BookTagPK;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Contributor;
 import org.nhnacademy.book2onandonbookservice.entity.Publisher;
 import org.nhnacademy.book2onandonbookservice.entity.Tag;
-import org.nhnacademy.book2onandonbookservice.exception.ImageUploadException;
 import org.nhnacademy.book2onandonbookservice.repository.BookTagRepository;
 import org.nhnacademy.book2onandonbookservice.repository.CategoryRepository;
 import org.nhnacademy.book2onandonbookservice.repository.ContributorRepository;
@@ -27,7 +26,6 @@ import org.nhnacademy.book2onandonbookservice.repository.PublisherRepository;
 import org.nhnacademy.book2onandonbookservice.repository.TagRepository;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
 @Component
 @RequiredArgsConstructor
@@ -72,7 +70,7 @@ public class BookRelationService {
             BookContributor bookContributor = BookContributor.builder()
                     .book(book)
                     .contributor(contributor)
-                    .roleType("AUTHOR") // 기본값
+                    .roleType(ContributorRole.AUTHOR.getCode()) // 기본값
                     .build();
             book.getBookContributors().add(bookContributor);
         }
@@ -241,7 +239,7 @@ public class BookRelationService {
                 BookContributor newContributor = BookContributor.builder()
                         .book(book)
                         .contributor(contributor)
-                        .roleType("지은이")
+                        .roleType(ContributorRole.AUTHOR.getCode())
                         .build();
                 book.getBookContributors().add(newContributor);
             }

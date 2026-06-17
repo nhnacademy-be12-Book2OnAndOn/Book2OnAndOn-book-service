@@ -5,7 +5,6 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.DoorayHookClient;
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.dto.dooray.DoorayMessagePayload;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
@@ -32,17 +31,36 @@ public class DlqRetryScheduler {
     @Value("${dooray.bot.botToken}")
     private String botToken;
 
+    @Value("${rabbitmq.queue.search-sync-dlq}")
+    private String searchSyncDlq;
+    @Value("${rabbitmq.exchange.search-sync}")
+    private String searchSyncExchange;
+    @Value("${rabbitmq.routing.search-sync}")
+    private String searchSyncRoutingKey;
+
+    @Value("${rabbitmq.queue.confirm-dlq}")
+    private String confirmDlq;
+    @Value("${rabbitmq.exchange.order}")
+    private String orderExchange;
+    @Value("${rabbitmq.routing.confirm}")
+    private String confirmRoutingKey;
+
+    @Value("${rabbitmq.queue.cancel-dlq}")
+    private String cancelDlq;
+    @Value("${rabbitmq.routing.cancel}")
+    private String cancelRoutingKey;
+
     /**
-     * 매일 자정에 실행
+     * 5분마다 실행
      * DLQ에 있는 메시지를 꺼내서 원래 큐로 다시 보냄
      */
     @Scheduled(cron="0 */5 * * * *")
     public void retryDlqMessage(){
         log.info("=== [Scheduler] DLQ 재처리 작업 시작 ===");
 
-        processDlq(RabbitMqConfig.SEARCH_SYNC_DLQ, RabbitMqConfig.SEARCH_SYNC_EXCHANGE, RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY, "검색 인덱싱");
-        processDlq(RabbitMqConfig.QUEUE_STOCK_CONFIRM_DLQ, RabbitMqConfig.ORDER_EXCHANGE, RabbitMqConfig.ROUTING_KEY_CONFIRM, "재고 확정");
-        processDlq(RabbitMqConfig.QUEUE_STOCK_CANCEL_DLQ, RabbitMqConfig.ORDER_EXCHANGE, RabbitMqConfig.ROUTING_KEY_CANCEL, "재고 취소");
+        processDlq(searchSyncDlq, searchSyncExchange, searchSyncRoutingKey, "검색 인덱싱");
+        processDlq(confirmDlq, orderExchange, confirmRoutingKey, "재고 확정");
+        processDlq(cancelDlq, orderExchange, cancelRoutingKey, "재고 취소");
     }
 
     private void processDlq(String dlqName, String originalExchange, String originalRoutingKey, String jobName){

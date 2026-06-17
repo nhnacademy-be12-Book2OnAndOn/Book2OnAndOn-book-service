@@ -11,7 +11,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.nhnacademy.book2onandonbookservice.domain.EnrichmentStatus;
 
 @Entity
@@ -104,8 +103,5 @@ public class BookEnrichmentTask {
     public void markAllFailedBecauseBookMissing() {
         markAladinFailed("Book not found");
         markAiFailed("Book not found");
-    }
-
-    public void setBookId(long l) {
     }
 }

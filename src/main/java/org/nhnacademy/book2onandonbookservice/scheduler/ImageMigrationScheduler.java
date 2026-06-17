@@ -1,46 +1,62 @@
 package org.nhnacademy.book2onandonbookservice.scheduler;
 
-import lombok.RequiredArgsConstructor;
+
+import jakarta.annotation.PreDestroy;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
 import org.nhnacademy.book2onandonbookservice.entity.BookImage;
+import org.nhnacademy.book2onandonbookservice.exception.ImageUploadException;
 import org.nhnacademy.book2onandonbookservice.repository.BookRepository;
 import org.nhnacademy.book2onandonbookservice.service.image.ImageUploadService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ImageMigrationScheduler {
 
     private final BookRepository bookRepository;
     private final ImageUploadService imageUploadService;
     private final PlatformTransactionManager transactionManager;
+    private final Executor taskExecutor;
 
     @Value("${minio.public-url}")
     private String minioDomain;
 
-    private final Executor taskExecutor = Executors.newFixedThreadPool(10);
+    public ImageMigrationScheduler(BookRepository bookRepository,
+                                   ImageUploadService imageUploadService,
+                                   PlatformTransactionManager transactionManager,
+                                   @Qualifier("taskExecutor") Executor taskExecutor) {
+        this.bookRepository = bookRepository;
+        this.imageUploadService = imageUploadService;
+        this.transactionManager = transactionManager;
+        this.taskExecutor = taskExecutor;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (taskExecutor instanceof ThreadPoolTaskExecutor executor) {
+            executor.shutdown();
+        }
+    }
 
     @Scheduled(fixedDelay = 3000)
-    @SchedulerLock(name="ImageMigrationTask", lockAtLeastFor = "PT2S", lockAtMostFor = "PT10S")
+    @SchedulerLock(name = "ImageMigrationTask", lockAtLeastFor = "PT2S", lockAtMostFor = "PT10S")
     public void migrateImagesChunk() {
 
         List<Book> targets = bookRepository.findTop100ByThumbnailIsNotNullAndThumbnailNotLike("%" + minioDomain + "%");
 
         if (targets.isEmpty()) {
-             // log.info("이미지 마이그레이션 대상 없음 (모두 완료됨)");
+            log.info("이미지 마이그레이션 대상 없음 (모두 완료됨)");
             return;
         }
 
@@ -62,42 +78,54 @@ public class ImageMigrationScheduler {
 
     private void processSingleBook(Book book) {
         String originalUrl = book.getThumbnail();
-        
-        if (originalUrl.contains(minioDomain)) {
+
+        if (originalUrl == null || originalUrl.contains(minioDomain)) {
             return;
         }
 
         try {
             String newUrl = imageUploadService.uploadImageFromUrl(originalUrl);
-
-            if (newUrl != null) {
-                book.setThumbnail(newUrl);
-
-                boolean imageFound = false;
-
-                for (BookImage image : book.getImages()) {
-                    if (image.isThumbnail()) {
-                        image.setImagePath(newUrl);
-                        imageFound = true;
-                    }
-                }
-
-                if (!imageFound) {
-                    book.getImages().add(BookImage.builder()
-                            .book(book)
-                            .imagePath(newUrl)
-                            .isThumbnail(true)
-                            .build());
-                }
-
-            } else {
-                log.warn("이미지 다운 실패 -> NULL 처리: {}", book.getIsbn());
-                book.setThumbnail(null);
-            }
+            updateBookThumbnail(book, newUrl);
+        } catch (ImageUploadException e) {
+            log.error("[Migration] 이미지 업로드 중 오류 발생 (ISBN: {})", book.getIsbn(), e);
         } catch (Exception e) {
-            log.error("이미지 변환 중 에러 발생: ISBN {}", book.getIsbn(), e);
+            log.error("[Migration] 알 수 없는 오류 발생 (ISBN: {})", book.getIsbn(), e);
         }
     }
+
+    private void updateBookThumbnail(Book book, String newUrl) {
+        if (newUrl == null) {
+            log.warn("[Migration] 이미지 다운로드 실패 (ISBN: {})", book.getIsbn());
+            book.setThumbnail(null);
+            return;
+        }
+
+        book.setThumbnail(newUrl);
+        updateThumbnailInImages(book, newUrl);
+    }
+
+    private void updateThumbnailInImages(Book book, String newUrl) {
+        if (book.getImages() == null) {
+            return;
+        }
+
+        boolean imageFound = false;
+        for (BookImage image : book.getImages()) {
+            if (image.isThumbnail()) {
+                image.setImagePath(newUrl);
+                imageFound = true;
+            }
+        }
+
+        if (!imageFound) {
+            book.getImages().add(BookImage.builder()
+                    .book(book)
+                    .imagePath(newUrl)
+                    .isThumbnail(true)
+                    .build());
+        }
+    }
+
     private void processSingleBookInTransaction(Long bookId) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
@@ -106,7 +134,9 @@ public class ImageMigrationScheduler {
             try {
                 // 1. 이 스레드만의 영속성 컨텍스트에서 다시 조회
                 Book book = bookRepository.findById(bookId).orElse(null);
-                if (book == null) return null;
+                if (book == null) {
+                    return null;
+                }
 
                 processSingleBook(book);
 

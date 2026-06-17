@@ -7,13 +7,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage;
 import org.nhnacademy.book2onandonbookservice.service.search.BookReindexService;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,6 +31,15 @@ class ReindexControllerTest {
 
     @InjectMocks
     private ReindexController reindexController;
+
+    private static final String SEARCH_SYNC_EXCHANGE = "test-exchange";
+    private static final String SEARCH_SYNC_ROUTING_KEY = "test-key";
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(reindexController, "searchSyncExchange", SEARCH_SYNC_EXCHANGE);
+        ReflectionTestUtils.setField(reindexController, "searchSyncRoutingKey", SEARCH_SYNC_ROUTING_KEY);
+    }
 
     @Test
     @DisplayName("성공: 전체 재인덱싱 요청 시 서비스 호출 및 200 응답")
@@ -65,8 +74,8 @@ class ReindexControllerTest {
 
         ArgumentCaptor<SearchSyncMessage> messageCaptor = ArgumentCaptor.forClass(SearchSyncMessage.class);
         verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
-                eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
+                eq(SEARCH_SYNC_EXCHANGE),
+                eq(SEARCH_SYNC_ROUTING_KEY),
                 messageCaptor.capture()
         );
 
@@ -100,8 +109,8 @@ class ReindexControllerTest {
 
         ArgumentCaptor<SearchSyncMessage> messageCaptor = ArgumentCaptor.forClass(SearchSyncMessage.class);
         verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
-                eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
+                eq(SEARCH_SYNC_EXCHANGE),
+                eq(SEARCH_SYNC_ROUTING_KEY),
                 messageCaptor.capture()
         );
 

@@ -13,7 +13,6 @@ import org.nhnacademy.book2onandonbookservice.dto.common.PublisherDto;
 import org.nhnacademy.book2onandonbookservice.dto.common.TagDto;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.entity.Book;
-import org.nhnacademy.book2onandonbookservice.entity.BookImage;
 import org.nhnacademy.book2onandonbookservice.entity.Category;
 import org.nhnacademy.book2onandonbookservice.entity.Review;
 

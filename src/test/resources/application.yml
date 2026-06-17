@@ -43,6 +43,30 @@ spring:
       simple:
         auto-startup: false
 
+rabbitmq:
+  queue:
+    search-sync: book2.search.sync.queue
+    search-sync-dlq: book2.search.sync.dlq
+    search-warmup: book2.search.warmup.queue
+    confirm: book2.stock.confirm.queue
+    cancel: book2.stock.cancel.queue
+    confirm-dlq: book2.stock.confirm.dlq
+    cancel-dlq: book2.stock.cancel.dlq
+  exchange:
+    search-sync: book2.search.sync.exchange
+    search-sync-dlx: book2.search.sync.dlx
+    search-warmup: book2.search.warmup.exchange
+    order: book2.order.exchange
+    stock-dlx: book2.stock.dlx
+  routing:
+    search-sync: book2.search.sync.key
+    search-sync-dlq: book2.search.sync.dlq.key
+    search-warmup: book2.search.warmup.key
+    confirm: book.confirm
+    cancel: book.cancel
+    confirm-dlq: book.confirm.dlq
+    cancel-dlq: book.cancel.dlq
+
   task:
     scheduling:
       enabled: false

@@ -12,7 +12,6 @@ import org.nhnacademy.book2onandonbookservice.client.GeminiSearchClient.AiRecomm
 import org.nhnacademy.book2onandonbookservice.client.OllamaApiClient;
 import org.nhnacademy.book2onandonbookservice.client.RerankerApiClient;
 import org.nhnacademy.book2onandonbookservice.client.RerankerApiClient.RerankResult;
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchWarmupMessage;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -36,7 +35,7 @@ public class SearchWarmupConsumer {
     private static final int CANDIDATE_SIZE = 50;
     private static final int TOP_K =10;
 
-    @RabbitListener(queues = RabbitMqConfig.SEARCH_WARMUP_QUEUE)
+    @RabbitListener(queues = "${rabbitmq.queue.search-warmup}")
     public void consumeWarmupMessage(SearchWarmupMessage message){
         log.info("[AI-Warmup] 작업 시작: {}", message);
 
@@ -74,16 +73,24 @@ public class SearchWarmupConsumer {
 
 
             // 6. [Redis Save] 결과 저장
-            if (!recommendations.isEmpty()) {
-                String jsonResult = objectMapper.writeValueAsString(recommendations);
-                redisTemplate.opsForValue().set(cacheKey, jsonResult, CACHE_TTL);
-                log.info("[AI-Warmup] 저장 완료. Key={}", cacheKey);
-            }{
-                log.info("[AI-Warmup] Gemini 추천 결과가 비어있어 저장하지 않았습니다."); // ★ 로그 추가
-            }
+            saveRecommendationsToCache(cacheKey, recommendations);
 
         } catch (Exception e) {
             log.error("[AI-Warmup] 오류 발생: {}", e.getMessage(), e);
+        }
+    }
+
+    private void saveRecommendationsToCache(String cacheKey, List<AiRecommendation> recommendations) {
+        if (!recommendations.isEmpty()) {
+            try {
+                String jsonResult = objectMapper.writeValueAsString(recommendations);
+                redisTemplate.opsForValue().set(cacheKey, jsonResult, CACHE_TTL);
+                log.info("[AI-Warmup] 저장 완료. Key={}", cacheKey);
+            } catch (Exception e) {
+                log.error("[AI-Warmup] 캐시 저장 중 오류 발생. Key={}", cacheKey, e);
+            }
+        } else {
+            log.info("[AI-Warmup] Gemini 추천 결과가 비어있어 저장하지 않았습니다.");
         }
     }
 

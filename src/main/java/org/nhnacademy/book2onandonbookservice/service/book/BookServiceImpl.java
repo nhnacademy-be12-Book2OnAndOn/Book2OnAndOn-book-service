@@ -90,7 +90,7 @@ public class BookServiceImpl implements BookService {
         try {
             bookSearchIndexService.index(saved);
         } catch (Exception e) {
-            log.error("ES 인덱싱 실패 - bookId={}", saved.getId(), e);
+            log.error("도서 등록 후 ES 인덱싱 실패 - bookId={}", saved.getId(), e);
         }
 
         return saved.getId();
@@ -142,10 +142,9 @@ public class BookServiceImpl implements BookService {
 
         // 5. 연관관계 및 인덱싱 업데이트
         bookRelationService.applyRelationsForUpdate(book, request);
-
-        try{
+        try {
             bookSearchIndexService.index(book);
-        }catch(Exception e){
+        } catch (Exception e) {
             log.error("도서 수정 후 ES 인덱싱 실패 (DB는 반영됨) - bookId={}", bookId, e);
         }
 

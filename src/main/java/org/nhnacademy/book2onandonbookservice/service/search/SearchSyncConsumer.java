@@ -2,7 +2,6 @@ package org.nhnacademy.book2onandonbookservice.service.search;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage.SyncType;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -14,7 +13,7 @@ import org.springframework.stereotype.Service;
 public class SearchSyncConsumer {
     private final BookSearchSyncService bookSearchSyncService;
 
-    @RabbitListener(queues = RabbitMqConfig.SEARCH_SYNC_QUEUE)
+    @RabbitListener(queues = "${rabbitmq.queue.search-sync}")
     public void consumeSyncMessage(SearchSyncMessage message) {
 
         log.info("[MQ - consumer] 검색 동기화 작업 start!!!: {}", message);

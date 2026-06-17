@@ -4,7 +4,6 @@ import java.util.List;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewCreateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewUpdateRequest;
-import org.nhnacademy.book2onandonbookservice.entity.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;

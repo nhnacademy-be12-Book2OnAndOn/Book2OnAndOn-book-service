@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,13 +16,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage.SyncType;
 import org.nhnacademy.book2onandonbookservice.event.CategoryUpdatedEvent;
 import org.nhnacademy.book2onandonbookservice.event.TagUpdatedEvent;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class SearchSyncEventListenerTest {
@@ -31,6 +32,15 @@ class SearchSyncEventListenerTest {
 
     @InjectMocks
     private SearchSyncEventListener searchSyncEventListener;
+
+    private static final String SEARCH_SYNC_EXCHANGE = "test-exchange";
+    private static final String SEARCH_SYNC_ROUTING_KEY = "test-key";
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(searchSyncEventListener, "searchSyncExchange", SEARCH_SYNC_EXCHANGE);
+        ReflectionTestUtils.setField(searchSyncEventListener, "searchSyncRoutingKey", SEARCH_SYNC_ROUTING_KEY);
+    }
 
     @Test
     @DisplayName("성공: 카테고리 업데이트 이벤트 처리 및 메시지 전송")
@@ -43,8 +53,8 @@ class SearchSyncEventListenerTest {
         ArgumentCaptor<SearchSyncMessage> messageCaptor = ArgumentCaptor.forClass(SearchSyncMessage.class);
 
         verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
-                eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
+                eq(SEARCH_SYNC_EXCHANGE),
+                eq(SEARCH_SYNC_ROUTING_KEY),
                 messageCaptor.capture()
         );
 
@@ -64,8 +74,8 @@ class SearchSyncEventListenerTest {
         ArgumentCaptor<SearchSyncMessage> messageCaptor = ArgumentCaptor.forClass(SearchSyncMessage.class);
 
         verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
-                eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
+                eq(SEARCH_SYNC_EXCHANGE),
+                eq(SEARCH_SYNC_ROUTING_KEY),
                 messageCaptor.capture()
         );
 

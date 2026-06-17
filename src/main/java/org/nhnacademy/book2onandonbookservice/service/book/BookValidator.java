@@ -1,6 +1,5 @@
 package org.nhnacademy.book2onandonbookservice.service.book;
 
-import java.util.List;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSaveRequest;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookUpdateRequest;
 import org.springframework.stereotype.Component;

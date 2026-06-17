@@ -9,7 +9,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.nhnacademy.book2onandonbookservice.client.DoorayHookClient;
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.dto.dooray.DoorayMessagePayload;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
@@ -34,11 +33,33 @@ class DlqRetrySchedulerTest {
     @InjectMocks
     private DlqRetryScheduler dlqRetryScheduler;
 
+    private static final String SEARCH_SYNC_DLQ = "search-sync-dlq";
+    private static final String SEARCH_SYNC_EXCHANGE = "search-sync-exchange";
+    private static final String SEARCH_SYNC_ROUTING_KEY = "search-sync-key";
+
+    private static final String CONFIRM_DLQ = "confirm-dlq";
+    private static final String ORDER_EXCHANGE = "order-exchange";
+    private static final String CONFIRM_ROUTING_KEY = "confirm-key";
+
+    private static final String CANCEL_DLQ = "cancel-dlq";
+    private static final String CANCEL_ROUTING_KEY = "cancel-key";
+
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(dlqRetryScheduler, "serviceId", "test-service-id");
         ReflectionTestUtils.setField(dlqRetryScheduler, "botId", "test-bot-id");
         ReflectionTestUtils.setField(dlqRetryScheduler, "botToken", "test-bot-token");
+
+        ReflectionTestUtils.setField(dlqRetryScheduler, "searchSyncDlq", SEARCH_SYNC_DLQ);
+        ReflectionTestUtils.setField(dlqRetryScheduler, "searchSyncExchange", SEARCH_SYNC_EXCHANGE);
+        ReflectionTestUtils.setField(dlqRetryScheduler, "searchSyncRoutingKey", SEARCH_SYNC_ROUTING_KEY);
+
+        ReflectionTestUtils.setField(dlqRetryScheduler, "confirmDlq", CONFIRM_DLQ);
+        ReflectionTestUtils.setField(dlqRetryScheduler, "orderExchange", ORDER_EXCHANGE);
+        ReflectionTestUtils.setField(dlqRetryScheduler, "confirmRoutingKey", CONFIRM_ROUTING_KEY);
+
+        ReflectionTestUtils.setField(dlqRetryScheduler, "cancelDlq", CANCEL_DLQ);
+        ReflectionTestUtils.setField(dlqRetryScheduler, "cancelRoutingKey", CANCEL_ROUTING_KEY);
     }
 
     @Test
@@ -60,19 +81,19 @@ class DlqRetrySchedulerTest {
         props.setHeader("x-dlq-retry-count", 1);
         Message message = new Message("test-body".getBytes(), props);
 
-        when(rabbitTemplate.receive(RabbitMqConfig.SEARCH_SYNC_DLQ))
+        when(rabbitTemplate.receive(SEARCH_SYNC_DLQ))
                 .thenReturn(message)
                 .thenReturn(null);
 
-        when(rabbitTemplate.receive(RabbitMqConfig.QUEUE_STOCK_CONFIRM_DLQ)).thenReturn(null);
-        when(rabbitTemplate.receive(RabbitMqConfig.QUEUE_STOCK_CANCEL_DLQ)).thenReturn(null);
+        when(rabbitTemplate.receive(CONFIRM_DLQ)).thenReturn(null);
+        when(rabbitTemplate.receive(CANCEL_DLQ)).thenReturn(null);
 
         dlqRetryScheduler.retryDlqMessage();
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMqConfig.SEARCH_SYNC_EXCHANGE),
-                eq(RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY),
+                eq(SEARCH_SYNC_EXCHANGE),
+                eq(SEARCH_SYNC_ROUTING_KEY),
                 messageCaptor.capture()
         );
 
@@ -87,19 +108,19 @@ class DlqRetrySchedulerTest {
         MessageProperties props = new MessageProperties();
         Message message = new Message("body".getBytes(), props);
 
-        when(rabbitTemplate.receive(RabbitMqConfig.QUEUE_STOCK_CONFIRM_DLQ))
+        when(rabbitTemplate.receive(CONFIRM_DLQ))
                 .thenReturn(message)
                 .thenReturn(null);
 
-        when(rabbitTemplate.receive(RabbitMqConfig.SEARCH_SYNC_DLQ)).thenReturn(null);
-        when(rabbitTemplate.receive(RabbitMqConfig.QUEUE_STOCK_CANCEL_DLQ)).thenReturn(null);
+        when(rabbitTemplate.receive(SEARCH_SYNC_DLQ)).thenReturn(null);
+        when(rabbitTemplate.receive(CANCEL_DLQ)).thenReturn(null);
 
         dlqRetryScheduler.retryDlqMessage();
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMqConfig.ORDER_EXCHANGE),
-                eq(RabbitMqConfig.ROUTING_KEY_CONFIRM),
+                eq(ORDER_EXCHANGE),
+                eq(CONFIRM_ROUTING_KEY),
                 messageCaptor.capture()
         );
 
@@ -114,12 +135,12 @@ class DlqRetrySchedulerTest {
         props.setHeader("x-dlq-retry-count", 3);
         Message message = new Message("failed-body".getBytes(), props);
 
-        when(rabbitTemplate.receive(RabbitMqConfig.QUEUE_STOCK_CANCEL_DLQ))
+        when(rabbitTemplate.receive(CANCEL_DLQ))
                 .thenReturn(message)
                 .thenReturn(null);
 
-        when(rabbitTemplate.receive(RabbitMqConfig.SEARCH_SYNC_DLQ)).thenReturn(null);
-        when(rabbitTemplate.receive(RabbitMqConfig.QUEUE_STOCK_CONFIRM_DLQ)).thenReturn(null);
+        when(rabbitTemplate.receive(SEARCH_SYNC_DLQ)).thenReturn(null);
+        when(rabbitTemplate.receive(CONFIRM_DLQ)).thenReturn(null);
 
         dlqRetryScheduler.retryDlqMessage();
 
@@ -139,12 +160,12 @@ class DlqRetrySchedulerTest {
         props.setHeader("x-dlq-retry-count", 3);
         Message message = new Message("body".getBytes(), props);
 
-        when(rabbitTemplate.receive(RabbitMqConfig.SEARCH_SYNC_DLQ))
+        when(rabbitTemplate.receive(SEARCH_SYNC_DLQ))
                 .thenReturn(message)
                 .thenReturn(null);
 
-        when(rabbitTemplate.receive(RabbitMqConfig.QUEUE_STOCK_CONFIRM_DLQ)).thenReturn(null);
-        when(rabbitTemplate.receive(RabbitMqConfig.QUEUE_STOCK_CANCEL_DLQ)).thenReturn(null);
+        when(rabbitTemplate.receive(CONFIRM_DLQ)).thenReturn(null);
+        when(rabbitTemplate.receive(CANCEL_DLQ)).thenReturn(null);
 
         doThrow(new RuntimeException("Dooray API Error"))
                 .when(doorayHookClient).sendMessage(anyString(), anyString(), anyString(), any());

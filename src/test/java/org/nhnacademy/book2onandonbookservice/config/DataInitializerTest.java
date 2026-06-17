@@ -5,13 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,6 +33,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -543,22 +542,12 @@ class DataInitializerTest {
         assertThat(result).isEqualTo("value1");
     }
 
-    @Test
-    @DisplayName("safeGet - NaN 처리")
-    void safeGet_nan() throws Exception {
-        String[] row = {"NaN", "value2"};
-        Map<String, Integer> headerMap = new HashMap<>();
-        headerMap.put("col1", 0);
-
-        String result = invokeSafeGet(row, headerMap, "col1");
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("safeGet - 빈 문자열 처리")
-    void safeGet_emptyString() throws Exception {
-        String[] row = {"  ", "value2"};
+    @ParameterizedTest
+    @DisplayName("safeGet - 비정상 값 처리 (NaN, 공백, null 등)")
+    @ValueSource(strings = {"NaN", "  ", ""})
+    @NullSource
+    void safeGet_invalidValues(String invalidValue) throws Exception {
+        String[] row = {invalidValue, "value2"};
         Map<String, Integer> headerMap = new HashMap<>();
         headerMap.put("col1", 0);
 
@@ -593,18 +582,6 @@ class DataInitializerTest {
         assertThat(result).isEmpty();
     }
 
-    @Test
-    @DisplayName("safeGet - null 값 처리")
-    void safeGet_nullValue() throws Exception {
-        String[] row = {null, "value2"};
-        Map<String, Integer> headerMap = new HashMap<>();
-        headerMap.put("col1", 0);
-
-        String result = invokeSafeGet(row, headerMap, "col1");
-
-        assertThat(result).isEmpty();
-    }
-
     @DisplayName("parsePrice - 다양한 입력")
     @ParameterizedTest
     @CsvSource(value = {
@@ -626,24 +603,12 @@ class DataInitializerTest {
         assertThat(result).isEqualTo(LocalDate.of(2024, 1, 15));
     }
 
-    @Test
-    @DisplayName("parseDate - 파싱 실패 시 현재 날짜")
-    void parseDate_fail() throws Exception {
-        LocalDate result = invokeParseDate("invalid-date");
-        assertThat(result).isEqualTo(LocalDate.now());
-    }
-
-    @Test
-    @DisplayName("parseDate - 빈 문자열")
-    void parseDate_empty() throws Exception {
-        LocalDate result = invokeParseDate("");
-        assertThat(result).isEqualTo(LocalDate.now());
-    }
-
-    @Test
-    @DisplayName("parseDate - null")
-    void parseDate_null() throws Exception {
-        LocalDate result = invokeParseDate(null);
+    @ParameterizedTest
+    @DisplayName("parseDate - 비정상 입력 (형식 오류, 공백, null 등) -> 현재 날짜 반환")
+    @ValueSource(strings = {"invalid-date", "  ", ""})
+    @NullSource
+    void parseDate_invalidValues(String invalidValue) throws Exception {
+        LocalDate result = invokeParseDate(invalidValue);
         assertThat(result).isEqualTo(LocalDate.now());
     }
 

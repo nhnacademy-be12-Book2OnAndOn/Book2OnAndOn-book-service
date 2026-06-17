@@ -1,12 +1,9 @@
 package org.nhnacademy.book2onandonbookservice.service.review.Impl;
 
-import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.nhnacademy.book2onandonbookservice.client.OrderServiceClient;
 import org.nhnacademy.book2onandonbookservice.client.UserServiceClient;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewCreateRequest;
 import org.nhnacademy.book2onandonbookservice.dto.review.ReviewDto;
@@ -27,7 +24,6 @@ import org.nhnacademy.book2onandonbookservice.service.review.ReviewService;
 import org.nhnacademy.book2onandonbookservice.util.UserHeaderUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

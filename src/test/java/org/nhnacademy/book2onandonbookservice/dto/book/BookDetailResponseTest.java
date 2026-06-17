@@ -1,20 +1,27 @@
 package org.nhnacademy.book2onandonbookservice.dto.book;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
-import org.nhnacademy.book2onandonbookservice.entity.*;
-
-import java.time.LocalDate;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.nhnacademy.book2onandonbookservice.domain.BookStatus;
+import org.nhnacademy.book2onandonbookservice.entity.Book;
+import org.nhnacademy.book2onandonbookservice.entity.BookContributor;
+import org.nhnacademy.book2onandonbookservice.entity.BookImage;
+import org.nhnacademy.book2onandonbookservice.entity.BookPublisher;
+import org.nhnacademy.book2onandonbookservice.entity.BookTag;
+import org.nhnacademy.book2onandonbookservice.entity.Category;
+import org.nhnacademy.book2onandonbookservice.entity.Contributor;
+import org.nhnacademy.book2onandonbookservice.entity.Publisher;
+import org.nhnacademy.book2onandonbookservice.entity.Review;
+import org.nhnacademy.book2onandonbookservice.entity.Tag;
 
 class BookDetailResponseTest {
 
@@ -89,39 +96,49 @@ class BookDetailResponseTest {
 
         BookDetailResponse response = BookDetailResponse.from(book, 100L, true);
 
-        assertThat(response.getId()).isEqualTo(1L);
-        assertThat(response.getIsbn()).isEqualTo("978-1234567890");
-        assertThat(response.getTitle()).isEqualTo("Test Book");
-        assertThat(response.getVolume()).isEqualTo("Vol.1");
-        assertThat(response.getPublishDate()).isEqualTo(publishDate);
-        assertThat(response.getPriceStandard()).isEqualTo(10000L);
-        assertThat(response.getPriceSales()).isEqualTo(9000L);
-        assertThat(response.getStatus()).isEqualTo(BookStatus.ON_SALE);
-        assertThat(response.getStockCount()).isEqualTo(50);
-        assertThat(response.getIsWrapped()).isTrue();
-        assertThat(response.getChapter()).isEqualTo("Index...");
-        assertThat(response.getDescriptionHtml()).isEqualTo("Description...");
-        assertThat(response.getRating()).isEqualTo(4.5);
+        assertThat(response)
+                .extracting(
+                        BookDetailResponse::getId,
+                        BookDetailResponse::getIsbn,
+                        BookDetailResponse::getTitle,
+                        BookDetailResponse::getVolume,
+                        BookDetailResponse::getPublishDate,
+                        BookDetailResponse::getPriceStandard,
+                        BookDetailResponse::getPriceSales,
+                        BookDetailResponse::getStatus,
+                        BookDetailResponse::getStockCount,
+                        BookDetailResponse::getIsWrapped,
+                        BookDetailResponse::getChapter,
+                        BookDetailResponse::getDescriptionHtml,
+                        BookDetailResponse::getRating,
+                        BookDetailResponse::getLikeCount,
+                        BookDetailResponse::getLikedByCurrentUser,
+                        BookDetailResponse::getReviewCount
+                )
+                .containsExactly(
+                        1L, "978-1234567890", "Test Book", "Vol.1", publishDate,
+                        10000L, 9000L, BookStatus.ON_SALE, 50, true,
+                        "Index...", "Description...", 4.5, 100L, true, 1L
+                );
 
-        assertThat(response.getContributorName()).contains("Author1");
-        assertThat(response.getContributorName()).contains("Author2");
+        assertThat(response.getContributorName()).contains("Author1", "Author2");
 
-        assertThat(response.getCategories()).hasSize(2);
-        assertThat(response.getCategories().get(0).getName()).isEqualTo("Root");
-        assertThat(response.getCategories().get(1).getName()).isEqualTo("Sub");
+        assertThat(response.getCategories())
+                .extracting(org.nhnacademy.book2onandonbookservice.dto.common.CategoryDto::getName)
+                .containsExactly("Root", "Sub");
 
-        assertThat(response.getTags()).hasSize(1);
-        assertThat(response.getTags().get(0).getName()).isEqualTo("Tag1");
+        assertThat(response.getTags())
+                .extracting(org.nhnacademy.book2onandonbookservice.dto.common.TagDto::getName)
+                .containsExactly("Tag1");
 
-        assertThat(response.getPublishers()).hasSize(1);
-        assertThat(response.getPublishers().get(0).getName()).isEqualTo("Pub1");
+        assertThat(response.getPublishers())
+                .extracting(org.nhnacademy.book2onandonbookservice.dto.common.PublisherDto::getName)
+                .containsExactly("Pub1");
 
-        assertThat(response.getImages()).hasSize(1);
-        assertThat(response.getImages().get(0).getUrl()).isEqualTo("img.jpg");
+        assertThat(response.getImages())
+                .extracting(BookImageDto::getUrl)
+                .containsExactly("img.jpg");
 
-        assertThat(response.getLikeCount()).isEqualTo(100L);
-        assertThat(response.getLikedByCurrentUser()).isTrue();
-        assertThat(response.getReviewCount()).isEqualTo(1L);
         assertThat(response.getReviews()).hasSize(1);
     }
 

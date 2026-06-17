@@ -1,8 +1,10 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
@@ -10,16 +12,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.nhnacademy.book2onandonbookservice.client.BookSearchQueryClient;
 import org.nhnacademy.book2onandonbookservice.client.OllamaApiClient;
 
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
+import org.nhnacademy.book2onandonbookservice.config.RedisKeyConstants;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookListResponse;
 import org.nhnacademy.book2onandonbookservice.dto.book.BookSearchCondition;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchWarmupMessage;
 import org.nhnacademy.book2onandonbookservice.exception.EmbeddingGenerationException;
 import org.nhnacademy.book2onandonbookservice.service.mapper.BookListResponseMapper;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import java.util.*;
@@ -34,15 +38,25 @@ public class BookSearchServiceImpl implements BookSearchService {
     private final BookListResponseMapper bookListResponseMapper;
     private final BookSearchQueryClient bookSearchQueryClient;
     private final RabbitTemplate rabbitTemplate;
-    private final Map<String, List<Float>> embeddingCache = new ConcurrentHashMap<>();
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
-    private static final int MAX_CACHE_SIZE = 1000;
-    private static final int EMBEDDING_TIMEOUT_SECONDS = 2; // 타임아웃 3초
+    @Value("${search.embedding.timeout:2}")
+    private int embeddingTimeoutSeconds = 2;
+
+    @Value("${rabbitmq.exchange.search-warmup}")
+    private String searchWarmupExchange;
+
+    @Value("${rabbitmq.routing.search-warmup}")
+    private String searchWarmupRoutingKey;
 
 
 
     @Override
     public Page<BookListResponse> search(BookSearchCondition condition, Pageable pageable) {
+        if (condition == null) {
+            return Page.empty(pageable);
+        }
         List<Float> vector = generateEmbeddingIfPossible(condition.getKeyword());
         //FastPath 검색 수행 (우선 얘를 먼저 검색결과로 보여줌)
         Page<BookSearchDocument> searchResult = bookSearchQueryClient.search(condition, pageable, vector);
@@ -56,7 +70,7 @@ public class BookSearchServiceImpl implements BookSearchService {
                     .publisherName(condition.getPublisherName())
                     .tagName(condition.getTagName())
                     .build();
-            rabbitTemplate.convertAndSend(RabbitMqConfig.SEARCH_WARMUP_EXCHANGE, RabbitMqConfig.SEARCH_WARMUP_ROUTING_KEY,msg);
+            rabbitTemplate.convertAndSend(searchWarmupExchange, searchWarmupRoutingKey, msg);
         }
 
         return mapToPageResponse(searchResult.getContent(), pageable, searchResult.getTotalElements());
@@ -69,39 +83,55 @@ public class BookSearchServiceImpl implements BookSearchService {
             return Collections.emptyList();
         }
 
-        if (embeddingCache.containsKey(keyword)) {
-            log.debug("캐시에서 임베딩 반환: {}", keyword);
-            return embeddingCache.get(keyword);
+        String cacheKey = RedisKeyConstants.EMBEDDING_CACHE_PREFIX + keyword;
+        String cachedValue = redisTemplate.opsForValue().get(cacheKey);
+
+        if (cachedValue != null) {
+            try {
+                return objectMapper.readValue(cachedValue, new TypeReference<List<Float>>() {});
+            } catch (Exception e) {
+                log.warn("캐시 역직렬화 실패: {}", keyword);
+            }
         }
 
         try {
-            CompletableFuture<List<Float>> future = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return ollamaApiClient.getEmbedding(keyword);
-                } catch (Exception e) {
-                    throw new EmbeddingGenerationException("AI 검색 기능 처리 중 오류가 발생했습니다.");
-                }
-            });
+            List<Float> vector = fetchEmbeddingWithTimeout(keyword);
 
-            List<Float> vector = future.get(EMBEDDING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-            // 3. 캐시 저장
-            if (embeddingCache.size() < MAX_CACHE_SIZE) {
-                embeddingCache.put(keyword, vector);
-            }
+            // 캐시 저장 (TTL 1시간)
+            saveEmbeddingToCache(cacheKey, keyword, vector);
 
             return vector;
 
         } catch (TimeoutException e) {
-            log.warn("임베딩 생성 타임아웃 ({}초): {} - 텍스트 검색만 수행", EMBEDDING_TIMEOUT_SECONDS, keyword);
+            log.warn("임베딩 생성 타임아웃 ({}초): {} - 텍스트 검색만 수행", embeddingTimeoutSeconds, keyword);
             return Collections.emptyList();
-        }catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.error("스레드 인터럽트 발생", e);
             return Collections.emptyList();
         } catch (Exception e) {
             log.warn("임베딩 생성 실패: {} - {}", keyword, e.getMessage());
             return Collections.emptyList();
+        }
+    }
+
+    private List<Float> fetchEmbeddingWithTimeout(String keyword) throws InterruptedException, ExecutionException, TimeoutException {
+        CompletableFuture<List<Float>> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                return ollamaApiClient.getEmbedding(keyword);
+            } catch (Exception e) {
+                throw new EmbeddingGenerationException("AI 검색 기능 처리 중 오류가 발생했습니다.");
+            }
+        });
+
+        return future.get(embeddingTimeoutSeconds, TimeUnit.SECONDS);
+    }
+
+    private void saveEmbeddingToCache(String cacheKey, String keyword, List<Float> vector) {
+        try {
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(vector), 1, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.warn("캐시 직렬화 실패: {}", keyword);
         }
     }
 

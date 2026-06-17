@@ -2,12 +2,12 @@ package org.nhnacademy.book2onandonbookservice.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.nhnacademy.book2onandonbookservice.annotation.AuthCheck;
-import org.nhnacademy.book2onandonbookservice.config.RabbitMqConfig;
 import org.nhnacademy.book2onandonbookservice.domain.Role;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage;
 import org.nhnacademy.book2onandonbookservice.dto.message.SearchSyncMessage.SyncType;
 import org.nhnacademy.book2onandonbookservice.service.search.BookReindexService;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +18,12 @@ public class ReindexController {
 
     private final BookReindexService bookReindexService;
     private final RabbitTemplate rabbitTemplate;
+
+    @Value("${rabbitmq.exchange.search-sync}")
+    private String searchSyncExchange;
+
+    @Value("${rabbitmq.routing.search-sync}")
+    private String searchSyncRoutingKey;
 
     /**
      * 1. 전체 도서 재인덱싱 (비상용/초기화용)
@@ -46,8 +52,8 @@ public class ReindexController {
         SearchSyncMessage message = new SearchSyncMessage(categoryId, SyncType.CATEGORY);
 
         rabbitTemplate.convertAndSend(
-                RabbitMqConfig.SEARCH_SYNC_EXCHANGE,
-                RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY,
+                searchSyncExchange,
+                searchSyncRoutingKey,
                 message
         );
         return ResponseEntity.ok("카테고리(ID:" + categoryId + ") 재인덱싱 요청이 큐에 전송되었습니다.");
@@ -62,8 +68,8 @@ public class ReindexController {
         SearchSyncMessage message = new SearchSyncMessage(tagId, SyncType.TAG);
 
         rabbitTemplate.convertAndSend(
-                RabbitMqConfig.SEARCH_SYNC_EXCHANGE,
-                RabbitMqConfig.SEARCH_SYNC_ROUTING_KEY,
+                searchSyncExchange,
+                searchSyncRoutingKey,
                 message
         );
         return ResponseEntity.ok("태그(ID:" + tagId + ") 재인덱싱 요청이 큐에 전송되었습니다.");

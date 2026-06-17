@@ -27,6 +27,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
                 """)
     Optional<Book> findByIdWithRelations(Long bookId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
     SELECT DISTINCT b FROM Book b
     LEFT JOIN FETCH b.category c

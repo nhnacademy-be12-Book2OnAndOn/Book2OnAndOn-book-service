@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.nhnacademy.book2onandonbookservice.dto.api.BookContentDto;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiRequest;
 import org.nhnacademy.book2onandonbookservice.dto.api.GeminiApiResponse;
 import org.nhnacademy.book2onandonbookservice.exception.GeminiQuotaExceededException;

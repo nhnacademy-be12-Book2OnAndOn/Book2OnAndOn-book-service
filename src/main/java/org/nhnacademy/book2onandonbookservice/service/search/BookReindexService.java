@@ -1,7 +1,6 @@
 package org.nhnacademy.book2onandonbookservice.service.search;
 
 import jakarta.persistence.EntityManager;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -55,9 +54,7 @@ public class BookReindexService {
                     .filter(Objects::nonNull)
                     .toList();
 
-            documentList.parallelStream().forEach(doc -> {
-                bookSearchIndexService.injectEmbedding(doc);
-            });
+            documentList.parallelStream().forEach(bookSearchIndexService::injectEmbedding);
             if (!documentList.isEmpty()) {
                 try {
                     bookSearchRepository.saveAll(documentList);

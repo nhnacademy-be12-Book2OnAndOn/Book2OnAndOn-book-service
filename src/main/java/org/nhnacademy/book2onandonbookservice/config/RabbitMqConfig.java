@@ -11,6 +11,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,49 +19,66 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMqConfig {
 
-    public static final String SEARCH_SYNC_QUEUE = "book2.search.sync.queue.test";
-    public static final String SEARCH_SYNC_EXCHANGE = "book2.search.sync.exchange.test";
-    public static final String SEARCH_SYNC_ROUTING_KEY = "book2.search.sync.test";
-    public static final String SEARCH_SYNC_DLQ_ROUTING_KEY="book2.search.sync.cancel.dlq.test";
-    public static final String SEARCH_WARMUP_QUEUE = "book2.search.warmup.queue";
-    public static final String SEARCH_WARMUP_EXCHANGE = "book2.search.warmup.exchange";
-    public static final String SEARCH_WARMUP_ROUTING_KEY = "book2.search.warmup.key";
+    @Value("${rabbitmq.queue.search-sync}")
+    private String searchSyncQueueName;
+    @Value("${rabbitmq.exchange.search-sync}")
+    private String searchSyncExchangeName;
+    @Value("${rabbitmq.routing.search-sync}")
+    private String searchSyncRoutingKey;
+    @Value("${rabbitmq.routing.search-sync-dlq}")
+    private String searchSyncDlqRoutingKey;
+    @Value("${rabbitmq.queue.search-sync-dlq}")
+    private String searchSyncDlqName;
+    @Value("${rabbitmq.exchange.search-sync-dlx}")
+    private String searchSyncDlxName;
 
-    public static final String SEARCH_SYNC_DLQ = "book2.search.sync.dlq.test";
-    public static final String SEARCH_SYNC_DLX = "book2.search.sync.dlx.test";
+    @Value("${rabbitmq.queue.search-warmup}")
+    private String searchWarmupQueueName;
+    @Value("${rabbitmq.exchange.search-warmup}")
+    private String searchWarmupExchangeName;
+    @Value("${rabbitmq.routing.search-warmup}")
+    private String searchWarmupRoutingKey;
 
-    public static final String ORDER_EXCHANGE = "book2.dev.order-payment.exchange";
-    public static final String ROUTING_KEY_CANCEL = "book.cancel";
-    public static final String ROUTING_KEY_CONFIRM = "book.confirm";
-    public static final String QUEUE_STOCK_CONFIRM = "book2.dev.stock.confirm.queue";
-    public static final String QUEUE_STOCK_CANCEL = "book2.dev.stock.cancel.queue";
-    public static final String STOCK_DLX = "book2.dev.stock.dlx";
-    public static final String QUEUE_STOCK_CONFIRM_DLQ = "book2.dev.stock.confirm.dlq";
-    public static final String QUEUE_STOCK_CANCEL_DLQ = "book2.dev.stock.cancel.dlq";
-    public static final String ROUTING_KEY_CONFIRM_DLQ = "book.confirm.dlq";
-    public static final String ROUTING_KEY_CANCEL_DLQ = "book.cancel.dlq";
-
-
+    @Value("${rabbitmq.exchange.order}")
+    private String orderExchangeName;
+    @Value("${rabbitmq.routing.confirm}")
+    private String confirmRoutingKey;
+    @Value("${rabbitmq.routing.cancel}")
+    private String cancelRoutingKey;
+    @Value("${rabbitmq.queue.confirm}")
+    private String confirmQueueName;
+    @Value("${rabbitmq.queue.cancel}")
+    private String cancelQueueName;
+    @Value("${rabbitmq.exchange.stock-dlx}")
+    private String stockDlxName;
+    @Value("${rabbitmq.queue.confirm-dlq}")
+    private String confirmDlqName;
+    @Value("${rabbitmq.queue.cancel-dlq}")
+    private String cancelDlqName;
+    @Value("${rabbitmq.routing.confirm-dlq}")
+    private String confirmDlqRoutingKey;
+    @Value("${rabbitmq.routing.cancel-dlq}")
+    private String cancelDlqRoutingKey;
 
     /*
     기본 인덱싱 시 큐
      */
     @Bean
     public Queue searchSyncQueue() {
-        return QueueBuilder.durable(SEARCH_SYNC_QUEUE)
-                .deadLetterExchange(SEARCH_SYNC_DLX)
-                .deadLetterRoutingKey(SEARCH_SYNC_DLQ_ROUTING_KEY)
-                .build();// true는 RabbitMQ가 재시작되어도 큐가 살아남게
+        return QueueBuilder.durable(searchSyncQueueName)
+                .deadLetterExchange(searchSyncDlxName)
+                .deadLetterRoutingKey(searchSyncDlqRoutingKey)
+                .build();
     }
 
     @Bean
     public DirectExchange searchSyncExchange() {
-        return new DirectExchange(SEARCH_SYNC_EXCHANGE);
+        return new DirectExchange(searchSyncExchangeName);
     }
 
     @Bean
     public Binding searchSyncBinding(Queue searchSyncQueue, DirectExchange searchSyncExchange) {
-        return BindingBuilder.bind(searchSyncQueue).to(searchSyncExchange).with(SEARCH_SYNC_ROUTING_KEY);
+        return BindingBuilder.bind(searchSyncQueue).to(searchSyncExchange).with(searchSyncRoutingKey);
     }
 
     /*
@@ -68,17 +86,17 @@ public class RabbitMqConfig {
      */
     @Bean
     public Queue searchWarmupQueue(){
-        return QueueBuilder.durable(SEARCH_WARMUP_QUEUE).build();
+        return QueueBuilder.durable(searchWarmupQueueName).build();
     }
 
     @Bean
     public DirectExchange searchWarmupExchange(){
-        return new DirectExchange(SEARCH_WARMUP_EXCHANGE);
+        return new DirectExchange(searchWarmupExchangeName);
     }
 
     @Bean
     public Binding searchWarmupBinding(Queue searchWarmupQueue, DirectExchange searchWarmupExchange){
-        return BindingBuilder.bind(searchWarmupQueue).to(searchWarmupExchange).with(SEARCH_WARMUP_ROUTING_KEY);
+        return BindingBuilder.bind(searchWarmupQueue).to(searchWarmupExchange).with(searchWarmupRoutingKey);
     }
 
     /*
@@ -86,16 +104,16 @@ public class RabbitMqConfig {
      */
     @Bean
     public Queue searchSyncDlq(){
-        return new Queue(SEARCH_SYNC_DLQ, true);
+        return new Queue(searchSyncDlqName, true);
     }
     @Bean
     public DirectExchange searchSyncDlx(){
-        return new DirectExchange(SEARCH_SYNC_DLX);
+        return new DirectExchange(searchSyncDlxName);
     }
 
     @Bean
     public Binding searchSyncDlqBinding(Queue searchSyncDlq, DirectExchange searchSyncDlx){
-        return BindingBuilder.bind(searchSyncDlq).to(searchSyncDlx).with(SEARCH_SYNC_DLQ_ROUTING_KEY);
+        return BindingBuilder.bind(searchSyncDlq).to(searchSyncDlx).with(searchSyncDlqRoutingKey);
     }
     //------------------
 
@@ -105,59 +123,59 @@ public class RabbitMqConfig {
 
     @Bean
     public DirectExchange orderExchange() {
-        return ExchangeBuilder.directExchange(ORDER_EXCHANGE).durable(true).build();
+        return ExchangeBuilder.directExchange(orderExchangeName).durable(true).build();
     }
 
     @Bean
     public Queue stockConfirmQueue() {
-        return QueueBuilder.durable(QUEUE_STOCK_CONFIRM)
-                .deadLetterExchange(STOCK_DLX)
-                .deadLetterRoutingKey(ROUTING_KEY_CONFIRM_DLQ)
+        return QueueBuilder.durable(confirmQueueName)
+                .deadLetterExchange(stockDlxName)
+                .deadLetterRoutingKey(confirmDlqRoutingKey)
                 .build();
     }
 
     @Bean
     public Queue stockCancelQueue() {
-        return QueueBuilder.durable(QUEUE_STOCK_CANCEL)
-                .deadLetterExchange(STOCK_DLX)
-                .deadLetterRoutingKey(ROUTING_KEY_CANCEL_DLQ)
+        return QueueBuilder.durable(cancelQueueName)
+                .deadLetterExchange(stockDlxName)
+                .deadLetterRoutingKey(cancelDlqRoutingKey)
                 .build();
     }
 
     @Bean
     public DirectExchange stockDlx() {
-        return new DirectExchange(STOCK_DLX);
+        return new DirectExchange(stockDlxName);
     }
 
     @Bean
     public Queue stockConfirmDlq() {
-        return QueueBuilder.durable(QUEUE_STOCK_CONFIRM_DLQ).build();
+        return QueueBuilder.durable(confirmDlqName).build();
     }
     @Bean
     public Binding bindingStockConfirmDlq(@Qualifier("stockConfirmDlq") Queue queue,
                                           @Qualifier("stockDlx") DirectExchange exchange) {
-        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_CONFIRM_DLQ);
+        return BindingBuilder.bind(queue).to(exchange).with(confirmDlqRoutingKey);
     }
 
     @Bean
     public Queue stockCancelDlq() {
-        return QueueBuilder.durable(QUEUE_STOCK_CANCEL_DLQ).build();
+        return QueueBuilder.durable(cancelDlqName).build();
     }
     @Bean
     public Binding bindingStockCancelDlq(@Qualifier("stockCancelDlq") Queue queue,
                                          @Qualifier("stockDlx") DirectExchange exchange) {
-        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_CANCEL_DLQ);
+        return BindingBuilder.bind(queue).to(exchange).with(cancelDlqRoutingKey);
     }
 
     @Bean
     public Binding bindingStockConfirm(@Qualifier("orderExchange") DirectExchange exchange,
                                        @Qualifier("stockConfirmQueue") Queue queue) {
-        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_CONFIRM);
+        return BindingBuilder.bind(queue).to(exchange).with(confirmRoutingKey);
     }
     @Bean
     public Binding bindingStockCancel(@Qualifier("orderExchange") DirectExchange exchange,
                                       @Qualifier("stockCancelQueue") Queue queue) {
-        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_CANCEL);
+        return BindingBuilder.bind(queue).to(exchange).with(cancelRoutingKey);
     }
 
     @Bean
